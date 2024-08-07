@@ -8,12 +8,6 @@
 #include "see.h"
 #include "move_ordering.h"
 
-enum Score_type {
-	DRAW_SCORE = 0,
-	MATE_SCORE = 30000,
-	INFINITY = 31000
-};
-
 int const futility_margin[5] = {
 	0, 100, 200, 300, 400
 };
@@ -25,15 +19,6 @@ unsigned const lmp_margins[4] = {
 bool mate(int score)
 {
 	return (abs(score) >= MATE_SCORE - 100);
-}
-
-void Search::reset()
-{
-	statistics = {};
-	heuristics = {};
-	max_depth = 63;
-	max_time = 999999;
-	for (unsigned i = 0; i < tt.entry_count; i++) tt.entries[i] = {};
 }
 
 double Search::time_elapsed()
@@ -99,7 +84,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 // beta is the best score, the opponent can guarantee in the sequence
 int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move)
 {
-	if ((statistics.search_nodes & 1024) == 0 && time_elapsed() >= max_time)
+	if ((statistics.search_nodes & 1024) == 0 && max_time != INFINITY && time_elapsed() >= max_time)
 	{
 		// Time's up!
 		abort_search = true;
@@ -298,7 +283,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 				// We have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-				tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND);
+				tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND, age);
 
 				if (!capture(move)) {
 					// this is a killer move - Store it!
@@ -327,9 +312,18 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 	
 	// Store position in the hash table
-	tt.store(board.zobrist.key, depth, alpha, best_move, flag);
+	tt.store(board.zobrist.key, depth, alpha, best_move, flag, age);
 
 	return alpha;
+}
+
+unsigned Statistics::hash_full(Transposition_table &tt)
+{
+	unsigned hits = 0;
+	for (unsigned index = 0; index < 1000; index++) {
+		if (tt.entries[index].key != 0ULL) hits++;
+	}
+	return hits;
 }
 
 // Searches the sequence of moves according to the computer from the hash table.
@@ -351,7 +345,7 @@ void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
 
 	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed();
 	std::cout << " nodes " << nodes << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
-	std::cout << " branching " << statistics.branching_factor;
+	std::cout << " branching " << statistics.branching_factor << " hashfull " << statistics.hash_full(tt);
 	std::cout << " pv ";
 	extract_pv_line(board);
 	std::cout << "\n";
@@ -369,8 +363,13 @@ void Search::plot_final_info(unsigned total_nodes)
 void Search::start_search(Board &board)
 {
 	abort_search = false;
+	age++;
+	age %= 64; // fits in 6 bits (important for the hash table)
 
 	time_start = std::chrono::high_resolution_clock::now();
+
+	statistics = {};
+	heuristics = {};
 	long nodes_previous_iteration;
 	long total_nodes = 0;
 
@@ -428,29 +427,39 @@ void Search::start_search(Board &board)
 	}
 
 	plot_final_info(total_nodes);
-	reset(); // make sure to clear all search data to avoid them affecting the next search
 }
 
 void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc)
 {
 	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
 
-	unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
+	bool time_management = time_left != INFINITY;
+	bool time_limit      = move_time != INFINITY;
 
-	unsigned move_overhead = 10;
+	if (time_management) {
+		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
 
-	// Assume the game will last another n moves on average. Of course, the game will likely last for more than
-	// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
-	unsigned remaining_moves = 40;
+		unsigned move_overhead = 10;
 
-	// Add the total time for increments and make sure, we have a
-	// safety move overhead buffer, so that we never run out of time.
-	time_left = time_left - move_overhead + increment * remaining_moves;
+		// Assume the game will last another n moves on average. Of course, the game will likely last for more than
+		// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
+		unsigned remaining_moves = 40;
 
-	// The engine will allocate enough time for the remaining moves
-	unsigned time_allocated = std::max(1U, (time_left / remaining_moves));
+		// Add the total time for increments and make sure, we have a
+		// safety move overhead buffer, so that we never run out of time.
+		time_left = time_left - move_overhead + increment * remaining_moves;
+
+		// The engine will allocate enough time for the remaining moves
+		unsigned time_allocated = std::max(1U, (time_left / remaining_moves));
+
+		if (time_limit)
+			max_time = std::min(time_allocated, move_time);
+		else
+			max_time = time_allocated;
+	}
+	else
+		max_time = move_time;
 
 
-	max_time = std::min(time_allocated, move_time);
 	start_search(board);
 }

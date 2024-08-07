@@ -15,6 +15,8 @@ struct Statistics
 	long cutoffs;
 	long cutoffspv;
 	long null_cuts;
+
+	unsigned hash_full(Transposition_table &tt);
 };
 
 struct Search : Noncopyable
@@ -30,6 +32,7 @@ struct Search : Noncopyable
 	Statistics statistics;
 	Heuristics heuristics;
 
+	unsigned age;
 	Transposition_table tt;
 
 	std::chrono::time_point<std::chrono::_V2::system_clock, std::chrono::duration<long int, std::ratio<1, 1000000000>>> time_start;

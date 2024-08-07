@@ -45,9 +45,10 @@ void UCI::fabricate_position(std::istringstream &iss)
 
 void UCI::go_command(std::istringstream &iss)
 {
-	unsigned move_time = 999999;
-	unsigned w_time = 999999;
-	unsigned b_time = 999999;
+	search.max_depth = 63;
+	unsigned move_time = INFINITY;
+	unsigned w_time = INFINITY;
+	unsigned b_time = INFINITY;
 	unsigned w_inc = 0;
 	unsigned b_inc = 0;
 

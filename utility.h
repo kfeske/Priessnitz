@@ -129,6 +129,12 @@ int const piece_value[15] = { 100, 300, 320, 500, 900, 1000, 0, 0,
 int const non_pawn_value[15] = { 0, 300, 320, 500, 900, 0, 0, 0,
 			         0, 300, 320, 500, 900, 0, 0 };
 
+enum Score_type {
+	DRAW_SCORE = 0,
+	MATE_SCORE = 30000,
+	INFINITY = 31000
+};
+
 // directions are relative to whites' point of view
 enum Direction {
 	UP    = -8,

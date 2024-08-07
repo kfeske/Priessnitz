@@ -1,6 +1,6 @@
 #pragma once
 
-unsigned const DEFAULT_TT_SIZE = 256; // MB
+unsigned const DEFAULT_TT_SIZE = 128; // MB
 
 struct TT_entry
 {
@@ -9,6 +9,7 @@ struct TT_entry
 	int16_t evaluation;
 	uint16_t best_move;
 	uint8_t flag;
+	uint8_t age; // Could be combined with flag.
 };
 
 struct Transposition_table
@@ -49,16 +50,20 @@ struct Transposition_table
 		return false;
 	}
 
-	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag)
+	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag, unsigned age)
 	{
 		uint64_t index = key % entry_count;
 		TT_entry &entry = entries[index];
-		if (entry.depth > depth) return; // do not overwrite a more accurate entry
-		entry.key = key;
-		entry.depth = depth;
-		entry.best_move = best_move;
-		entry.flag = flag;
-		entry.evaluation = int16_t(evaluation);
+
+		// Do not overwrite a more accurate entry
+		if (depth >= entry.depth || age != entry.age) {
+			entry.key = key;
+			entry.depth = depth;
+			entry.best_move = best_move;
+			entry.flag = flag;
+			entry.evaluation = int16_t(evaluation);
+			entry.age = age;
+		}
 	}
 
 	void resize(unsigned size)
