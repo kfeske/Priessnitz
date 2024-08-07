@@ -97,12 +97,12 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		return 0;
 	}
 
-	// check for draws by repetition or by 50 Move Rule
+	// Check for draws by repetition, 50 Move Rule or insufficient material
 	if (ply > 0 && board.immediate_draw(ply))
 		return DRAW_SCORE;
 
 	if (depth <= 0)
-		// we reached a leaf node, start the Quiescence Search
+		// We reached a leaf node, start the Quiescence Search
 		return quiescence_search(board, alpha, beta, 0);
 
 	// Mate Distance Pruning
@@ -114,7 +114,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	
 	bool pv_node = beta - alpha != 1;
 
-	// updated in the tt.probe() function
+	// Updated in the tt.probe() function
 	tt.best_move = INVALID_MOVE;
 
 	// Check for any transpositions at higher or equal depths
@@ -130,7 +130,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	int evaluation;
 	bool in_check = board.in_check();
 
-	// if no move exceeds alpha, we do not have an exact evaluation,
+	// If no move exceeds alpha, we do not have an exact evaluation,
 	// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
 	TT_flag flag = UPPERBOUND;
 
@@ -174,7 +174,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
 
 	// Internal Iterative Deepening
-	/*if (pv_node && depth >= 6 && tt.best_move == INVALID_MOVE) {
+	/*if (pv_node && depth > 6 && tt.best_move == INVALID_MOVE) {
 		search(board, depth - 2, ply, alpha, beta, true);
 		tt.probe(board.zobrist.key, depth, alpha, beta);
 		heuristics.hash_move = tt.best_move;
@@ -250,6 +250,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			if (quiet_move && depth > 1 && move_count > 3 && !in_check) {
 				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63, move_count)];
 				if (!pv_node) reduction++;
+				reduction -= heuristics.history[board.board[move_from(move)]][move_to(move)] / 5000;
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
