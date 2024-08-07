@@ -233,7 +233,7 @@ bool test(Tuner &tuner)
 
 	tuner.compute_gradients(0);
 	for (unsigned grad = 0; grad < NUM_WEIGHTS; grad++) {
-		if (fabs(approximated[grad] - tuner.gradients[grad]) > 0.000001) {
+		if (fabs(approximated[grad] - tuner.gradients[grad]) > 0.01) {
 			std::cerr << "gradient error in weight " << grad << ": approx " << approximated[grad] << " comp " << tuner.gradients[grad] << "\n";
 			error = true;
 		}

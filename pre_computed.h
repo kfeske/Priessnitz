@@ -109,7 +109,7 @@ struct Pre_computed
 	uint64_t neighbor_mask[64];
 	uint64_t outpost_mask[2];
 	uint64_t pawn_threat_mask[2][64];
-	uint64_t king_zone[2][64];
+	uint64_t king_ring_mask[64];
 	uint64_t pawn_shield[2][64];
 
 	void cast_magics(Piece_type type);
@@ -163,7 +163,7 @@ static inline uint8_t  prohibiters(unsigned square) { return pre_computed.prohib
 static inline uint64_t ooo_blockers(Color friendly) { return pre_computed.ooo_blockers[friendly]; };
 static inline uint64_t oo_blockers(Color friendly) { return pre_computed.oo_blockers[friendly]; };
 
-static inline uint64_t king_zone(Color friendly, unsigned square) { return pre_computed.king_zone[friendly][square]; };
+static inline uint64_t king_ring_mask(unsigned square) { return pre_computed.king_ring_mask[square]; };
 static inline uint64_t pawn_shield(Color friendly, unsigned square) { return pre_computed.pawn_shield[friendly][square]; };
 static inline uint64_t passed_pawn_mask(Color friendly, unsigned square) { return pre_computed.passed_pawn_mask[friendly][square]; };
 static inline uint64_t neighbor_mask(unsigned square) { return pre_computed.neighbor_mask[square]; };

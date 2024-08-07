@@ -81,11 +81,9 @@ enum Indicies {
 	MG_QUEEN_THREATENED_BY_LESSER = EG_ROOK_THREATENED_BY_LESSER + 1,
 	EG_QUEEN_THREATENED_BY_LESSER = MG_QUEEN_THREATENED_BY_LESSER + 1,
 
-	RING_POTENCY = EG_QUEEN_THREATENED_BY_LESSER + 1,
-	ZONE_POTENCY = RING_POTENCY + 6,
-	RING_PRESSURE = ZONE_POTENCY + 6,
-	ZONE_PRESSURE = RING_PRESSURE + 8,
-	PAWN_SHIELD = ZONE_PRESSURE + 8,
+	KING_RING_POTENCY = EG_QUEEN_THREATENED_BY_LESSER + 1,
+	KING_RING_PRESSURE = KING_RING_POTENCY + 6,
+	PAWN_SHIELD = KING_RING_PRESSURE + 8,
 
 	CENTER_CONTROL = PAWN_SHIELD + 6,
 
@@ -103,7 +101,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 69,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 67,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -162,7 +160,7 @@ struct Tuner
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 					   MG_MINOR_THREATENED_BY_PAWN, EG_MINOR_THREATENED_BY_PAWN, MG_MINOR_THREATENED_BY_MINOR, EG_MINOR_THREATENED_BY_MINOR,
 					   MG_ROOK_THREATENED_BY_LESSER, EG_ROOK_THREATENED_BY_LESSER, MG_QUEEN_THREATENED_BY_LESSER, EG_QUEEN_THREATENED_BY_LESSER,
-			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
+			     	      	   KING_RING_POTENCY, KING_RING_PRESSURE, PAWN_SHIELD,
 					   CENTER_CONTROL,
 					   PAWN_COUNT_SCALE_OFFSET,
 					   PAWN_COUNT_SCALE_WEIGHT,
@@ -254,10 +252,8 @@ struct Tuner
 		case MG_QUEEN_THREATENED_BY_LESSER: return eval.mg_queen_threatened_by_lesser;
 		case EG_QUEEN_THREATENED_BY_LESSER: return eval.eg_queen_threatened_by_lesser;
 
-		case RING_POTENCY:  return eval.ring_attack_potency[pos];
-		case ZONE_POTENCY:  return eval.zone_attack_potency[pos];
-		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
-		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
+		case KING_RING_POTENCY:  return eval.mg_king_ring_attack_potency[pos];
+		case KING_RING_PRESSURE: return eval.mg_king_ring_pressure_weight[pos];
 		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
 
 		case CENTER_CONTROL: return eval.mg_center_control;
@@ -342,20 +338,12 @@ struct Tuner
 		std::cerr << "int eg_king_psqt[64] = {";
 		print_64_field(EG_KING_PSQT);
 
-		std::cerr << "\nint ring_attack_potency[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(RING_POTENCY + i);
+		std::cerr << "\nint mg_king_ring_attack_potency[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(KING_RING_POTENCY + i);
 		std::cerr << "};\n";
-		std::cerr << "int zone_attack_potency[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(ZONE_POTENCY + i);
+		std::cerr << "int mg_king_ring_pressure_weight[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(KING_RING_PRESSURE + i);
 		std::cerr << "};\n";
-
-		std::cerr << "\nint ring_pressure_weight[8] = { ";
-		for (unsigned i = 0; i < 8; i++) print_int_weight(RING_PRESSURE + i);
-		std::cerr << "};\n";
-		std::cerr << "int zone_pressure_weight[8] = { ";
-		for (unsigned i = 0; i < 8; i++) print_int_weight(ZONE_PRESSURE + i);
-		std::cerr << "};\n";
-
 		std::cerr << "int mg_pawn_shield[6] = { ";
 		for (unsigned i = 0; i < 6; i++) print_int_weight(PAWN_SHIELD + i);
 		std::cerr << "};\n";
@@ -474,17 +462,11 @@ struct Tuner
 	{
 		unsigned enemy_king_square = board.square(enemy, KING);
 
-		uint64_t ring = piece_attacks(KING, enemy_king_square, 0ULL);
+		uint64_t ring = king_ring_mask(enemy_king_square);
 		uint64_t ring_attacks = attacks & ring;
 		if (ring_attacks) {
 			sample.ring_attacks[piece] += pop_count(ring_attacks);
 			if (sample.ring_attackers[color_of(piece)] < 7) sample.ring_attackers[color_of(piece)]++;
-		}
-		uint64_t zone = king_zone(enemy, enemy_king_square);
-		uint64_t zone_attacks = attacks & zone;
-		if (zone_attacks) {
-			sample.zone_attacks[piece] += pop_count(zone_attacks);
-			if (sample.zone_attackers[color_of(piece)] < 7) sample.zone_attackers[color_of(piece)]++;
 		}
 	}
 
@@ -750,7 +732,7 @@ struct Tuner
 		// Center control
 		uint64_t white_center_attacks = ~attacked[BLACK] & attacked[WHITE] & CENTER;
 		uint64_t black_center_attacks = ~attacked[WHITE] & attacked[BLACK] & CENTER;
-		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) / 128 * mg_phase;
+		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) * mg_phase / 128;
 
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
@@ -815,8 +797,7 @@ struct Tuner
 
 		double attack_potency[6] = { 0, 10, 30, 30, 80, 0 };
 		for (unsigned i = 0; i < 6; i++) {
-			weights[RING_POTENCY + i] = attack_potency[i];
-			weights[ZONE_POTENCY + i] = attack_potency[i];
+			weights[KING_RING_POTENCY + i] = attack_potency[i];
 		}
 		weights[CENTER_CONTROL] = 300;
 	}
@@ -832,18 +813,7 @@ struct Tuner
 	{
 		double pressure = 0;
 		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-			pressure += weights[RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
-		}
-
-		return pressure / 100;
-	}
-
-	template <Color color>
-	double king_zone_pressure(Sample &sample)
-	{
-		double pressure = 0;
-		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-			pressure += weights[ZONE_POTENCY + type] * sample.zone_attacks[piece_of(color, type)];
+			pressure += weights[KING_RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
 		}
 
 		return pressure / 100;
@@ -868,15 +838,13 @@ struct Tuner
 		for (unsigned i = 0; i < sample.eg_influence.size(); i++)
 			sample.eg_evaluation += sample.eg_influence[i] * weights[sample.eg_influence_index[i]];
 
-		sample.scale = scale_factor(sample, sample.eg_evaluation);
+		sample.scale = scale_factor(sample, sample.eg_evaluation / (1 - sample.phase));
 		double evaluation = mg_evaluation + sample.eg_evaluation * sample.scale / 128;
 
 		// king safety is a bit tricky, because two different weights affect each other
 
-		double white_pressure = king_ring_pressure<WHITE>(sample) * weights[RING_PRESSURE + sample.ring_attackers[WHITE]] * sample.phase;
-		white_pressure += king_zone_pressure<WHITE>(sample) * weights[ZONE_PRESSURE + sample.zone_attackers[WHITE]] * sample.phase;
-		double black_pressure = king_ring_pressure<BLACK>(sample) * weights[RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
-		black_pressure += king_zone_pressure<BLACK>(sample) * weights[ZONE_PRESSURE + sample.zone_attackers[BLACK]] * sample.phase;
+		double white_pressure = king_ring_pressure<WHITE>(sample) * weights[KING_RING_PRESSURE + sample.ring_attackers[WHITE]] * sample.phase;
+		double black_pressure = king_ring_pressure<BLACK>(sample) * weights[KING_RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
 		evaluation += (white_pressure - black_pressure);
 
 		return evaluation;
@@ -967,34 +935,22 @@ struct Tuner
 			for (unsigned i = 0; i < sample.mg_influence.size(); i++)
 				gradients[sample.mg_influence_index[i]] += sample.mg_influence[i] * partial_derivative;
 			for (unsigned i = 0; i < sample.eg_influence.size(); i++)
-				gradients[sample.eg_influence_index[i]] += sample.eg_influence[i] * partial_derivative * sample.scale / 128;
+				gradients[sample.eg_influence_index[i]] += sample.eg_influence[i] * sample.scale / 128 * partial_derivative;
 
 			// King safety always needs extra work, because two parameters affect each other
 
 			// king ring pressure weights
-			unsigned white_ring_index = RING_PRESSURE + sample.ring_attackers[WHITE];
+			unsigned white_ring_index = KING_RING_PRESSURE + sample.ring_attackers[WHITE];
 			gradients[white_ring_index] += king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
-			unsigned black_ring_index = RING_PRESSURE + sample.ring_attackers[BLACK];
+			unsigned black_ring_index = KING_RING_PRESSURE + sample.ring_attackers[BLACK];
 			gradients[black_ring_index] -= king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
 
-			// king zone pressure weights
-			unsigned white_zone_index = ZONE_PRESSURE + sample.zone_attackers[WHITE];
-			gradients[white_zone_index] += king_zone_pressure<WHITE>(sample) * partial_derivative * sample.phase;
-			unsigned black_zone_index = ZONE_PRESSURE + sample.zone_attackers[BLACK];
-			gradients[black_zone_index] -= king_zone_pressure<BLACK>(sample) * partial_derivative * sample.phase;
-			
 			for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 				// Ring attack potency
 				double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
-				gradients[RING_POTENCY + type] += white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;
+				gradients[KING_RING_POTENCY + type] += white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;
 				double black_ring_attacks = sample.ring_attacks[piece_of(BLACK, type)];
-				gradients[RING_POTENCY + type] -= black_ring_attacks * weights[black_ring_index] / 100 * partial_derivative * sample.phase;
-
-				// Zone attack potency
-				double white_zone_attacks = sample.zone_attacks[piece_of(WHITE, type)];
-				gradients[ZONE_POTENCY + type] += white_zone_attacks * weights[white_zone_index] / 100 * partial_derivative * sample.phase;
-				double black_zone_attacks = sample.zone_attacks[piece_of(BLACK, type)];
-				gradients[ZONE_POTENCY + type] -= black_zone_attacks * weights[black_zone_index] / 100 * partial_derivative * sample.phase;
+				gradients[KING_RING_POTENCY + type] -= black_ring_attacks * weights[black_ring_index] / 100 * partial_derivative * sample.phase;
 			}
 			// Endgame scaling
 			gradients[PAWN_COUNT_SCALE_OFFSET] += sample.eg_evaluation / 128 * partial_derivative;

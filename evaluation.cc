@@ -7,13 +7,9 @@
 
 void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
 {
-	if (attacks & info.ring[!friendly]) {
-		info.ring_pressure[!friendly] += ring_attack_potency[type] * pop_count(attacks & info.ring[!friendly]);
-		info.ring_attackers[!friendly]++;
-	}
-	if (attacks & info.zone[!friendly]) {
-		info.zone_pressure[!friendly] += zone_attack_potency[type] * pop_count(attacks & info.zone[!friendly]);
-		info.zone_attackers[!friendly]++;
+	if (attacks & info.king_ring[!friendly]) {
+		info.king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
+		info.king_ring_attackers[!friendly]++;
 	}
 }
 
@@ -278,8 +274,8 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	}
 	
 	// Evaluate king safety based on the number of attacks near the king
-	info.mg_bonus[friendly] -= info.ring_pressure[friendly] * ring_pressure_weight[std::min(info.ring_attackers[friendly], 7)] / 100;
-	info.mg_bonus[friendly] -= info.zone_pressure[friendly] * zone_pressure_weight[std::min(info.zone_attackers[friendly], 7)] / 100;
+	int pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
+	info.mg_bonus[friendly] -= info.king_ring_pressure[friendly] * pressure_weight / 100;
 }
 
 void Evaluation::evaluate_threats(Board &board, Color friendly)
