@@ -47,7 +47,10 @@ enum Indicies {
 	MG_ROOK_HALF_OPEN_FILE = EG_ROOK_OPEN_FILE + 1,
 	EG_ROOK_HALF_OPEN_FILE = MG_ROOK_HALF_OPEN_FILE + 1,
 
-	MG_KNIGHT_OUTPOST 	    = EG_ROOK_HALF_OPEN_FILE + 1,
+	MG_ROOK_ON_SEVENTH = EG_ROOK_HALF_OPEN_FILE + 1,
+	EG_ROOK_ON_SEVENTH = MG_ROOK_ON_SEVENTH + 1,
+
+	MG_KNIGHT_OUTPOST 	    = EG_ROOK_ON_SEVENTH + 1,
 	EG_KNIGHT_OUTPOST 	    = MG_KNIGHT_OUTPOST + 1,
 	MG_KNIGHT_OUTPOST_SUPPORTED = EG_KNIGHT_OUTPOST + 1,
 	EG_KNIGHT_OUTPOST_SUPPORTED = MG_KNIGHT_OUTPOST_SUPPORTED + 1,
@@ -83,7 +86,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 52,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 54,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -134,6 +137,7 @@ struct Tuner
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 					   MG_ROOK_OPEN_FILE, EG_ROOK_OPEN_FILE, MG_ROOK_HALF_OPEN_FILE, EG_ROOK_HALF_OPEN_FILE,
+					   MG_ROOK_ON_SEVENTH, EG_ROOK_ON_SEVENTH,
 					   MG_KNIGHT_OUTPOST, EG_KNIGHT_OUTPOST, MG_KNIGHT_OUTPOST_SUPPORTED, EG_KNIGHT_OUTPOST_SUPPORTED,
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
@@ -193,6 +197,9 @@ struct Tuner
 		case EG_ROOK_OPEN_FILE:      return eval.eg_rook_open_file;
 		case MG_ROOK_HALF_OPEN_FILE: return eval.mg_rook_half_open_file;
 		case EG_ROOK_HALF_OPEN_FILE: return eval.eg_rook_half_open_file;
+
+		case MG_ROOK_ON_SEVENTH: return eval.mg_rook_on_seventh;
+		case EG_ROOK_ON_SEVENTH: return eval.eg_rook_on_seventh;
 
 		case MG_KNIGHT_OUTPOST:	return eval.mg_knight_outpost;
 		case EG_KNIGHT_OUTPOST: return eval.eg_knight_outpost;
@@ -369,6 +376,9 @@ struct Tuner
 		std::cerr <<   "int eg_rook_open_file = "      << int_weight(EG_ROOK_OPEN_FILE) << ";\n";
 		std::cerr << "\nint mg_rook_half_open_file = " << int_weight(MG_ROOK_HALF_OPEN_FILE) << ";\n";
 		std::cerr <<   "int eg_rook_half_open_file = " << int_weight(EG_ROOK_HALF_OPEN_FILE) << ";\n";
+		
+		std::cerr << "\nint mg_rook_on_seventh = " << int_weight(MG_ROOK_ON_SEVENTH) << ";\n";
+		std::cerr <<   "int eg_rook_on_seventh = " << int_weight(EG_ROOK_ON_SEVENTH) << ";\n";
 
 		std::cerr << "\nint mg_knight_outpost = "           << int_weight(MG_KNIGHT_OUTPOST) << ";\n";
 		std::cerr <<   "int eg_knight_outpost = "	    << int_weight(EG_KNIGHT_OUTPOST) << ";\n";
@@ -432,6 +442,7 @@ struct Tuner
 			Piece_type type = type_of(piece);
 			Color friendly = color_of(piece);
 			Color enemy = swap(friendly);
+			unsigned relative_square = normalize_square[friendly][square];
 			int side = (friendly == WHITE) ? 1 : -1;
 
 			// material
@@ -439,8 +450,8 @@ struct Tuner
 			eg_influences[EG_VALUES + type] += side * eg_phase;
 
 			// PSQT
-			unsigned mg_index = MG_PAWN_PSQT + type * 64 + normalize[friendly][square];
-			unsigned eg_index = EG_PAWN_PSQT + type * 64 + normalize[friendly][square];
+			unsigned mg_index = MG_PAWN_PSQT + type * 64 + relative_square;
+			unsigned eg_index = EG_PAWN_PSQT + type * 64 + relative_square;
 			mg_influences[mg_index] += side * mg_phase;
 			eg_influences[eg_index] += side * eg_phase;
 
@@ -484,8 +495,8 @@ struct Tuner
 
 				// passed pawns
 				if (passed && !doubled) {
-					unsigned mg_index = MG_PASSED_PAWN + normalize[friendly][square];
-					unsigned eg_index = EG_PASSED_PAWN + normalize[friendly][square];
+					unsigned mg_index = MG_PASSED_PAWN + relative_square;
+					unsigned eg_index = EG_PASSED_PAWN + relative_square;
 					mg_influences[mg_index] += side * mg_phase;
 					eg_influences[eg_index] += side * eg_phase;
 				}
@@ -547,6 +558,10 @@ struct Tuner
 						mg_influences[MG_ROOK_HALF_OPEN_FILE] += side * mg_phase;
 						eg_influences[EG_ROOK_HALF_OPEN_FILE] += side * eg_phase;
 					}
+				}
+				if (rank_num(relative_square) == 1 && rank_num(normalize_square[friendly][board.square(enemy, KING)]) <= 1) {
+					mg_influences[MG_ROOK_ON_SEVENTH] += side * mg_phase;
+					eg_influences[EG_ROOK_ON_SEVENTH] += side * eg_phase;
 				}
 				continue;
 				}

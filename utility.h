@@ -40,7 +40,7 @@ enum File : uint64_t {
 };
 
 // mirror a square, useful for applying the evaluation tables for both white and black
-uint8_t const normalize[2][64] =
+uint8_t const normalize_square[2][64] =
 {
 	{
 		A8, B8, C8, D8, E8, F8, G8, H8,

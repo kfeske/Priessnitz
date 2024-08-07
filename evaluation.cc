@@ -29,7 +29,7 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 	uint64_t temp = friendly_pawns;
 	while (temp) {
 		unsigned square = pop_lsb(temp);
-		unsigned relative_square = normalize[friendly][square];
+		unsigned relative_square = normalize_square[friendly][square];
 
 		info.mg_bonus[friendly] += mg_pawn_psqt[relative_square] + mg_piece_value[PAWN];
 		info.eg_bonus[friendly] += eg_pawn_psqt[relative_square] + eg_piece_value[PAWN];
@@ -79,7 +79,7 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 	uint64_t temp = board.pieces(friendly, KNIGHT);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
-		unsigned relative_square = normalize[friendly][square];
+		unsigned relative_square = normalize_square[friendly][square];
 		info.mg_bonus[friendly] += mg_knight_psqt[relative_square] + mg_piece_value[KNIGHT];
 		info.eg_bonus[friendly] += eg_knight_psqt[relative_square] + eg_piece_value[KNIGHT];
 
@@ -114,7 +114,7 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 	uint64_t temp = board.pieces(friendly, BISHOP);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
-		unsigned relative_square = normalize[friendly][square];
+		unsigned relative_square = normalize_square[friendly][square];
 
 		info.mg_bonus[friendly] += mg_bishop_psqt[relative_square] + mg_piece_value[BISHOP];
 		info.eg_bonus[friendly] += eg_bishop_psqt[relative_square] + eg_piece_value[BISHOP];
@@ -143,7 +143,7 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 	uint64_t temp = board.pieces(friendly, ROOK);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
-		unsigned relative_square = normalize[friendly][square];
+		unsigned relative_square = normalize_square[friendly][square];
 
 		info.mg_bonus[friendly] += mg_rook_psqt[relative_square] + mg_piece_value[ROOK];
 		info.eg_bonus[friendly] += eg_rook_psqt[relative_square] + eg_piece_value[ROOK];
@@ -171,6 +171,11 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 				info.eg_bonus[friendly] += eg_rook_half_open_file;
 			}
 		}
+
+		if (rank_num(relative_square) == 1 && rank_num(normalize_square[friendly][board.square(enemy, KING)]) <= 1) {
+			info.mg_bonus[friendly] += mg_rook_on_seventh;
+			info.eg_bonus[friendly] += eg_rook_on_seventh;
+		}
 	}
 }
 
@@ -180,7 +185,7 @@ void Evaluation::evaluate_queens(Board &board, Color friendly)
 	uint64_t temp = board.pieces(friendly, QUEEN);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
-		unsigned relative_square = normalize[friendly][square];
+		unsigned relative_square = normalize_square[friendly][square];
 
 		info.mg_bonus[friendly] += mg_queen_psqt[relative_square] + mg_piece_value[QUEEN];
 		info.eg_bonus[friendly] += eg_queen_psqt[relative_square] + eg_piece_value[QUEEN];
@@ -200,7 +205,7 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
 	unsigned square = board.square(friendly, KING);
-	unsigned relative_square = normalize[friendly][square];
+	unsigned relative_square = normalize_square[friendly][square];
 
 	info.mg_bonus[friendly] += mg_king_psqt[relative_square];
 	info.eg_bonus[friendly] += eg_king_psqt[relative_square];

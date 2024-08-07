@@ -60,7 +60,7 @@ void mirror_test(Board &board, Search &search)
 	while (occupied) {
 		unsigned square = pop_lsb(occupied);
 		Piece piece = board.board[square];
-		mirrored_board.add_piece(normalize[BLACK][square], piece_of(swap(color_of(piece)), type_of(piece)));
+		mirrored_board.add_piece(normalize_square[BLACK][square], piece_of(swap(color_of(piece)), type_of(piece)));
 	}
 	print_board(mirrored_board);
 	std::cerr << "other side " << search.eval.evaluate(mirrored_board) << "\n";
