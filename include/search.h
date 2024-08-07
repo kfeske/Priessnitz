@@ -7,11 +7,8 @@ struct Heuristics// : Noncopyable
 {
 	PSQT psqt;
 	Move killer_move[2][64];
-	int history_move[16][64];
-	//Move pv_table[64][64];
-	//unsigned pv_lenght[64];
-	//Move previous_pv_line[64];
 	Move hash_move = INVALID_MOVE;
+	int32_t history[16][64];
 };
 
 #include <move_ordering.h>
@@ -236,6 +233,8 @@ struct Search
 					// this is a killer move - Store it!
 					heuristics.killer_move[1][ply_from_root] = heuristics.killer_move[0][ply_from_root];
 					heuristics.killer_move[0][ply_from_root] = move;
+
+					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
 				}
 				// *snip*
 				if (n == 0) cutoffspv++;

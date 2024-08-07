@@ -28,7 +28,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 		else if (flags == CAPTURE)
 			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
 
-		if (!quiescence) {
+		else if (!quiescence) {
 
 			// primary killer move (non capture move that caused a beta cutoff)
 			if (m.move == heuristics.killer_move[0][ply_from_root]) m.score += 80;
@@ -37,7 +37,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 			else if (m.move == heuristics.killer_move[1][ply_from_root]) m.score += 75;
 
 			// if everything else fails, score history moves
-			//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
+			else m.score += 75 - (30000 - heuristics.history[board.board[move_from(m.move)]][move_to(m.move)]);
 		}
 	}
 }
@@ -45,7 +45,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 Move next_move(MoveGenerator &move_generator, unsigned index)
 {
 	unsigned best_index = index;
-	uint16_t best_score = move_generator.move_list[index].score;
+	int16_t best_score = move_generator.move_list[index].score;
 	for (unsigned n = index + 1; n < move_generator.size; n++) {
 		Scored_move &m = move_generator.move_list[n];
 		if (m.score > best_score) {
