@@ -1,11 +1,11 @@
 
 struct TTEntry
 {
-	Uint64 key;
-	Uint8 depth;
+	uint64_t key;
+	uint8_t depth;
 	int16_t evaluation;
-	Uint16 best_move;
-	Uint8 flag;
+	uint16_t best_move;
+	uint8_t flag;
 };
 
 template <unsigned int size>
@@ -15,10 +15,10 @@ struct TranspositionTable
 	int current_evaluation;
 	Move pv_move;
 
-	bool probe(Uint64 key, unsigned depth, int alpha, int beta)
+	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
 	{
 		pv_move = INVALID_MOVE;
-		Uint64 index = key % size;
+		uint64_t index = key % size;
 		TTEntry &entry = entries[index];
 		if (entry.key == key) {
 			pv_move = Move(entry.best_move);
@@ -48,9 +48,9 @@ struct TranspositionTable
 		return false;
 	}
 
-	void store(Uint64 key, unsigned depth, int evaluation, Move best_move, TTEntryFlag flag)
+	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TTEntryFlag flag)
 	{
-		Uint64 index = key % size;
+		uint64_t index = key % size;
 		TTEntry &entry = entries[index];
 		if (entry.depth > depth) return;
 		entry.key = key;

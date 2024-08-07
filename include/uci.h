@@ -1,0 +1,100 @@
+#include <string>
+#include <sstream>
+
+#include <utility.h>
+#include <board.h>
+#include <move_generator.h>
+#include <perft.h>
+#include <search.h>
+
+
+// the Universal Chess Interface (UCI) allows communication between the Graphical User Interface (GUI) and the engine
+// this is useful since it allows different chess engines to play against each other
+// Note: only the most important commands are included
+
+
+struct UCI
+{
+	Board board;
+	Search search;
+	bool quit = false;
+
+	Move create_move(std::string move)
+	{
+		MoveGenerator move_generator {};
+		move_generator.generate_all_moves(board, false);
+		for (Move m : move_generator.movelist) {
+			unsigned from_square = move_from(m);
+			unsigned to_square = move_to(m);
+			std::string string_move = square_string[from_square] + square_string[to_square];
+			if (string_move == move)
+				return m;
+		}
+		return INVALID_MOVE;
+	}
+
+	void fabricate_position(std::istringstream &iss)
+	{
+		board.reset(); // reset board to avoid overwrites
+
+		std::string parsed {};
+		iss >> parsed;
+
+		if (parsed == "startpos") {
+			board.set_startpos();
+			iss >> parsed; // eats the useless "moves" string
+		}
+
+		else if (parsed == "fen") {
+			std::string fen_string {};
+			while (iss >> parsed && parsed != "moves") // filter out fen string
+				fen_string += parsed + " ";
+			board.set_fenpos(fen_string);
+		}
+		else return;
+
+		std::string movelist {};
+		while (iss >> parsed)
+			board.make_move(create_move(parsed));
+	}
+
+	void go_command(std::istringstream &iss)
+	{
+		search.max_depth = 9999;
+		search.max_time = 99999;
+		std::string parsed {};
+		while(iss >> parsed) {
+
+			if (parsed == "depth")
+				iss >> search.max_depth;
+			else if (parsed == "movetime")
+				iss >> search.max_time;
+			else if (parsed == "perft") {
+				unsigned depth;
+				iss >> depth;
+				run_perft(board, depth);
+				return;
+			}
+		}
+		search.start_search(board);
+		std::cerr << "bestmove " << move_string(Move(search.best_move)) << "\n";
+	}
+
+	void await_input()
+	{
+		std::string line {};
+		std::string parsed {};
+
+		std::getline(std::cin, line);
+		std::istringstream iss { line };
+
+		while(iss >> parsed) {
+			if (parsed == "uci") std::cerr << "uciok\n";
+			if (parsed == "isready") std::cerr << "readyok\n";
+			if (parsed == "position") fabricate_position(iss);
+			if (parsed == "d") print_board(board);
+			if (parsed == "go") go_command(iss);
+			if (parsed == "quit") quit = true;
+		}
+	}
+};

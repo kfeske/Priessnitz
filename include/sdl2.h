@@ -1,7 +1,10 @@
+#pragma once
+
 #include <iostream>
 #include <string>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
 struct Noncopyable
 {
@@ -123,16 +126,18 @@ struct Texture : Noncopyable
 	{
 		int w, h;
 		SDL_QueryTexture(&texture, NULL, NULL, &w, &h);
-		SDL_Rect rect;
-		rect.x = x;
-		rect.y = y;
-		rect.w = w;
-		rect.h = h;
+		SDL_Rect rect { x, y, w, h };
+		SDL_RenderCopy(&renderer.renderer, &texture, NULL, &rect);
+	}
+
+	void render(Renderer &renderer, int const x, int const y, int const w, int const h)
+	{
+		SDL_Rect rect { x, y, w, h };
 		SDL_RenderCopy(&renderer.renderer, &texture, NULL, &rect);
 	}
 };
 
-struct EmptyTexture: Noncopyable
+struct EmptyTexture : Noncopyable
 {
 	SDL_Texture& _init_texture(Renderer &renderer, int const w, int const h)
 	{
@@ -144,6 +149,20 @@ struct EmptyTexture: Noncopyable
 
 	SDL_Texture& texture;
 
+	void render(Renderer &renderer, int const x, int const y)
+	{
+		int w, h;
+		SDL_QueryTexture(&texture, NULL, NULL, &w, &h);
+		SDL_Rect rect { x, y, w, h };
+		SDL_RenderCopy(&renderer.renderer, &texture, NULL, &rect);
+	}
+
+	void render(Renderer &renderer, int const x, int const y, int const w, int const h)
+	{
+		SDL_Rect rect { x, y, w, h };
+		SDL_RenderCopy(&renderer.renderer, &texture, NULL, &rect);
+	}
+
 	EmptyTexture(Renderer &renderer, int const w, int const h)
 	:
 		texture(_init_texture(renderer, w, h))
@@ -153,16 +172,50 @@ struct EmptyTexture: Noncopyable
 	{
 		SDL_DestroyTexture(&texture);
 	}
-	
-	void render(Renderer &renderer, int const x, int const y)
+};
+struct Font : Noncopyable
+{
+	TTF_Font& _init_font(std::string font, int const size)
 	{
-		int w, h;
-		SDL_QueryTexture(&texture, NULL, NULL, &w, &h);
+	        char const *pfont = font.c_str();
+	        TTF_Font* ptr = TTF_OpenFont(pfont, size);
+	        if (ptr == NULL)
+	                std::cerr << "Unable to create Font! SDL Error: \n" << SDL_GetError();
+	        return *ptr;
+	}
+	
+	TTF_Font& font;
+	
+	Font(std::string font, int const size)
+	:
+	        font(_init_font(font, size))
+	{}
+	
+	void render(Renderer &renderer, std::string text, int x, int y, uint8_t r, uint8_t g, uint8_t b)
+	{
+	        char const *ptext = text.c_str();
+		SDL_Surface* surf_message = TTF_RenderText_Blended(&font, ptext, SDL_Color { r, g, b, 255 });
+		SDL_Texture* message = SDL_CreateTextureFromSurface(&renderer.renderer, surf_message);
 		SDL_Rect rect;
 		rect.x = x;
 		rect.y = y;
-		rect.w = w;
-		rect.h = h;
-		SDL_RenderCopy(&renderer.renderer, &texture, NULL, &rect);
+		TTF_SizeText(&font, ptext, &rect.w, &rect.h);
+
+		SDL_RenderCopy(&renderer.renderer, message, NULL, &rect);
+		SDL_FreeSurface(surf_message);
+		SDL_DestroyTexture(message);
+	}
+
+	void render(Renderer &renderer, std::string text, int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b)
+	{
+	        char const *ptext = text.c_str();
+		SDL_Surface* surf_message = TTF_RenderText_Blended(&font, ptext, SDL_Color { r, g, b, 255 });
+		SDL_Texture* message = SDL_CreateTextureFromSurface(&renderer.renderer, surf_message);
+		SDL_Rect rect { x, y, w, h };
+
+		SDL_RenderCopy(&renderer.renderer, message, NULL, &rect);
+		SDL_FreeSurface(surf_message);
+		SDL_DestroyTexture(message);
 	}
 };
+	

@@ -11,13 +11,13 @@
 
 struct Zobrist
 {
-	Uint64 piece_side_key; // here, we keep track of the piece positions and side to move
-	Uint64 key; // final zobrist key  (we add the castling rights and en passant file, only if needed)
+	uint64_t piece_side_key; // here, we keep track of the piece positions and side to move
+	uint64_t key; // final zobrist key  (we add the castling rights and en passant file, only if needed)
 
-	Uint64 piece_rand[16][64];
-	Uint64 ep_rand[8];
-	Uint64 castling_rand[16];
-	Uint64 side_rand;
+	uint64_t piece_rand[16][64];
+	uint64_t ep_rand[8];
+	uint64_t castling_rand[16];
+	uint64_t side_rand;
 
 	void populate()
 	{
@@ -50,8 +50,8 @@ struct Zobrist
 
 struct UndoInfo {
 	Piece captured = NO_PIECE;
-	Uint8 ep_sq = SQ_NONE; // save en passant square in case the last move was a double pawn push
-	Uint8 castling_rights;
+	uint8_t ep_sq = SQ_NONE; // save en passant square in case the last move was a double pawn push
+	uint8_t castling_rights;
 	unsigned rule_50;
 
 	UndoInfo()
@@ -60,31 +60,39 @@ struct UndoInfo {
 	{}
 };
 
-struct Board
+struct Board_state
 {
-	PreComputed precomputed {};
 
 	Piece board[64];
-	Uint64 pieces[15];
+	uint64_t pieces[15];
 
-	Uint64 color[2];
-	Uint64 occ;
+	uint64_t color[2];
+	uint64_t occ;
 
 	Color side_to_move = WHITE;
 
 	unsigned game_ply;
 
 	UndoInfo history[256];
-	Uint64 position_history[256];
+	uint64_t position_history[256];
 	bool repetition;
 
 	int non_pawn_material[2];
+};
 
-	Zobrist zobrist {};
+struct Board : Board_state
+{
+	PreComputed precomputed;
+	Zobrist zobrist;
 
+	uint64_t enemy(Color col) { return color[!col]; }
+	uint64_t enemy_or_empty(Color col) { return ~color[col]; }
 
-	Uint64 enemy(Color col) { return color[!col]; }
-	Uint64 enemy_or_empty(Color col) { return ~color[col]; }
+	// resets information neccessary to start a new game
+	void reset()
+	{
+		static_cast<Board_state&>(*this) = {};
+	}
 
 	void add_piece(unsigned square, Piece p)
 	{
@@ -116,7 +124,7 @@ struct Board
 		Piece p = board[from];
 		Color c = color_of(p);
 
-		Uint64 mask = 1ULL << from | 1ULL << to;
+		uint64_t mask = 1ULL << from | 1ULL << to;
 		pieces[p] ^= mask;
 		color[c] ^= mask;
 		occ = color[WHITE] | color[BLACK];
@@ -129,6 +137,7 @@ struct Board
 
 	void make_move(Move move)
 	{
+		if (move == INVALID_MOVE) std::cerr << "attempted to play invalid move\n";
 		game_ply++;
 		history[game_ply] = UndoInfo();
 		unsigned from = move_from(move);
@@ -339,10 +348,10 @@ struct Board
 	bool in_check()
 	{
 		unsigned ksq = lsb(pieces[piece_of(side_to_move, KING)]);
-		Uint64 enemy_diag_sliders = pieces[piece_of(!side_to_move, BISHOP)] | pieces[piece_of(!side_to_move, QUEEN)];
-		Uint64 enemy_orth_sliders = pieces[piece_of(!side_to_move, ROOK  )] | pieces[piece_of(!side_to_move, QUEEN)];
+		uint64_t enemy_diag_sliders = pieces[piece_of(!side_to_move, BISHOP)] | pieces[piece_of(!side_to_move, QUEEN)];
+		uint64_t enemy_orth_sliders = pieces[piece_of(!side_to_move, ROOK  )] | pieces[piece_of(!side_to_move, QUEEN)];
 
-		Uint64 checkers = 0ULL;
+		uint64_t checkers = 0ULL;
 		checkers |= precomputed.pawn_attacks[side_to_move][ksq] & pieces[piece_of(!side_to_move, PAWN)];
 		checkers |= precomputed.attacks_bb<KNIGHT>(ksq, 0ULL) & pieces[piece_of(!side_to_move, KNIGHT)];
 		checkers |= precomputed.attacks_bb<BISHOP>(ksq, occ) & enemy_diag_sliders;
@@ -351,16 +360,17 @@ struct Board
 		return (checkers != 0);
 	}
 
-	static Board create(std::string fen)
+	void set_fenpos(std::string fen)
 	{
-		Board board {};
-		board.history[0] = UndoInfo();
+		reset();
+		history[0] = UndoInfo();
 		
 		bool rights = false;
 		unsigned square = 0;
-		for (unsigned i = 0; i < fen.size(); i++) {
-			auto character = fen.at(i);
-			Uint64 square_bb = 1ULL << square;
+		uint64_t square_bb = 0ULL;
+
+		for (char &character : fen) {
+			if (square <= 63) square_bb = 1ULL << square;
 
 			if (character == ' ')
 				rights = true;
@@ -370,19 +380,19 @@ struct Board
 				// position of pieces
 				if (character == '/') continue;
 
-				else if (character == 'P') board.pieces[W_PAWN]   |= square_bb;
-				else if (character == 'N') board.pieces[W_KNIGHT] |= square_bb;
-				else if (character == 'B') board.pieces[W_BISHOP] |= square_bb;
-				else if (character == 'R') board.pieces[W_ROOK]   |= square_bb;
-				else if (character == 'Q') board.pieces[W_QUEEN]  |= square_bb;
-				else if (character == 'K') board.pieces[W_KING]   |= square_bb;
+				else if (character == 'P') pieces[W_PAWN]   |= square_bb;
+				else if (character == 'N') pieces[W_KNIGHT] |= square_bb;
+				else if (character == 'B') pieces[W_BISHOP] |= square_bb;
+				else if (character == 'R') pieces[W_ROOK]   |= square_bb;
+				else if (character == 'Q') pieces[W_QUEEN]  |= square_bb;
+				else if (character == 'K') pieces[W_KING]   |= square_bb;
 
-				else if (character == 'p') board.pieces[B_PAWN]   |= square_bb;
-				else if (character == 'n') board.pieces[B_KNIGHT] |= square_bb;
-				else if (character == 'b') board.pieces[B_BISHOP] |= square_bb;
-				else if (character == 'r') board.pieces[B_ROOK]   |= square_bb;
-				else if (character == 'q') board.pieces[B_QUEEN]  |= square_bb;
-				else if (character == 'k') board.pieces[B_KING]   |= square_bb;
+				else if (character == 'p') pieces[B_PAWN]   |= square_bb;
+				else if (character == 'n') pieces[B_KNIGHT] |= square_bb;
+				else if (character == 'b') pieces[B_BISHOP] |= square_bb;
+				else if (character == 'r') pieces[B_ROOK]   |= square_bb;
+				else if (character == 'q') pieces[B_QUEEN]  |= square_bb;
+				else if (character == 'k') pieces[B_KING]   |= square_bb;
 
 				else {
 					square += std::atoi(&character);
@@ -393,41 +403,79 @@ struct Board
 			else {
 
 				// side to move
-				if      (character == 'w') board.side_to_move = WHITE;
-				else if (character == 'b') board.side_to_move = BLACK;
+				if      (character == 'w') side_to_move = WHITE;
+				else if (character == 'b') side_to_move = BLACK;
 
 				// castling rights
-				else if (character == 'K') board.history[0].castling_rights |= WHITE_OO;
-				else if (character == 'Q') board.history[0].castling_rights |= WHITE_OOO;
-				else if (character == 'k') board.history[0].castling_rights |= BLACK_OO;
-				else if (character == 'q') board.history[0].castling_rights |= BLACK_OOO;
+				else if (character == 'K') history[0].castling_rights |= WHITE_OO;
+				else if (character == 'Q') history[0].castling_rights |= WHITE_OOO;
+				else if (character == 'k') history[0].castling_rights |= BLACK_OO;
+				else if (character == 'q') history[0].castling_rights |= BLACK_OOO;
 			}
 		}
 
-		board.color[WHITE] = board.pieces[W_PAWN] | board.pieces[W_KNIGHT] | board.pieces[W_BISHOP] |
-				     board.pieces[W_ROOK] | board.pieces[W_QUEEN]  | board.pieces[W_KING];
-		board.color[BLACK] = board.pieces[B_PAWN] | board.pieces[B_KNIGHT] | board.pieces[B_BISHOP] |
-				     board.pieces[B_ROOK] | board.pieces[B_QUEEN]  | board.pieces[B_KING];
-		board.occ = board.color[WHITE] | board.color[BLACK];
+		color[WHITE] = pieces[W_PAWN] | pieces[W_KNIGHT] | pieces[W_BISHOP] |
+				     pieces[W_ROOK] | pieces[W_QUEEN]  | pieces[W_KING];
+		color[BLACK] = pieces[B_PAWN] | pieces[B_KNIGHT] | pieces[B_BISHOP] |
+				     pieces[B_ROOK] | pieces[B_QUEEN]  | pieces[B_KING];
+		occ = color[WHITE] | color[BLACK];
 
-		board.zobrist.populate();
+		zobrist.populate();
 
 		// array
 
 		for (unsigned square = 0; square < 64; square++)
-			board.board[square] = NO_PIECE;
+			board[square] = NO_PIECE;
 
 		for (unsigned p = W_PAWN; p <= B_KING; p++) {
-			Uint64 bb = board.pieces[p];
+			uint64_t bb = pieces[p];
 			while (bb) {
 				Piece pc = Piece(p);
 				unsigned square = pop_lsb(bb);
-				board.board[square] = pc;
-				board.non_pawn_material[color_of(pc)] += non_pawn_value(pc);
-				board.zobrist.piece_side_key ^= board.zobrist.piece_rand[pc][square];
+				board[square] = pc;
+				non_pawn_material[color_of(pc)] += non_pawn_value(pc);
+				zobrist.piece_side_key ^= zobrist.piece_rand[pc][square];
 			}
 		}
+	}
 
-		return board;
+	void set_startpos()
+	{
+		set_fenpos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	}
 };
+
+std::string name_of_square(Board &board, unsigned square)
+{
+	uint64_t square_bb = 1ULL << square;
+	if (board.pieces[W_PAWN]   & square_bb) return "P";
+	if (board.pieces[B_PAWN]   & square_bb) return "p";
+	if (board.pieces[W_KNIGHT] & square_bb) return "N";
+	if (board.pieces[B_KNIGHT] & square_bb) return "n";
+	if (board.pieces[W_BISHOP] & square_bb) return "B";
+	if (board.pieces[B_BISHOP] & square_bb) return "b";
+	if (board.pieces[W_ROOK]   & square_bb) return "R";
+	if (board.pieces[B_ROOK]   & square_bb) return "r";
+	if (board.pieces[W_QUEEN]  & square_bb) return "Q";
+	if (board.pieces[B_QUEEN]  & square_bb) return "q";
+	if (board.pieces[W_KING]   & square_bb) return "K";
+	if (board.pieces[B_KING]   & square_bb) return "k";
+	return " ";
+}
+
+void print_board(Board &board)
+{
+	std::string str = "    +---+---+---+---+---+---+---+---+\n";
+
+	for (unsigned rank = 0; rank < 8; rank++) { 
+		str += "  " + std::to_string(8 - rank) + " ";
+		for (unsigned file = 0; file < 8; file++) {
+			unsigned square = rank * 8 + file;
+			str += "| " + name_of_square(board, square) + " ";
+
+		}
+		str += "|\n    +---+---+---+---+---+---+---+---+\n";
+	}
+	str += "      A   B   C   D   E   F   G   H\n\n";
+	std::cerr << str;
+}

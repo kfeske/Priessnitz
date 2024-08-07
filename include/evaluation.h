@@ -10,7 +10,7 @@ struct Evaluation
 		phase = Phase(((material - 3915) * 128) / (15258 - 3915)); // 0(Endgame) - 128(Midgame) linear interpolation
 	
 		for (Piece p : { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN }) {
-			Uint64 pieces = board.pieces[p];
+			uint64_t pieces = board.pieces[p];
 			while (pieces) {
 				//unsigned square = pop_lsb(pieces);
 				pop_lsb(pieces);

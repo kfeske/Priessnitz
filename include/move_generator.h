@@ -2,7 +2,7 @@
 #include <vector>
 
 template <MoveFlags mf>
-void append_to_movelist(std::vector<Move> &movelist, unsigned from, Uint64 attacks)
+void append_to_movelist(std::vector<Move> &movelist, unsigned from, uint64_t attacks)
 {
 	while(attacks) movelist.emplace_back(create_move(from, pop_lsb(attacks), mf));
 }
@@ -11,20 +11,20 @@ struct MoveGenerator : Noncopyable
 {
 	std::vector<Move> movelist = {};
 
-	void generate_pawn_moves(Board &board, Color col, Uint64 targets, Uint64 quiets, Uint64 pinned, unsigned ksq, Uint64 sliders)
+	void generate_pawn_moves(Board &board, Color col, uint64_t targets, uint64_t quiets, uint64_t pinned, unsigned ksq, uint64_t sliders)
 	{
 		Direction up = (col == WHITE) ? NORTH : SOUTH;
 		Direction up_right = (col == WHITE) ? NORTH_EAST : SOUTH_EAST;
 		Direction up_left  = (col == WHITE) ? NORTH_WEST : SOUTH_WEST;
-		Uint64 double_push_rank = (col == WHITE) ? board.precomputed.rank_6 : board.precomputed.rank_3;
+		uint64_t double_push_rank = (col == WHITE) ? board.precomputed.rank_6 : board.precomputed.rank_3;
 
 		// pawns on the board (unpinned and pinned)
-		Uint64 pawns = board.pieces[piece_of(col, PAWN)] & ~pinned;
+		uint64_t pawns = board.pieces[piece_of(col, PAWN)] & ~pinned;
 		pawns &= (col == WHITE) ? ~board.precomputed.rank_2 : ~board.precomputed.rank_7;
-		Uint64 pinned_pawns = board.pieces[piece_of(col, PAWN)] & pinned;
+		uint64_t pinned_pawns = board.pieces[piece_of(col, PAWN)] & pinned;
 
-		Uint64 single_pushes = shift(pawns, up) & ~board.occ;
-		Uint64 double_pushes = shift(single_pushes & double_push_rank, up) & quiets;
+		uint64_t single_pushes = shift(pawns, up) & ~board.occ;
+		uint64_t double_pushes = shift(single_pushes & double_push_rank, up) & quiets;
 		single_pushes &= quiets;
 
 		while (single_pushes) {
@@ -36,8 +36,8 @@ struct MoveGenerator : Noncopyable
 			movelist.emplace_back(create_move(square - up - up, square, DOUBLE_PUSH));
 		}
 
-		Uint64 right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
-		Uint64 left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
+		uint64_t right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
+		uint64_t left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
 
 		while (right_attacks) {
 			unsigned square = pop_lsb(right_attacks);
@@ -54,7 +54,7 @@ struct MoveGenerator : Noncopyable
 
 			// non pinned en passants
 
-			Uint64 ep_candidates = pawns & board.precomputed.pawn_attacks[!col][ep_square];
+			uint64_t ep_candidates = pawns & board.precomputed.pawn_attacks[!col][ep_square];
 			while (ep_candidates) {
 				unsigned attacker_square = pop_lsb(ep_candidates);
 
@@ -121,12 +121,12 @@ struct MoveGenerator : Noncopyable
 
 		// for each pinned pawn
 
-		Uint64 candidates = pinned_pawns;
+		uint64_t candidates = pinned_pawns;
 
 		while (candidates) {
 			unsigned square = pop_lsb(candidates);
 			unsigned promotion_rank = (col == WHITE) ? 1: 6;
-			Uint64 attacks = board.precomputed.pawn_attacks[col][square] & targets & board.precomputed.line_bb[ksq][square];
+			uint64_t attacks = board.precomputed.pawn_attacks[col][square] & targets & board.precomputed.line_bb[ksq][square];
 
 			// pinned promotion
 			if (rank(square) == promotion_rank) {
@@ -138,8 +138,8 @@ struct MoveGenerator : Noncopyable
 			else {
 				append_to_movelist<CAPTURE>(movelist, square, attacks);
 
-				Uint64 single_push = shift(1ULL << square, up) & ~board.occ & board.precomputed.line_bb[ksq][square];
-				Uint64 double_push = shift(single_push & double_push_rank, up) & quiets & board.precomputed.line_bb[ksq][square];
+				uint64_t single_push = shift(1ULL << square, up) & ~board.occ & board.precomputed.line_bb[ksq][square];
+				uint64_t double_push = shift(single_push & double_push_rank, up) & quiets & board.precomputed.line_bb[ksq][square];
 				single_push &= quiets;
 
 				append_to_movelist<QUIET>(movelist, square, single_push);
@@ -151,10 +151,10 @@ struct MoveGenerator : Noncopyable
 
 
 	template <PieceType p>
-	void generate_moves(Board &board, Color col, Uint64 targets, Uint64 quiets, Uint64 pinned, unsigned ksq)
+	void generate_moves(Board &board, Color col, uint64_t targets, uint64_t quiets, uint64_t pinned, unsigned ksq)
 	{
-		Uint64 pieces = board.pieces[piece_of(col, p)];
-		Uint64 attacks;
+		uint64_t pieces = board.pieces[piece_of(col, p)];
+		uint64_t attacks;
 
 		while(pieces) {
 			unsigned from = pop_lsb(pieces);
@@ -182,43 +182,43 @@ struct MoveGenerator : Noncopyable
 		Color friendly = Color(board.side_to_move);
 		
 		Color enemy = Color(!friendly);
-		Uint64 us_bb = board.color[friendly];
-		Uint64 them_bb = board.color[enemy];
+		uint64_t us_bb = board.color[friendly];
+		uint64_t them_bb = board.color[enemy];
 
 		// king cannot move to danger squares
 
 		unsigned ksq = lsb(board.pieces[piece_of(friendly, KING)]);
-		Uint64 pawns = board.pieces[piece_of(enemy, PAWN)];
-		Uint64 enemy_diag_sliders = board.pieces[piece_of(enemy, BISHOP)] | board.pieces[piece_of(enemy, QUEEN)];
-		Uint64 enemy_orth_sliders = board.pieces[piece_of(enemy, ROOK)]   | board.pieces[piece_of(enemy, QUEEN)];
+		uint64_t pawns = board.pieces[piece_of(enemy, PAWN)];
+		uint64_t enemy_diag_sliders = board.pieces[piece_of(enemy, BISHOP)] | board.pieces[piece_of(enemy, QUEEN)];
+		uint64_t enemy_orth_sliders = board.pieces[piece_of(enemy, ROOK)]   | board.pieces[piece_of(enemy, QUEEN)];
 		Direction up_right = (enemy == WHITE) ? NORTH_EAST : SOUTH_EAST;
 		Direction up_left  = (enemy == WHITE) ? NORTH_WEST : SOUTH_WEST;
 
-		Uint64 danger = 0ULL;
+		uint64_t danger = 0ULL;
 
 		danger |= shift(pawns & ~board.precomputed.file_H, up_right);
 		danger |= shift(pawns & ~board.precomputed.file_A, up_left );
 
 		danger |= board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(enemy, KING)]), 0ULL);
 
-		Uint64 knights = board.pieces[piece_of(enemy, KNIGHT)];
+		uint64_t knights = board.pieces[piece_of(enemy, KNIGHT)];
 		while(knights) danger |= board.precomputed.attacks_bb<KNIGHT>(pop_lsb(knights), 0ULL);
 
-		Uint64 bishops_queens = enemy_diag_sliders;
+		uint64_t bishops_queens = enemy_diag_sliders;
 		while(bishops_queens) danger |= board.precomputed.attacks_bb<BISHOP>(pop_lsb(bishops_queens), board.occ & ~(1ULL << ksq));
 
-		Uint64 rook_queens = enemy_orth_sliders;
+		uint64_t rook_queens = enemy_orth_sliders;
 		while(rook_queens) danger |= board.precomputed.attacks_bb<ROOK>(pop_lsb(rook_queens), board.occ & ~(1ULL << ksq));
 
 
-		Uint64 attacks = board.precomputed.attacks_bb<KING>(ksq, 0ULL) & ~(us_bb | danger);
+		uint64_t attacks = board.precomputed.attacks_bb<KING>(ksq, 0ULL) & ~(us_bb | danger);
 		if ((quiescence && danger & (1ULL << ksq)) || !quiescence)
 			append_to_movelist<QUIET>(movelist, ksq, attacks & ~them_bb);
 		append_to_movelist<CAPTURE>(movelist, ksq, attacks & them_bb);
 
 		// leaper (knight, pawn) pieces, delivering check can be captured
 
-		Uint64 checkers = 0ULL;
+		uint64_t checkers = 0ULL;
 
 		checkers |= board.precomputed.pawn_attacks[friendly][ksq] & board.pieces[piece_of(enemy, PAWN)];
 		checkers |= board.precomputed.attacks_bb<KNIGHT>(ksq, 0ULL) & board.pieces[piece_of(enemy, KNIGHT)];
@@ -226,14 +226,14 @@ struct MoveGenerator : Noncopyable
 		// sliding pieces, delivering check can either be captured or blocked
 		// or pin your pieces >:(
 
-		Uint64 sliders = (board.precomputed.attacks_bb<BISHOP>(ksq, them_bb) & enemy_diag_sliders) |
+		uint64_t sliders = (board.precomputed.attacks_bb<BISHOP>(ksq, them_bb) & enemy_diag_sliders) |
 				 (board.precomputed.attacks_bb<ROOK  >(ksq, them_bb) & enemy_orth_sliders);
 
-		Uint64 pinned = 0ULL;
+		uint64_t pinned = 0ULL;
 
 		while (sliders) {
 			unsigned square = pop_lsb(sliders);
-			Uint64 pin_ray = board.precomputed.between_bb[ksq][square] & us_bb;
+			uint64_t pin_ray = board.precomputed.between_bb[ksq][square] & us_bb;
 
 			// no pieces block the ray - check detected
 			if (pin_ray == 0) checkers |= 1ULL << square;
@@ -242,8 +242,8 @@ struct MoveGenerator : Noncopyable
 			else if ((pin_ray & (pin_ray - 1)) == 0) pinned |= pin_ray;
 		}
 
-		Uint64 targets = 0ULL;
-		Uint64 quiets = 0ULL;
+		uint64_t targets = 0ULL;
+		uint64_t quiets = 0ULL;
 
 		switch(pop_count(checkers)) {
 		case 2: return;

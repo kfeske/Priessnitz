@@ -28,7 +28,6 @@ enum Color {
 	WHITE, BLACK
 };
 
-
 enum State {
 	ONGOING, W_CHECKMATE, B_CHECKMATE, STALEMATE, MOVE_50, REPETITION
 };
@@ -115,7 +114,7 @@ enum Direction {
 	SOUTH_WEST = SOUTH + WEST
 };
 
-Uint64 shift(Uint64 b, Direction d)
+uint64_t shift(uint64_t b, Direction d)
 {
 	switch(d) {
 	case NORTH: return b >> 8;
@@ -215,44 +214,44 @@ enum TTEntryFlag {
 	EXACT
 };
 
-Uint64 random_64()
+uint64_t random_64()
 {
-	Uint64 ran = rand();
+	uint64_t ran = rand();
 	return ran << 32 | rand();
 }
 
 struct Magic
 {
-	Uint64 magic;
+	uint64_t magic;
 	unsigned shift;
 };
 
 // bit stuff
 
-bool get_bit(Uint64 b, unsigned square)
+bool get_bit(uint64_t b, unsigned square)
 {
 	return (b & (1ULL << square));
 }
 
-void set_bit(Uint64 &b, unsigned square)
+void set_bit(uint64_t &b, unsigned square)
 {
 	b |= (1ULL << square);
 }
 
-void pop_bit(Uint64 &b, unsigned square)
+void pop_bit(uint64_t &b, unsigned square)
 {
 	b &= ~(1ULL << square);
 }
 
-unsigned pop_count(Uint64 b) {
+unsigned pop_count(uint64_t b) {
 	return __builtin_popcountll(b);
 }
 
-unsigned lsb(Uint64 b) {
+unsigned lsb(uint64_t b) {
 	return __builtin_ctzll(b);
 }
 
-unsigned pop_lsb(Uint64 &b) {
+unsigned pop_lsb(uint64_t &b) {
 	unsigned square = lsb(b);
 	pop_bit(b, square);
 	return square;
@@ -260,7 +259,7 @@ unsigned pop_lsb(Uint64 &b) {
 
 // print
 
-void print_bitboard(Uint64 b)
+void print_bitboard(uint64_t b)
 {
 	std::string str = "    +---+---+---+---+---+---+---+---+\n";
 
@@ -277,9 +276,25 @@ void print_bitboard(Uint64 b)
 	std::cerr << str;
 }
 
-void print_move(Move &move)
+std::string flag_string(MoveFlags flag)
+{
+	switch(flag) {
+	case PR_KNIGHT: case PC_KNIGHT: return "n";
+	case PR_BISHOP: case PC_BISHOP: return "b";
+	case PR_ROOK: case PC_ROOK: return "r";
+	case PR_QUEEN: case PC_QUEEN: return "q";
+	default: return "";
+	}
+}
+
+std::string move_string(Move move)
 {
 	unsigned from = move_from(move);
 	unsigned to   = move_to(move);
-	std::cerr << square_string[from] << square_string[to] << " ";
+	return square_string[from] + square_string[to] + flag_string(flags_of(move));
+}
+
+void print_move(Move move)
+{
+	std::cerr << move_string(move);
 }
