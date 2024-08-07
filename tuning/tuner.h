@@ -47,7 +47,9 @@ enum Indicies {
 	EG_DOUBLED = MG_DOUBLED + 1,
 	MG_BACKWARD = EG_DOUBLED + 1,
 	EG_BACKWARD = MG_BACKWARD + 1,
-	MG_CHAINED = EG_BACKWARD  + 1,
+	MG_BACKWARD_HALF_OPEN = EG_BACKWARD + 1,
+	EG_BACKWARD_HALF_OPEN = MG_BACKWARD_HALF_OPEN + 1,
+	MG_CHAINED = EG_BACKWARD_HALF_OPEN  + 1,
 	EG_CHAINED = MG_CHAINED + 8,
 
 	MG_DOUBLE_BISHOP = EG_CHAINED + 8,
@@ -121,7 +123,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 84,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 86,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 7153653	          // how much the training set is split for computational efficiency
 };
@@ -174,7 +176,7 @@ struct Tuner
 					   MG_PASSED_SAFE_ADVANCE, EG_PASSED_SAFE_ADVANCE, MG_PASSED_SAFE_PATH, EG_PASSED_SAFE_PATH,
 					   MG_PASSED_FRIENDLY_DISTANCE, EG_PASSED_FRIENDLY_DISTANCE, MG_PASSED_ENEMY_DISTANCE, EG_PASSED_ENEMY_DISTANCE,
 					   MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
-					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
+					   MG_BACKWARD, EG_BACKWARD, MG_BACKWARD_HALF_OPEN, EG_BACKWARD_HALF_OPEN, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 					   MG_ROOK_OPEN_FILE, EG_ROOK_OPEN_FILE, MG_ROOK_HALF_OPEN_FILE, EG_ROOK_HALF_OPEN_FILE,
 					   MG_ROOK_ON_SEVENTH, EG_ROOK_ON_SEVENTH,
@@ -238,14 +240,16 @@ struct Tuner
 		case EG_PASSED_FRIENDLY_DISTANCE: return eval.eg_passed_friendly_distance[pos];
 		case MG_PASSED_ENEMY_DISTANCE: return eval.mg_passed_enemy_distance[pos];
 		case EG_PASSED_ENEMY_DISTANCE: return eval.eg_passed_enemy_distance[pos];
-		case MG_ISOLATED:    return eval.mg_isolated_penalty;
-		case EG_ISOLATED:    return eval.eg_isolated_penalty;
-		case MG_DOUBLED:     return eval.mg_doubled_penalty;
-		case EG_DOUBLED:     return eval.eg_doubled_penalty;
-		case MG_BACKWARD:    return eval.mg_backward_penalty;
-		case EG_BACKWARD:    return eval.eg_backward_penalty;
-		case MG_CHAINED:     return eval.mg_chained_bonus[pos];
-		case EG_CHAINED:     return eval.eg_chained_bonus[pos];
+		case MG_ISOLATED:    return eval.mg_isolated_pawn;
+		case EG_ISOLATED:    return eval.eg_isolated_pawn;
+		case MG_DOUBLED:     return eval.mg_doubled_pawn;
+		case EG_DOUBLED:     return eval.eg_doubled_pawn;
+		case MG_BACKWARD:    return eval.mg_backward_pawn;
+		case EG_BACKWARD:    return eval.eg_backward_pawn;
+		case MG_BACKWARD_HALF_OPEN:    return eval.mg_backward_pawn_half_open;
+		case EG_BACKWARD_HALF_OPEN:    return eval.eg_backward_pawn_half_open;
+		case MG_CHAINED:     return eval.mg_chained_pawn[pos];
+		case EG_CHAINED:     return eval.eg_chained_pawn[pos];
 
 		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
 		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
@@ -514,19 +518,22 @@ struct Tuner
 		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_PASSED_ENEMY_DISTANCE + i);
 		std::cerr << "};\n";
 
-		std::cerr << "\nint mg_isolated_penalty = " << int_weight(MG_ISOLATED) << ";\n";
-		std::cerr <<   "int eg_isolated_penalty = " << int_weight(EG_ISOLATED) << ";\n";
+		std::cerr << "\nint mg_isolated_pawn = " << int_weight(MG_ISOLATED) << ";\n";
+		std::cerr <<   "int eg_isolated_pawn = " << int_weight(EG_ISOLATED) << ";\n";
 
-		std::cerr << "\nint mg_doubled_penalty = " << int_weight(MG_DOUBLED) << ";\n";
-		std::cerr <<   "int eg_doubled_penalty = " << int_weight(EG_DOUBLED) << ";\n";
+		std::cerr << "\nint mg_doubled_pawn = " << int_weight(MG_DOUBLED) << ";\n";
+		std::cerr <<   "int eg_doubled_pawn = " << int_weight(EG_DOUBLED) << ";\n";
 
-		std::cerr << "\nint mg_backward_penalty = " << int_weight(MG_BACKWARD) << ";\n";
-		std::cerr <<   "int eg_backward_penalty = " << int_weight(EG_BACKWARD) << ";\n";
+		std::cerr << "\nint mg_backward_pawn = " << int_weight(MG_BACKWARD) << ";\n";
+		std::cerr <<   "int eg_backward_pawn = " << int_weight(EG_BACKWARD) << ";\n";
 
-		std::cerr << "\nint mg_chained_bonus[8] = { ";
+		std::cerr <<   "int mg_backward_pawn_half_open = " << int_weight(MG_BACKWARD_HALF_OPEN) << ";\n";
+		std::cerr <<   "int eg_backward_pawn_half_open = " << int_weight(EG_BACKWARD_HALF_OPEN) << ";\n";
+
+		std::cerr << "\nint mg_chained_pawn[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_CHAINED + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_chained_bonus[8] = { ";
+		std::cerr << "int eg_chained_pawn[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_CHAINED + i);
 		std::cerr << "};\n";
 
@@ -652,8 +659,14 @@ struct Tuner
 
 				// backward pawns
 				if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
-					mg_influences[MG_BACKWARD] += side * mg_phase;
-					eg_influences[EG_BACKWARD] += side * eg_phase;
+					if (file(square) & enemy_pawns) {
+						mg_influences[MG_BACKWARD] += side * mg_phase;
+						eg_influences[EG_BACKWARD] += side * eg_phase;
+					}
+					else {
+						mg_influences[MG_BACKWARD_HALF_OPEN] += side * mg_phase;
+						eg_influences[EG_BACKWARD_HALF_OPEN] += side * eg_phase;
+					}
 				}
 
 				// reward chained pawns

@@ -40,26 +40,32 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 
 		// Isolated pawns
 		if (!(adjacent_files & friendly_pawns)) {
-			info.mg_bonus[friendly] += mg_isolated_penalty;
-			info.eg_bonus[friendly] += eg_isolated_penalty;
+			info.mg_bonus[friendly] += mg_isolated_pawn;
+			info.eg_bonus[friendly] += eg_isolated_pawn;
 		}
 
 		// Doubled pawns
 		if (doubled) {
-			info.mg_bonus[friendly] += mg_doubled_penalty;
-			info.eg_bonus[friendly] += eg_doubled_penalty;
+			info.mg_bonus[friendly] += mg_doubled_pawn;
+			info.eg_bonus[friendly] += eg_doubled_pawn;
 		}
 
 		// Backward pawns
 		if (!(potential_support || phalanx) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
-			info.mg_bonus[friendly] += mg_backward_penalty;
-			info.eg_bonus[friendly] += eg_backward_penalty;
+			if (file(square) & enemy_pawns) {
+				info.mg_bonus[friendly] += mg_backward_pawn;
+				info.eg_bonus[friendly] += eg_backward_pawn;
+			}
+			else {
+				info.mg_bonus[friendly] += mg_backward_pawn_half_open;
+				info.eg_bonus[friendly] += eg_backward_pawn_half_open;
+			}
 		}
 
 		// Pawn chain
 		else if (supported || phalanx) {
-			info.mg_bonus[friendly] += mg_chained_bonus[relative_rank];
-			info.eg_bonus[friendly] += eg_chained_bonus[relative_rank];
+			info.mg_bonus[friendly] += mg_chained_pawn[relative_rank];
+			info.eg_bonus[friendly] += eg_chained_pawn[relative_rank];
 		}
 
 		// Passed pawns
