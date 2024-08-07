@@ -24,18 +24,22 @@ enum INDICES {
 	EG_PASSED_PAWN = MG_PASSED_PAWN + 64,
 	MG_ISOLATED = EG_PASSED_PAWN + 64,
 	EG_ISOLATED = MG_ISOLATED + 1,
-	AVERAGE_MOBILITY = EG_ISOLATED + 1,
-	MG_MOBILITY = AVERAGE_MOBILITY + 6,
-	EG_MOBILITY = MG_MOBILITY + 6,
-	ATTACK_POTENCY = EG_MOBILITY + 6,
+	//AVERAGE_MOBILITY = EG_ISOLATED + 1,
+	//MG_MOBILITY = AVERAGE_MOBILITY + 6,
+	//EG_MOBILITY = MG_MOBILITY + 6,
+	ATTACK_POTENCY = EG_ISOLATED + 1,
 	KING_DANGER = ATTACK_POTENCY + 6,
-	END_INDEX = KING_DANGER + 8
+	MG_VALUES = KING_DANGER + 8,
+	EG_VALUES = MG_VALUES + 6,
+	TAPER_START = EG_VALUES + 6,
+	TAPER_END = TAPER_START + 1,
+	END_INDEX = TAPER_END + 1
 };
 
 enum TUNING_PARAMETER {
 	NUM_TRAINING_POSITIONS = 700000, // number of training positions
 	NUM_TEST_POSITIONS = 25000,      // number of test positions
-	NUM_TABLES = 21,		 // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 22,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -61,8 +65,10 @@ struct Tuner
 	INDICES table[NUM_TABLES + 1] = { MG_PAWN_PSQT, MG_KNIGHT_PSQT, MG_BISHOP_PSQT, MG_ROOK_PSQT, MG_QUEEN_PSQT, MG_KING_PSQT,
 	       				  EG_PAWN_PSQT, EG_KNIGHT_PSQT, EG_BISHOP_PSQT, EG_ROOK_PSQT, EG_QUEEN_PSQT, EG_KING_PSQT,
 			     	      	  MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED,
-			     	      	  AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
+			     	      	  //AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
 			     	      	  ATTACK_POTENCY, KING_DANGER,
+					  MG_VALUES, EG_VALUES,
+					  TAPER_START, TAPER_END,
 			     	      	  END_INDEX };
 
 	double const K = 1.5; // scaling constant for our evaluation function
@@ -96,11 +102,15 @@ struct Tuner
 		case EG_PASSED_PAWN: return eval.eg_passed_bonus[pos];
 		case MG_ISOLATED: return eval.mg_isolated_penalty;
 		case EG_ISOLATED: return eval.eg_isolated_penalty;
-		case AVERAGE_MOBILITY: return eval.average_mobility[pos];
-		case MG_MOBILITY: return eval.mg_mobility_weight[pos];
-		case EG_MOBILITY: return eval.eg_mobility_weight[pos];
+		//case AVERAGE_MOBILITY: return eval.average_mobility[pos];
+		//case MG_MOBILITY: return eval.mg_mobility_weight[pos];
+		//case EG_MOBILITY: return eval.eg_mobility_weight[pos];
 		case ATTACK_POTENCY: return eval.attack_potency[pos];
 		case KING_DANGER: return eval.king_danger_weight[pos];
+		case MG_VALUES: return eval.mg_piece_value[pos];
+		case EG_VALUES: return eval.eg_piece_value[pos];
+		case TAPER_START: return eval.taper_start;
+		case TAPER_END: return eval.taper_end;
 		default: return eval.eg_passed_bonus[pos];
 		}
 	}
@@ -142,11 +152,15 @@ struct Tuner
 		case EG_PASSED_PAWN: std::cerr << "\neg passed pawn\n"; break;
 		case MG_ISOLATED: std::cerr << "\nmg isolated pawn\n"; break;
 		case EG_ISOLATED: std::cerr << "\neg isolated pawn\n"; break;
-		case AVERAGE_MOBILITY: std::cerr << "\naverage mobility\n"; break;
-		case MG_MOBILITY: std::cerr << "\nmg mobility\n"; break;
-		case EG_MOBILITY: std::cerr << "\neg mobility\n"; break;
+		//case AVERAGE_MOBILITY: std::cerr << "\naverage mobility\n"; break;
+		//case MG_MOBILITY: std::cerr << "\nmg mobility\n"; break;
+		//case EG_MOBILITY: std::cerr << "\neg mobility\n"; break;
 		case ATTACK_POTENCY: std::cerr << "\nattack potency\n"; break;
 		case KING_DANGER: std::cerr << "\nking danger\n"; break;
+		case MG_VALUES: std::cerr << "\nmg values\n"; break;
+		case EG_VALUES: std::cerr << "\neg values\n"; break;
+		case TAPER_START: std::cerr << "\ntaper start\n"; break;
+		case TAPER_END: std::cerr << "\ntaper end\n"; break;
 		default: return;
 		}
 	}
@@ -206,7 +220,7 @@ struct Tuner
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
 			double &weight = load_weight(i);
 			//weight = random_double(0, 100);
-			if (table_of(i) != ATTACK_POTENCY) weight = 0;
+			if (table_of(i) != ATTACK_POTENCY && table_of(i) != TAPER_START && table_of(i) != TAPER_END) weight = 0;
 		}
 	}
 
@@ -252,8 +266,6 @@ struct Tuner
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
 			double &weight = load_weight(i);
 			// increase or decrease weight by one, based on how good it fared in the training set
-			//if (gradients[i] > 0) weight--; // Note: actual gradient is (gradients[i] / BATCH_SIZE)
-			//else if (gradients[i] < 0) weight++;
 			weight -= gradients[i] * LEARN_RATE;
 		}
 	}

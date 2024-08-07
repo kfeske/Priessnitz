@@ -140,10 +140,7 @@ struct PSQT : Noncopyable
 		for (Piece pc : { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING }) {
 			for (unsigned square = 0; square < 64; square++) {
 				midgame[pc][square] = bonus[MIDGAME][type_of(pc)][square];
-				midgame[pc + 8][mirrored(square)] = -midgame[pc][square];
-
 				endgame[pc][square] = bonus[ENDGAME][type_of(pc)][square];
-				endgame[pc + 8][mirrored(square)] = -endgame[pc][square];
 			}
 		}
 	}
@@ -162,6 +159,9 @@ struct Evaluation : Noncopyable
 	uint64_t king_zone[2];
 	double king_danger[2];
 	int king_attackers[2];
+
+	double mg_piece_value[6] = { 82, 337, 365, 477, 1025, 0 };
+	double eg_piece_value[6] = { 94, 281, 297, 512, 936, 0 };
 
 	double attack_potency[6] = { 0, 20, 38, 28, 73, 0 };
 	double king_danger_weight[8] = { 0, 13, 58, 93, 126, 59, 0, 0 };
@@ -198,6 +198,9 @@ struct Evaluation : Noncopyable
 	7, 15, -1, 2, 21, 9, 20, 18, 
 	0, 0, 0, 0, 0, 0, 0, 0, 
 	};
+
+	double taper_start = 6192;
+	double taper_end = 518;
 
 	// pawn structure evaluation
 	void evaluate_pawn(Board &board, unsigned square, Color color)
@@ -308,25 +311,20 @@ struct Evaluation : Noncopyable
 		king_zone[BLACK] = board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(BLACK, KING)]), 0ULL);
 
 		int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
-		material = std::max(int(MIN_MATERIAL), std::min(material, int(MAX_MATERIAL))); // endgame and midgame limit clamp
-		double phase = ((material - MIN_MATERIAL) * 256) / (MAX_MATERIAL - MIN_MATERIAL); // 0(Endgame) - 256(Midgame) linear interpolation
+		material = std::max(int(taper_end), std::min(material, int(taper_start))); // endgame and midgame limit clamp
+		double phase = ((material - taper_end) * 256) / (taper_start - taper_end); // 0(Endgame) - 256(Midgame) linear interpolation
 
 		uint64_t pieces = board.occ;
 
 		while (pieces) {
 			unsigned square = pop_lsb(pieces);
 			Piece p = board.board[square];
+			Color color = color_of(p);
+			PieceType type = type_of(p);
 
 			// material and positional evaluation via Piece Square Tables
-			if (color_of(p) == WHITE) {
-				mg_value += psqt.midgame[p][square] + piece_value(p, MIDGAME);
-				eg_value += psqt.endgame[p][square] + piece_value(p, ENDGAME);
-			}
-			else
-			{
-				mg_value += -psqt.midgame[p - 8][mirrored(square)] + piece_value(p, MIDGAME);
-				eg_value += -psqt.endgame[p - 8][mirrored(square)] + piece_value(p, ENDGAME);
-			}
+			mg_bonus[color] += psqt.midgame[type][normalize[color][square]] + mg_piece_value[type];
+			eg_bonus[color] += psqt.endgame[type][normalize[color][square]] + eg_piece_value[type];
 
 			evaluate_piece(board, p, square);
 		}

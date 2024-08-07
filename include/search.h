@@ -1,8 +1,8 @@
 #include <time.h>
 #include <evaluation.h>
 #include <transposition_table.h>
-#include <move_ordering.h>
 #include <see.h>
+#include <move_ordering.h>
 
 struct Search : Noncopyable
 {
@@ -197,7 +197,10 @@ struct Search : Noncopyable
 				continue;
 			}
 
-			//if (board.in_check() && see(board, move) >= 0) depth++;
+			// search extensions make the program spend more time in important positions
+			unsigned extension = 0;
+
+			if (board.in_check() && see(board, move) >= 0) extension = 1;
 
 			// Principle Variation Search
 
@@ -214,12 +217,10 @@ struct Search : Noncopyable
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
 			}*/
 
-			//evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-
 			if (n == 0) {
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
-				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
+				evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, true);
 			}
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
@@ -232,15 +233,15 @@ struct Search : Noncopyable
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
 				}
 
-				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha, true);
+				evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, true);
 
 				if (reduction && evaluation > alpha)
 					// if the reduced search does not fail low, it needs a re-search to the full depth
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
+					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, true);
 
 				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
+					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, true);
 			}
 
 			board.unmake_move(move);
