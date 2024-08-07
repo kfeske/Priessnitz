@@ -59,18 +59,15 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
+	Move best_move = INVALID_MOVE;
+	TT_flag flag = UPPERBOUND;
+
 	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
 	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
 
 	Move move;
 	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
-
-		// Delta Pruning
-		// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
-		//int gain = abs(piece_value[board.board[move_to(move)]]);
-		//if (static_evaluation + gain + 100 <= alpha && !in_check && !promotion(move))
-		//	continue;
 
 		// Prune moves that lose material. In this case, another quiet move is probably better.
 		if (see(board, move) < 0) continue;
@@ -83,12 +80,22 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 
 		board.unmake_move(move);
 
-		if (evaluation >= beta)
-			return beta;
 
-		if (evaluation > alpha)
+		if (evaluation > alpha) {
 			alpha = evaluation;
+			best_move = move;
+
+			if (evaluation >= beta) {
+				tt.store(board.zobrist.key, 0, beta, best_move, static_evaluation, LOWERBOUND, age);
+				return beta;
+			}
+
+			flag = EXACT;
+		}
 	}
+
+	tt.store(board.zobrist.key, 0, alpha, best_move, static_evaluation, flag, age);
+
 	return alpha;
 }
 
