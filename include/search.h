@@ -133,6 +133,7 @@ struct Search : Noncopyable
 		Move best_move = INVALID_MOVE;
 		int evaluation;
 		bool in_check = board.in_check();
+		bool pv_node = beta - alpha != 1;
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
 		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
@@ -143,13 +144,12 @@ struct Search : Noncopyable
 
 		// check for any transpositions at higher or equal depths
 		bool usable = tt.probe(board.zobrist.key, depth, alpha, beta);
-		if (usable && ply > 0)
+		if (usable && !pv_node)
 			return tt.current_evaluation;
 
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
 		heuristics.hash_move = tt.pv_move;
 
-		bool pv_node = beta - alpha != 1;
 
 		// static evaluation of the position
 		int static_eval = eval.evaluate(board);
@@ -251,8 +251,9 @@ struct Search : Noncopyable
 				// Late Move Reduction
 				// Assuming our move ordering is doing a good job, only the first
 				// moves are actually good and should thus be searched to full depth.
+
 				unsigned reduction = 0;
-				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE) {
+				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE && !promotion(move) && !board.passed_push(move)) {
 					reduction = 1;
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
 				}

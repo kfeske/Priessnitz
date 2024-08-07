@@ -320,6 +320,7 @@ struct Board : Board_state
 		side_to_move = Color(!side_to_move);
 	}
 	
+	// useful for Null Move Pruning
 	unsigned make_null_move()
 	{
 		side_to_move = Color(!side_to_move);
@@ -348,6 +349,7 @@ struct Board : Board_state
 		}
 	}
 
+	// is the side to move in check?
 	bool in_check()
 	{
 		if (pieces[piece_of(side_to_move, KING)] == 0ULL) std::cerr << "no king\n";
@@ -364,6 +366,7 @@ struct Board : Board_state
 		return (checkers != 0);
 	}
 
+	// used in the SEE function
 	uint64_t pawn_attacks(Color friendly)
 	{
 		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
@@ -372,6 +375,16 @@ struct Board : Board_state
 		return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
 	}
 
+	// did the move push a passed pawn to the 6th rank or higher?
+	// should only be called, after the move was made
+	bool passed_push(Move move)
+	{
+		unsigned to_square = move_to(move);
+		return (type_of(board[to_square]) == PAWN && rank(normalize[side_to_move][to_square]) > 4 &&
+			!(precomputed.passed_pawn_mask[!side_to_move][to_square] & pieces[piece_of(side_to_move, PAWN)]));
+	}
+
+	// draw by repetition or 50-Move-Rule?
 	bool immediate_draw(unsigned ply_from_root)
 	{
 		return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);
