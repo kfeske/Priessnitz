@@ -10,49 +10,69 @@ struct Evaluation : Noncopyable
 	int king_attackers[2];
 
 	int attack_potency[6] = { 0, 20, 20, 40, 80, 0 };
-	int king_danger_weight[8] = { 0, 0, 50, 75, 88, 94, 97 };
+	int king_danger_weight[8] = { 0, 0, 50, 75, 88, 94, 97, 99 };
 
-	int average_mobility[6] = { 0, 3, 4, 5, 0, 0 };
-	int mg_mobility_weight[6] = { 0, 4, 5, 2, 1 };
-	int eg_mobility_weight[6] = { 0, 4, 5, 4, 2 };
+	int average_mobility[6] = { 0, 30, 40, 50, 0, 0 };
+	int mg_mobility_weight[6] = { 0, 40, 50, 20, 10, 0 };
+	int eg_mobility_weight[6] = { 0, 40, 50, 40, 20, 0 };
+
+	int mg_isolated_penalty = 15;
+	int eg_isolated_penalty = 5;
 
 	int mg_passed_bonus[64] =
 	{
-	  0,  0,  0,  0,  0,  0,  0,  0,
+	  /*0,  0,  0,  0,  0,  0,  0,  0,
 	 40, 40, 40, 40, 40, 40, 40, 40,
 	 30, 30, 30, 30, 30, 30, 30, 30,
 	 15, 15, 15, 15, 15, 15, 15, 15,
 	  5,  5,  5,  5,  5,  5,  5,  5,
 	  5,  5,  5,  5,  5,  5,  5,  5,
 	  5,  5,  5,  5,  5,  5,  5,  5,
-	  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,*/
+
+	 0, 0, 0, 0, 0, 0, 0, 0, 
+	 1, 18, 54, 37, 50, -4, 62, 29, 
+	 20, 9, 7, -4, -1, 38, 50, 43, 
+	 16, 0, -2, -28, -8, 49, 30, 17, 
+	 39, -15, -7, -4, 14, 32, 28, 27, 
+	 30, 16, 4, -4, -30, 0, 18, 23, 
+	 22, 1, 34, 26, 26, 41, 24, 28, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
+
+	/*int mg_passed_bonus[64] = 
+	{
+-26, -26, -26, -26, -10, -26, -26, -26,
+-36, -36, -36, -36, -36, -36, -36, -36,
+-15, -25, -21, -29, -25, -45, -37, -15,
+17, -5, -1, -7, 3, 11, 11, 7,
+23, 17, 11, 3, 9, 43, 17, 17,
+-3, -1, 11, 27, -11, 33, -1, 5,
+0, 0, 0, 0, 0, 0, 0, 0,
+	};*/
 
 	int eg_passed_bonus[64] =
 	{
-	  0,  0,  0,  0,  0,  0,  0,  0,
+	  /*0,  0,  0,  0,  0,  0,  0,  0,
 	 65, 65, 65, 65, 65, 65, 65, 65,
 	 65, 65, 65, 65, 65, 65, 65, 65,
 	 45, 45, 45, 45, 45, 45, 45, 45,
 	 25, 25, 25, 25, 25, 25, 25, 25,
 	  7,  7,  7,  7,  7,  7,  7,  7,
 	  3,  3,  3,  3,  3,  3,  3,  3,
-	  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,*/
+
+	 0, 0, 0, 0, 0, 0, 0, 0, 
+	 6, -4, -7, 7, 47, -6, -14, -5, 
+	 28, 24, 18, 28, -4, 32, 16, 24, 
+	 48, 34, 30, 26, 34, 24, 42, 50, 
+	 50, 38, 38, 24, 28, 26, 34, 52, 
+	 38, 28, 14, 14, 12, 12, 22, 22, 
+	 10, -6, 3, 17, 22, 8, 5, 10, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
 
-	/*int mg_passed_bonus[64] =
-	{
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 45, 52, 42, 43, 28, 34, 19, 9,
-	 48, 43, 43, 30, 24, 31, 12, 2,
-	 28, 17, 13, 10, 10, 19, 6, 1,
-	 14, 0, -9, -7, -13, -7, 9, 16,
-	 5, 3, -3, -14, -3, 10, 13, 19,
-	 8, 9, 2, -8, -3, 8, 16, 9,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	};
-
-	int eg_passed_bonus[64] =
+	/*int eg_passed_bonus[64] =
 	{
 	 0, 0, 0, 0, 0, 0, 0, 0,
 	 77, 74, 63, 53, 59, 60, 72, 77,
@@ -79,10 +99,10 @@ struct Evaluation : Noncopyable
 		}
 
 		// punish isolated pawns
-		/*if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
-			mg_bonus[color] -= 15;
-			eg_bonus[color] -= 5;
-		}*/
+		if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
+			mg_bonus[color] -= mg_isolated_penalty;
+			eg_bonus[color] -= eg_isolated_penalty;
+		}
 	}
 
 	void evaluate_kings()
@@ -103,9 +123,9 @@ struct Evaluation : Noncopyable
 	template <PieceType pt>
 	void evaluate_mobility(Board &board, uint64_t attacks, Color friendly)
 	{
-		unsigned safe_squares = pop_count(attacks & ~board.pieces[piece_of(!friendly, PAWN)]);
-		mg_bonus[friendly] += (safe_squares - average_mobility[pt]) * mg_mobility_weight[pt];
-		eg_bonus[friendly] += (safe_squares - average_mobility[pt]) * eg_mobility_weight[pt];
+		int safe_squares = pop_count(attacks & ~board.pieces[piece_of(!friendly, PAWN)]);
+		mg_bonus[friendly] += (10 * safe_squares - average_mobility[pt]) * mg_mobility_weight[pt] / 100;
+		eg_bonus[friendly] += (10 * safe_squares - average_mobility[pt]) * eg_mobility_weight[pt] / 100;
 	}
 
 	void evaluate_piece(Board &board, Piece p, unsigned square)
@@ -149,7 +169,8 @@ struct Evaluation : Noncopyable
 			evaluate_mobility<QUEEN>(board, attacks, friendly);
 			return;
 			}
-		case KING: return;
+		case KING:
+			return;
 		}
 	}
 
@@ -180,8 +201,15 @@ struct Evaluation : Noncopyable
 			Piece p = board.board[square];
 
 			// material and positional evaluation via Piece Square Tables
-			mg_value += psqt.midgame[p][square];
-			eg_value += psqt.endgame[p][square];
+			if (color_of(p) == WHITE) {
+				mg_value += psqt.midgame[p][square] + piece_value(p, MIDGAME);
+				eg_value += psqt.endgame[p][square] + piece_value(p, ENDGAME);
+			}
+			else
+			{
+				mg_value += -psqt.midgame[p - 8][mirrored(square)] + piece_value(p, MIDGAME);
+				eg_value += -psqt.endgame[p - 8][mirrored(square)] + piece_value(p, ENDGAME);
+			}
 
 			evaluate_piece(board, p, square);
 		}

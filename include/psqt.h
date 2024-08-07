@@ -5,11 +5,10 @@
 // this will be used in the evaluation function to encourage the
 // engine to develop its pieces and move them to active squares
 
-
 struct PSQT : Noncopyable
 {
-	Value midgame[16][64];
-	Value endgame[16][64];
+	int midgame[16][64];
+	int endgame[16][64];
 
 	// credit to PeSTO's evaluation function for the psqt values
 
@@ -18,14 +17,23 @@ struct PSQT : Noncopyable
 	 { 
 	  { // Midgame
 	   { // Pawn
-	     0,   0,   0,   0,   0,   0,  0,   0,
+	     /*0,   0,   0,   0,   0,   0,  0,   0,
      	    98, 134,  61,  95,  68, 126, 34, -11,
     	    -6,   7,  26,  31,  65,  56, 25, -20,
     	   -14,  13,   6,  21,  23,  12, 17, -23,
     	   -27,  -2,  -5,  12,  17,   6, 10, -25,
     	   -26,  -4,  -4, -10,   3,   3, 33, -12,
     	   -35,  -1, -20, -23, -15,  24, 38, -22,
-    	     0,   0,   0,   0,   0,   0,  0,   0,
+    	     0,   0,   0,   0,   0,   0,  0,   0,*/
+
+	    0, 0, 0, 0, 0, 0, 0, 0, 
+	    189, 198, 131, 174, 130, 184, 107, 27, 
+	    -18, -1, 58, 31, 85, 97, 63, -15, 
+	    -25, 16, 9, 26, 26, 21, 34, -22, 
+	    -40, 1, -2, 17, 20, 9, 3, -38, 
+	    -35, -5, -9, -7, 6, 8, 32, -19, 
+	    -48, 0, -19, -10, 0, 27, 37, -31, 
+	    0, 0, 0, 0, 0, 0, 0, 0, 
 	   },
 	   { // Knight
 	   -167, -89, -34, -49,  61, -97, -15, -107,
@@ -81,14 +89,24 @@ struct PSQT : Noncopyable
 
 	  { // Endgame
  	   { // Pawn
-	     0,   0,   0,   0,   0,   0,   0,   0,
+	     /*0,   0,   0,   0,   0,   0,   0,   0,
     	   178, 173, 158, 134, 147, 132, 165, 187,
     	    94, 100,  85,  67,  56,  53,  82,  84,
     	    32,  24,  13,   5,  -2,   4,  17,  17,
     	    13,   9,  -3,  -7,  -7,  -8,   3,  -1,
     	     4,   7,  -6,   1,   0,  -5,  -1,  -8,
     	    13,   8,   8,  10,  13,   0,   2,  -7,
-    	     0,   0,   0,   0,   0,   0,   0,   0,
+    	     0,   0,   0,   0,   0,   0,   0,   0,*/
+
+	    0, 0, 0, 0, 0, 0, 0, 0, 
+	    195, 195, 166, 119, 148, 156, 191, 204, 
+	    85, 89, 84, 70, 59, 42, 71, 73, 
+	    5, 5, 2, -4, -7, -5, 6, -6, 
+	    -10, -2, -10, -14, -14, -23, -8, -22, 
+	    -17, -6, -11, -10, -3, -12, -14, -25, 
+	    10, 1, -1, -3, 4, -3, -9, -28, 
+	    0, 0, 0, 0, 0, 0, 0, 0, 
+
 	   },
 	   { // Knight
 	   -58, -38, -13, -28, -31, -27, -63, -99,
@@ -146,15 +164,12 @@ struct PSQT : Noncopyable
 	void prepare()
 	{
 		for (Piece pc : { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING }) {
-			Value mg_value = piece_value(pc, MIDGAME);
-			Value eg_value = piece_value(pc, ENDGAME);
-	
 			for (unsigned square = 0; square < 64; square++) {
-				midgame[pc][square] = Value(mg_value + bonus[MIDGAME][type_of(pc)][square]);
-				midgame[pc + 8][mirrored(square)] = Value(-midgame[pc][square]);
+				midgame[pc][square] = bonus[MIDGAME][type_of(pc)][square];
+				midgame[pc + 8][mirrored(square)] = -midgame[pc][square];
 
-				endgame[pc][square] = Value(eg_value + bonus[ENDGAME][type_of(pc)][square]);
-				endgame[pc + 8][mirrored(square)] = Value(-endgame[pc][square]);
+				endgame[pc][square] = bonus[ENDGAME][type_of(pc)][square];
+				endgame[pc + 8][mirrored(square)] = -endgame[pc][square];
 			}
 		}
 	}
