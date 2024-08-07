@@ -115,6 +115,12 @@ void UCI::setoption_command(std::istringstream &iss)
 	std::string parsed;
 	iss >> parsed; // name token
 	iss >> parsed;
+	if (parsed == "Hash") {
+		iss >> parsed; // value token
+		unsigned size;
+		iss >> size;
+		search.tt.resize(size);
+	}
 	if (parsed == "FpMargin1") {
 		iss >> parsed; // value token
 		int &value = search.search_constants.FUTILITY_MARGIN[1];
@@ -189,15 +195,16 @@ void UCI::await_input()
 		if (parsed == "uci") {
 			std::cout << "id name Priessnitz\n";
 			std::cout << "id author Kevin Feske\n\n";
-			//std::cout << "option name FpMargin3 type spin default 100 min 0 max 200\n";
+			std::cout << "option name Hash type spin default 128 min 1 max 1048576\n";
+			std::cout << "option name Threads type spin default 1 min 1 max 1\n";
 			std::cout << "uciok\n";
 		}
+		if (parsed == "setoption") setoption_command(iss);
 		if (parsed == "ucinewgame") search.reset();
 		if (parsed == "isready") std::cout << "readyok\n";
 		if (parsed == "position") fabricate_position(iss);
-		if (parsed == "d") print_board(board);
 		if (parsed == "go") go_command(iss);
-		if (parsed == "setoption") setoption_command(iss);
+		if (parsed == "d") print_board(board);
 		if (parsed == "quit") quit = true;
 	}
 }

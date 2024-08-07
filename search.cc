@@ -20,7 +20,7 @@ void Search::reset()
 	heuristics = {};
 	statistics = {};
 	age = 0;
-	tt.resize(DEFAULT_TT_SIZE);
+	tt.clear();
 	abort_search = false;
 }
 
@@ -196,27 +196,32 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 	}
 
+	// Probcut
+	// If we have a good enough capture that causes a cutoff in a reduced search, we can cut this branch,
+	// because the capture would likely still cause a cutoff at full depth.
 	if (!pv_node && !in_check && depth >= 5 && !mate(beta)) {
 
-		int prob_cut_beta = beta + 100;
+		int probcut_beta = beta + 100;
 
 		Quiescence_move_orderer move_orderer {};
 
 		Move move;
-		while ((move = move_orderer.next_move(board, prob_cut_beta - static_eval)) != INVALID_MOVE) {
+		while ((move = move_orderer.next_move(board, probcut_beta - static_eval)) != INVALID_MOVE) {
 			if (!board.legal(move)) continue;
 
 			board.make_move(move);
 
-			evaluation = -quiescence_search(board, -prob_cut_beta, -prob_cut_beta + 1, ply + 1);
+			// First do a cheap Quiescence Search to verify the move.
+			evaluation = -quiescence_search(board, -probcut_beta, -probcut_beta + 1, ply + 1);
 
-			if (evaluation >= prob_cut_beta)
-				evaluation = -search(board, depth - 4, ply + 1, -prob_cut_beta, -prob_cut_beta + 1, INVALID_MOVE, true);
+			// If the Quiescence Search shows a cutoff, verify with a reduced search.
+			if (evaluation >= probcut_beta)
+				evaluation = -search(board, depth - 4, ply + 1, -probcut_beta, -probcut_beta + 1, INVALID_MOVE, true);
 
 			board.unmake_move(move);
 
-			if (evaluation >= prob_cut_beta)
-				return prob_cut_beta;
+			if (evaluation >= probcut_beta)
+				return probcut_beta;
 		}
 	}
 
@@ -570,7 +575,7 @@ void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
 		  << " nodes " << nodes << " hashfull " << statistics.hash_full(tt)
 	//std::cout << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
 	//std::cout << " branching " << statistics.branching_factor;
-		  << " pv " << pv_line << "\n";
+		  << " pv " << pv_line << "\n" << std::flush;
 }
 
 void Search::plot_final_info(unsigned total_nodes)
@@ -578,6 +583,6 @@ void Search::plot_final_info(unsigned total_nodes)
 	std::cerr << "cut offs " << statistics.cutoffs << " pv " << double(statistics.cutoffspv) / double(statistics.cutoffs) << "\n";
 	std::cerr << "null cuts " << statistics.null_cuts << "\n";
 	std::cerr << "info total nodes " << total_nodes << "\n";
-	std::cout << "bestmove " << move_string(best_root_move) << "\n";
+	std::cout << "bestmove " << move_string(best_root_move) << "\n" << std::flush;
 }
 

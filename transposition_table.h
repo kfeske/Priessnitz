@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 unsigned const DEFAULT_TT_SIZE = 128; // MB
 unsigned const BUCKET_SIZE = 2;
 
@@ -74,6 +76,11 @@ struct Transposition_table
 		entry_count = (size_mb * 1024 * 1024) / sizeof(TT_entry);
 		bucket_count = entry_count / BUCKET_SIZE;
 		buckets = new TT_bucket[bucket_count];
+	}
+
+	void clear()
+	{
+		memset(&buckets[0], 0, bucket_count * sizeof(TT_bucket));
 	}
 
 	Transposition_table()
