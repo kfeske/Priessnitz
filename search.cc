@@ -239,12 +239,25 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 				continue;
 		}
 
+		// Search extensions make the program spend more time in important positions
+		unsigned extension = 0;
+
+		// Singular Extensions
+		// Extend, if the hash move is better than all the other moves
+		if (ply > 0 && move == tt_entry.best_move && depth > 8 && move != skip && tt_entry.depth >= depth - 3 && tt_entry.flag == LOWERBOUND) {
+			int singular_beta = tt_entry.evaluation - 2 * depth;
+
+			evaluation = search(board, (depth - 1) / 2, ply + 1, singular_beta, singular_beta + 1, move, true);
+
+			if (evaluation <= singular_beta)
+			extension = 1;
+		}
+			
+
 		board.make_move(move);
 
 		bool gives_check = board.in_check();
 
-		// Search extensions make the program spend more time in important positions
-		unsigned extension = 0;
 
 		if (gives_check && see(board, move) >= 0) extension = 1;
 
@@ -253,16 +266,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 		// by searching them with a zero-width window centered around alpha, which is a lot faster.
 		if (move_count == 1) {
-			//if (move == tt.best_move && depth >= 8 && move != skip && extension == 0) {
-			//      board.unmake_move(move);
-			//      int singular_score = tt.current_evaluation - 130;
-
-			//      evaluation = search(board, (depth - 1) / 2, ply + 1, singular_score, singular_score + 1, move, true);
-
-			//      if (evaluation <= singular_score)
-			//      	extension = 1;
-			//      board.make_move(move);
-			//
 
 			evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
