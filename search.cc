@@ -271,7 +271,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 
 		// Search extensions make the program spend more time in important positions
-		unsigned extension = 0;
+		int extension = 0;
 
 		// Singular Extensions
 		// Extend, if the hash move is better than all the other moves
@@ -280,10 +280,18 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			evaluation = search(board, (depth - 1) / 2, ply + 1, singular_beta, singular_beta + 1, move, true);
 
+			// Singular Move, extend!
 			if (evaluation <= singular_beta)
 				extension = 1;
+
+			// Negative Extension, if the TT Move fails low even though it was stored with a lower bound.
+			// Term from Weiss
+			if (tt_entry.evaluation <= alpha)
+				extension = -1;
 		}
-		if (in_check) extension = 1;
+		else if (in_check) extension = 1;
+
+		if (ply == 0) extension = 0;
 			
 		board.make_move(move);
 
