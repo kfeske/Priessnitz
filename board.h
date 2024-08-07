@@ -92,15 +92,6 @@ struct Board : Board_state
 
 	uint64_t all_pawn_attacks(Color friendly);
 
-	// did the move push a passed pawn to the 6th rank or higher?
-	// should only be called, after the move was made
-	bool passed_push(Move move)
-	{
-		unsigned to_square = move_to(move);
-		return (type_of(board[to_square]) == PAWN && rank_num(normalize[side_to_move][to_square]) > 4 &&
-			!(passed_pawn_mask(swap(side_to_move), to_square) & pieces[piece_of(side_to_move, PAWN)]));
-	}
-
 	// draw by repetition or 50-Move-Rule?
 	bool immediate_draw(unsigned ply_from_root)
 	{

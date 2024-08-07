@@ -192,7 +192,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		// SEE Pruning
 		// Skip moves that lose material at low depths
-		if (move_count > 1 && !in_check && move_orderer.stage > GOOD_CAPTURES && depth == 1 && see(board, move) < 0)
+		if (move_count > 1 && !in_check && move_orderer.stage > GOOD_CAPTURES && depth < 6 && !promotion(move) && see(board, move) < -20 * depth)
 			continue;
 
 		board.make_move(move);
@@ -205,7 +205,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		if (gives_check && see(board, move) >= 0) extension = 1;
 
 		bool late_move = (move_count >= 4 && !extension && !in_check && !gives_check && !mate(alpha) &&
-		     		  !capture(move) && !promotion(move) && !board.passed_push(move));
+		     		  !capture(move) && !promotion(move));
 		// Late Move Pruning
 		//if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
 		//	board.unmake_move(move);
