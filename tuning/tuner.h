@@ -14,6 +14,7 @@
 enum Indicies {
 	MG_VALUES = 0,
 	EG_VALUES = MG_VALUES + 6,
+
 	MG_PAWN_PSQT = EG_VALUES + 6,
 	MG_KNIGHT_PSQT = MG_PAWN_PSQT + 64,
 	MG_BISHOP_PSQT = MG_KNIGHT_PSQT + 64,
@@ -26,6 +27,7 @@ enum Indicies {
 	EG_ROOK_PSQT = EG_BISHOP_PSQT + 64,
 	EG_QUEEN_PSQT = EG_ROOK_PSQT + 64,
 	EG_KING_PSQT = EG_QUEEN_PSQT + 64,
+
 	MG_PASSED_PAWN = EG_KING_PSQT + 64,
 	EG_PASSED_PAWN = MG_PASSED_PAWN + 64,
 	MG_ISOLATED = EG_PASSED_PAWN + 64,
@@ -36,16 +38,26 @@ enum Indicies {
 	EG_BACKWARD = MG_BACKWARD + 1,
 	MG_CHAINED = EG_BACKWARD  + 1,
 	EG_CHAINED = MG_CHAINED + 1,
+
 	MG_DOUBLE_BISHOP = EG_CHAINED + 1,
 	EG_DOUBLE_BISHOP = MG_DOUBLE_BISHOP + 1,
-	MG_AVERAGE_MOBILITY = EG_DOUBLE_BISHOP + 1,
-	EG_AVERAGE_MOBILITY = MG_AVERAGE_MOBILITY + 6,
-	MG_MOBILITY = EG_AVERAGE_MOBILITY + 6,
-	EG_MOBILITY = MG_MOBILITY + 6,
-	RING_POTENCY = EG_MOBILITY + 6,
+
+	MG_KNIGHT_MOBILITY = EG_DOUBLE_BISHOP + 1,
+	EG_KNIGHT_MOBILITY = MG_KNIGHT_MOBILITY + 9,
+	MG_BISHOP_MOBILITY = EG_KNIGHT_MOBILITY + 9,
+	EG_BISHOP_MOBILITY = MG_BISHOP_MOBILITY + 14,
+	MG_ROOK_MOBILITY   = EG_BISHOP_MOBILITY + 14,
+	EG_ROOK_MOBILITY   = MG_ROOK_MOBILITY + 15,
+	MG_QUEEN_MOBILITY  = EG_ROOK_MOBILITY + 15,
+	EG_QUEEN_MOBILITY  = MG_QUEEN_MOBILITY + 28,
+	MG_KING_MOBILITY   = EG_QUEEN_MOBILITY + 28,
+	EG_KING_MOBILITY   = MG_KING_MOBILITY + 9,
+
+	RING_POTENCY = EG_KING_MOBILITY + 9,
 	ZONE_POTENCY = RING_POTENCY + 6,
 	RING_PRESSURE = ZONE_POTENCY + 6,
 	ZONE_PRESSURE = RING_PRESSURE + 8,
+
 	END_INDEX = ZONE_PRESSURE + 8
 };
 
@@ -54,7 +66,7 @@ enum Tuning_params {
 	NUM_TEST_POSITIONS = 100000,      // number of test positions
 	//NUM_TRAINING_POSITIONS = 1400000, // number of training positions
 	//NUM_TEST_POSITIONS = 28000,      // number of test positions
-	NUM_TABLES = 34,		 // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 40,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -86,10 +98,6 @@ struct Sample
 	uint8_t zone_attackers[2] {};
 	uint8_t zone_attacks[15] {};
 
-	// useful for mobility evaluation
-	int mobility_squares[6] {};
-	int material_difference[6] {};
-
 	double phase = 0;
 };
 
@@ -101,13 +109,14 @@ struct Tuner
 			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
-			     	      	   MG_AVERAGE_MOBILITY, EG_AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
+					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
+					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE,
 			     	      	   END_INDEX };
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
-	double const H = 0.000001;   		 // difference quotient step size
-	double const LEARN_RATE = 10000;	 // step size
+	double const TINY_NUMBER = 0.00000001;   // difference quotient step size
+	double const LEARN_RATE = 0.5;	 // step size
 
 	Board board {};
 	Evaluation eval {};
@@ -116,46 +125,58 @@ struct Tuner
 	std::vector<Sample> test_set {};
 	double weights[NUM_WEIGHTS];
 	double gradients[NUM_WEIGHTS];
+	double sum_squared_gradients[NUM_WEIGHTS];
 
 	// returns the value in a table at a position
 	int table_value(Indicies table_index, unsigned pos)
 	{
 		switch (table_index) {
-		case MG_PAWN_PSQT: return eval.mg_pawn_psqt[pos];
-		case MG_KNIGHT_PSQT: return eval.mg_knight_psqt[pos];
-		case MG_BISHOP_PSQT: return eval.mg_bishop_psqt[pos];
-		case MG_ROOK_PSQT: return eval.mg_rook_psqt[pos];
-		case MG_QUEEN_PSQT: return eval.mg_queen_psqt[pos];
-		case MG_KING_PSQT: return eval.mg_king_psqt[pos];
-		case EG_PAWN_PSQT: return eval.eg_pawn_psqt[pos];
-		case EG_KNIGHT_PSQT: return eval.eg_knight_psqt[pos];
-		case EG_BISHOP_PSQT: return eval.eg_bishop_psqt[pos];
-		case EG_ROOK_PSQT: return eval.eg_rook_psqt[pos];
-		case EG_QUEEN_PSQT: return eval.eg_queen_psqt[pos];
-		case EG_KING_PSQT: return eval.eg_king_psqt[pos];
-		case MG_PASSED_PAWN: return eval.mg_passed_bonus[pos];
-		case EG_PASSED_PAWN: return eval.eg_passed_bonus[pos];
-		case MG_ISOLATED: return eval.mg_isolated_penalty;
-		case EG_ISOLATED: return eval.eg_isolated_penalty;
-		case MG_DOUBLED: return eval.mg_doubled_penalty;
-		case EG_DOUBLED: return eval.eg_doubled_penalty;
-		case MG_BACKWARD: return eval.mg_backward_penalty;
-		case EG_BACKWARD: return eval.eg_backward_penalty;
-		case MG_CHAINED: return eval.mg_chained_bonus;
-		case EG_CHAINED: return eval.eg_chained_bonus;
-		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
-		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
-		case MG_AVERAGE_MOBILITY: return eval.mg_average_mobility[pos];
-		case EG_AVERAGE_MOBILITY: return eval.eg_average_mobility[pos];
-		case MG_MOBILITY: return eval.mg_mobility_weight[pos];
-		case EG_MOBILITY: return eval.eg_mobility_weight[pos];
-		case RING_POTENCY: return eval.ring_attack_potency[pos];
-		case ZONE_POTENCY: return eval.zone_attack_potency[pos];
-		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
-		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
 		case MG_VALUES: return eval.mg_piece_value[pos];
 		case EG_VALUES: return eval.eg_piece_value[pos];
-		default: return eval.eg_passed_bonus[pos];
+
+		case MG_PAWN_PSQT:   return eval.mg_pawn_psqt[pos];
+		case MG_KNIGHT_PSQT: return eval.mg_knight_psqt[pos];
+		case MG_BISHOP_PSQT: return eval.mg_bishop_psqt[pos];
+		case MG_ROOK_PSQT:   return eval.mg_rook_psqt[pos];
+		case MG_QUEEN_PSQT:  return eval.mg_queen_psqt[pos];
+		case MG_KING_PSQT:   return eval.mg_king_psqt[pos];
+		case EG_PAWN_PSQT:   return eval.eg_pawn_psqt[pos];
+		case EG_KNIGHT_PSQT: return eval.eg_knight_psqt[pos];
+		case EG_BISHOP_PSQT: return eval.eg_bishop_psqt[pos];
+		case EG_ROOK_PSQT:   return eval.eg_rook_psqt[pos];
+		case EG_QUEEN_PSQT:  return eval.eg_queen_psqt[pos];
+		case EG_KING_PSQT:   return eval.eg_king_psqt[pos];
+
+		case MG_PASSED_PAWN: return eval.mg_passed_bonus[pos];
+		case EG_PASSED_PAWN: return eval.eg_passed_bonus[pos];
+		case MG_ISOLATED:    return eval.mg_isolated_penalty;
+		case EG_ISOLATED:    return eval.eg_isolated_penalty;
+		case MG_DOUBLED:     return eval.mg_doubled_penalty;
+		case EG_DOUBLED:     return eval.eg_doubled_penalty;
+		case MG_BACKWARD:    return eval.mg_backward_penalty;
+		case EG_BACKWARD:    return eval.eg_backward_penalty;
+		case MG_CHAINED:     return eval.mg_chained_bonus;
+		case EG_CHAINED:     return eval.eg_chained_bonus;
+
+		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
+		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
+
+		case MG_KNIGHT_MOBILITY: return eval.mg_knight_mobility[pos];
+		case EG_KNIGHT_MOBILITY: return eval.eg_knight_mobility[pos];
+		case MG_BISHOP_MOBILITY: return eval.mg_bishop_mobility[pos];
+		case EG_BISHOP_MOBILITY: return eval.eg_bishop_mobility[pos];
+		case MG_ROOK_MOBILITY:   return eval.mg_rook_mobility[pos];
+		case EG_ROOK_MOBILITY:   return eval.eg_rook_mobility[pos];
+		case MG_QUEEN_MOBILITY:  return eval.mg_queen_mobility[pos];
+		case EG_QUEEN_MOBILITY:  return eval.eg_queen_mobility[pos];
+		case MG_KING_MOBILITY:   return eval.mg_king_mobility[pos];
+		case EG_KING_MOBILITY:   return eval.eg_king_mobility[pos];
+
+		case RING_POTENCY:  return eval.ring_attack_potency[pos];
+		case ZONE_POTENCY:  return eval.zone_attack_potency[pos];
+		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
+		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
+		default: return 0;
 		}
 	}
 
@@ -175,47 +196,6 @@ struct Tuner
 	{
 		Indicies table_index = table_of(index);
 		return table_value(table_index, index - table_index);
-	}
-
-	void print_table_name(Indicies table_index)
-	{
-		switch (table_index) {
-		case MG_PAWN_PSQT: std::cerr << "\nmg pawn psqt\n"; break;
-		case MG_KNIGHT_PSQT: std::cerr << "\nmg knight psqt\n"; break;
-		case MG_BISHOP_PSQT: std::cerr << "\nmg bishop psqt\n"; break;
-		case MG_ROOK_PSQT: std::cerr << "\nmg rook psqt\n"; break;
-		case MG_QUEEN_PSQT: std::cerr << "\nmg queen psqt\n"; break;
-		case MG_KING_PSQT: std::cerr << "\nmg king psqt\n"; break;
-		case EG_PAWN_PSQT: std::cerr << "\neg pawn psqt\n"; break;
-		case EG_KNIGHT_PSQT: std::cerr << "\neg knight psqt\n"; break;
-		case EG_BISHOP_PSQT: std::cerr << "\neg bishop psqt\n"; break;
-		case EG_ROOK_PSQT: std::cerr << "\neg rook psqt\n"; break;
-		case EG_QUEEN_PSQT: std::cerr << "\neg queen psqt\n"; break;
-		case EG_KING_PSQT: std::cerr << "\neg king psqt\n"; break;
-		case MG_PASSED_PAWN: std::cerr << "\nmg passed pawn\n"; break;
-		case EG_PASSED_PAWN: std::cerr << "\neg passed pawn\n"; break;
-		case MG_ISOLATED: std::cerr << "\nmg isolated pawn\n"; break;
-		case EG_ISOLATED: std::cerr << "\neg isolated pawn\n"; break;
-		case MG_DOUBLED: std::cerr << "\nmg doubled pawn\n"; break;
-		case EG_DOUBLED: std::cerr << "\neg doubled pawn\n"; break;
-		case MG_BACKWARD: std::cerr << "\nmg backward pawn\n"; break;
-		case EG_BACKWARD: std::cerr << "\neg backward pawn\n"; break;
-		case MG_CHAINED: std::cerr << "\nmg chained pawn\n"; break;
-		case EG_CHAINED: std::cerr << "\neg chained pawn\n"; break;
-		case MG_DOUBLE_BISHOP: std::cerr << "\nmg bishop pair\n"; break;
-		case EG_DOUBLE_BISHOP: std::cerr << "\neg bishop pair\n"; break;
-		case MG_AVERAGE_MOBILITY: std::cerr << "\nmg average mobility\n"; break;
-		case EG_AVERAGE_MOBILITY: std::cerr << "\neg average mobility\n"; break;
-		case MG_MOBILITY: std::cerr << "\nmg mobility\n"; break;
-		case EG_MOBILITY: std::cerr << "\neg mobility\n"; break;
-		case RING_POTENCY: std::cerr << "\nring attack potency\n"; break;
-		case ZONE_POTENCY: std::cerr << "\nzone attack potency\n"; break;
-		case RING_PRESSURE: std::cerr << "\nking ring pressure weight\n"; break;
-		case ZONE_PRESSURE: std::cerr << "\nking zone pressure weight\n"; break;
-		case MG_VALUES: std::cerr << "\nmg values\n"; break;
-		case EG_VALUES: std::cerr << "\neg values\n"; break;
-		default: return;
-		}
 	}
 
 	int int_weight(unsigned index)
@@ -287,17 +267,35 @@ struct Tuner
 		for (unsigned i = 0; i < 8; i++) print_int_weight(ZONE_PRESSURE + i);
 		std::cerr << "};\n";
 
-		std::cerr << "\nint mg_average_mobility[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_AVERAGE_MOBILITY + i);
+		std::cerr << "\nint mg_knight_mobility[6] = { ";
+		for (unsigned i = 0; i < 9; i++) print_int_weight(MG_KNIGHT_MOBILITY + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_average_mobility[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_AVERAGE_MOBILITY + i);
+		std::cerr << "int eg_knight_mobility[6] = { ";
+		for (unsigned i = 0; i < 9; i++) print_int_weight(EG_KNIGHT_MOBILITY + i);
 		std::cerr << "};\n";
-		std::cerr << "int mg_mobility_weight[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_MOBILITY + i);
+		std::cerr << "\nint mg_bishop_mobility[14] = { ";
+		for (unsigned i = 0; i < 14; i++) print_int_weight(MG_BISHOP_MOBILITY + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_mobility_weight[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_MOBILITY + i);
+		std::cerr << "int eg_bishop_mobility[14] = { ";
+		for (unsigned i = 0; i < 14; i++) print_int_weight(EG_BISHOP_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint mg_rook_mobility[15] = { ";
+		for (unsigned i = 0; i < 15; i++) print_int_weight(MG_ROOK_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_rook_mobility[15] = { ";
+		for (unsigned i = 0; i < 15; i++) print_int_weight(EG_ROOK_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint mg_queen_mobility[28] = { ";
+		for (unsigned i = 0; i < 28; i++) print_int_weight(MG_QUEEN_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_queen_mobility[28] = { ";
+		for (unsigned i = 0; i < 28; i++) print_int_weight(EG_QUEEN_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint mg_king_mobility[9] = { ";
+		for (unsigned i = 0; i < 9; i++) print_int_weight(MG_KING_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_king_mobility[9] = { ";
+		for (unsigned i = 0; i < 9; i++) print_int_weight(EG_KING_MOBILITY + i);
 		std::cerr << "};\n";
 
 		std::cerr << "\nint mg_isolated_penalty = " << int_weight(MG_ISOLATED) << ";\n";
@@ -350,21 +348,10 @@ struct Tuner
 		}
 	}
 
-	// necessary for partial derivative of the mobility weight
-	void extract_mobility(Sample &sample, Piece piece, uint64_t attacks, int side) {
-		sample.mobility_squares[type_of(piece)] += 10 * pop_count(attacks & ~board.all_pawn_attacks(swap(color_of(piece)))) * side;
-		sample.material_difference[type_of(piece)] += side;
-	}
-
 	// stores all evaluation-essential properties of a position
 	// (the derivatives of the evaluation in respect to the weights)
 	void extract_features(Sample &sample)
 	{
-		unsigned mg_index;
-		unsigned eg_index;
-		uint64_t attacks;
-		uint64_t ray_blockers;
-
 		int taper_start = 6377;
 		int taper_end = 321;
 
@@ -387,14 +374,12 @@ struct Tuner
 			int side = (friendly == WHITE) ? 1 : -1;
 
 			// material
-			mg_index = MG_VALUES + type;
-			eg_index = EG_VALUES + type;
-			sample.influence[mg_index] += side * mg_phase;
-			sample.influence[eg_index] += side * eg_phase;
+			sample.influence[MG_VALUES + type] += side * mg_phase;
+			sample.influence[EG_VALUES + type] += side * eg_phase;
 
 			// PSQT
-			mg_index = MG_PAWN_PSQT + type * 64 + normalize[friendly][square];
-			eg_index = EG_PAWN_PSQT + type * 64 + normalize[friendly][square];
+			unsigned mg_index = MG_PAWN_PSQT + type * 64 + normalize[friendly][square];
+			unsigned eg_index = EG_PAWN_PSQT + type * 64 + normalize[friendly][square];
 			sample.influence[mg_index] += side * mg_phase;
 			sample.influence[eg_index] += side * eg_phase;
 
@@ -438,37 +423,66 @@ struct Tuner
 
 				// passed pawns
 				if (passed && !doubled) {
-					mg_index = MG_PASSED_PAWN + normalize[friendly][square];
-					eg_index = EG_PASSED_PAWN + normalize[friendly][square];
+					unsigned mg_index = MG_PASSED_PAWN + normalize[friendly][square];
+					unsigned eg_index = EG_PASSED_PAWN + normalize[friendly][square];
 					sample.influence[mg_index] += side * mg_phase;
 					sample.influence[eg_index] += side * eg_phase;
 				}
 				continue;
 				}
+
 			// king safety + mobility
 			case KNIGHT:
-				attacks = piece_attacks(KNIGHT, square, 0ULL);
+				{
+				uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
 				extract_king_safety(sample, piece, attacks, enemy);
-				extract_mobility(sample, piece, attacks, side);
+
+				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+				sample.influence[MG_KNIGHT_MOBILITY + safe_squares] += side * mg_phase;
+				sample.influence[EG_KNIGHT_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
+				}
 			case BISHOP:
-				ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
-				attacks = piece_attacks(BISHOP, square, ray_blockers);
+				{
+				uint64_t ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
+				uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
 				extract_king_safety(sample, piece, attacks, enemy);
-				extract_mobility(sample, piece, attacks, side);
+
+				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+				sample.influence[MG_BISHOP_MOBILITY + safe_squares] += side * mg_phase;
+				sample.influence[EG_BISHOP_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
+				}
 			case ROOK:
-				ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
-				attacks = piece_attacks(ROOK, square, ray_blockers);
+				{
+				uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
+				uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
 				extract_king_safety(sample, piece, attacks, enemy);
-				extract_mobility(sample, piece, attacks, side);
+
+				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+				sample.influence[MG_ROOK_MOBILITY + safe_squares] += side * mg_phase;
+				sample.influence[EG_ROOK_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
+				}
 			case QUEEN:
-				attacks = piece_attacks(QUEEN, square, board.occ);
+				{
+				uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
 				extract_king_safety(sample, piece, attacks, enemy);
-				extract_mobility(sample, piece, attacks, side);
+
+				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+				sample.influence[MG_QUEEN_MOBILITY + safe_squares] += side * mg_phase;
+				sample.influence[EG_QUEEN_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
-			case KING: continue;
+				}
+			case KING:
+				{
+				uint64_t attacks = piece_attacks(KING, square, 0ULL);
+
+				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+				sample.influence[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
+				sample.influence[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
+				continue;
+				}
 			}
 		}
 		// bishop pair
@@ -530,12 +544,6 @@ struct Tuner
 			weights[RING_POTENCY + i] = attack_potency[i];
 			weights[ZONE_POTENCY + i] = attack_potency[i];
 		}
-
-		/*double average_mobility[6] = { 0, 40, 50, 40, 40, 0 };
-		for (unsigned i = 0; i < 6; i++) {
-			weights[MG_AVERAGE_MOBILITY + i] = average_mobility[i];
-			weights[EG_AVERAGE_MOBILITY + i] = average_mobility[i];
-		}*/
 	}
 
 	void engine_weights()
@@ -566,17 +574,6 @@ struct Tuner
 		return pressure / 100;
 	}
 
-	double mg_mobility(Sample &sample, Piece_type type)
-	{
-		//std::cerr << "safe squares " << sample.mobility_squares[type] << "\n";
-		return double(sample.mobility_squares[type]) - double(sample.material_difference[type]) * weights[MG_AVERAGE_MOBILITY + type];
-	}
-
-	double eg_mobility(Sample &sample, Piece_type type)
-	{
-		return double(sample.mobility_squares[type]) - double(sample.material_difference[type]) * weights[EG_AVERAGE_MOBILITY + type];
-	}
-
 	double evaluate(Sample &sample)
 	{
 		// all 'normal' evaluation parts can easily be computed
@@ -592,13 +589,6 @@ struct Tuner
 		double black_pressure = king_ring_pressure<BLACK>(sample) * weights[RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
 		black_pressure += king_zone_pressure<BLACK>(sample) * weights[ZONE_PRESSURE + sample.zone_attackers[BLACK]] * sample.phase;
 		evaluation += (white_pressure - black_pressure);
-
-		// mobility is another inconvenience
-
-		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-			evaluation += mg_mobility(sample, type) * weights[MG_MOBILITY + type] / 100 * sample.phase;
-			evaluation += eg_mobility(sample, type) * weights[EG_MOBILITY + type] / 100 * (1 - sample.phase);
-		}
 
 		return evaluation;
 	}
@@ -623,7 +613,7 @@ struct Tuner
 
 	double cost_derivative(Sample &sample, double sigmoid)
 	{
-		return 2 * (sample.outcome - sigmoid);
+		return -2 * (sample.outcome - sigmoid);
 	}
 
 	double average_cost(std::vector<Sample> &set)
@@ -637,8 +627,11 @@ struct Tuner
 	// go one step towards the steepest descent
 	void apply_gradients()
 	{
-		for (unsigned i = 0; i < NUM_WEIGHTS; i++)
-			weights[i] -= gradients[i] * LEARN_RATE / BATCH_SIZE;
+		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
+			gradients[i] /= BATCH_SIZE;
+			sum_squared_gradients[i] += gradients[i] * gradients[i];
+			weights[i] -= gradients[i] * (LEARN_RATE / std::sqrt(sum_squared_gradients[i] + TINY_NUMBER));
+		}
 	}
 
 	// returns the numerical gradients by tweaking the weights a tiny bit and
@@ -654,15 +647,15 @@ struct Tuner
 				double &weight = weights[w];
 
 				// how does the cost function change, when we make a slight adjustment to a weight
-				weight += H;
+				weight += TINY_NUMBER;
 				double cost_before = cost(sample);
 
 				// what about the other direction?
-				weight -= 2 * H;
-				gradients[w] += (cost_before - cost(sample)) / (2 * H);
+				weight -= 2 * TINY_NUMBER;
+				gradients[w] += (cost_before - cost(sample)) / (2 * TINY_NUMBER);
 
 				// undo adjustment
-				weight += H;
+				weight += TINY_NUMBER;
 			}
 		}
 	}
@@ -680,46 +673,37 @@ struct Tuner
 			double partial_derivative = cost_derivative(sample, sigm) * sigmoid_derivative(evaluation);
 
 			// Most gradients can easily be computed
-			// The feature array holds the derivatives of each parameter in respect to the evaluation function
+			// The influence array holds the derivatives of each parameter in respect to the evaluation function
 			// (in this case, it is the game phase multiplied by how often it is used in the position)
 			for (unsigned w = 0; w < NUM_WEIGHTS; w++)
-				gradients[w] -= sample.influence[w] * partial_derivative;
+				gradients[w] += sample.influence[w] * partial_derivative;
 
-			// King safety and mobility always needs extra work, because they basically have two parameters
-			// that affect each other
+			// King safety always needs extra work, because two parameters affect each other
 
 			// king ring pressure weights
 			unsigned white_ring_index = RING_PRESSURE + sample.ring_attackers[WHITE];
-			gradients[white_ring_index] -= king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
+			gradients[white_ring_index] += king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
 			unsigned black_ring_index = RING_PRESSURE + sample.ring_attackers[BLACK];
-			gradients[black_ring_index] += king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
+			gradients[black_ring_index] -= king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
 
 			// king zone pressure weights
 			unsigned white_zone_index = ZONE_PRESSURE + sample.zone_attackers[WHITE];
-			gradients[white_zone_index] -= king_zone_pressure<WHITE>(sample) * partial_derivative * sample.phase;
+			gradients[white_zone_index] += king_zone_pressure<WHITE>(sample) * partial_derivative * sample.phase;
 			unsigned black_zone_index = ZONE_PRESSURE + sample.zone_attackers[BLACK];
-			gradients[black_zone_index] += king_zone_pressure<BLACK>(sample) * partial_derivative * sample.phase;
+			gradients[black_zone_index] -= king_zone_pressure<BLACK>(sample) * partial_derivative * sample.phase;
 			
 			for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 				// Ring attack potency
 				double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
-				gradients[RING_POTENCY + type] -= white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;
+				gradients[RING_POTENCY + type] += white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;
 				double black_ring_attacks = sample.ring_attacks[piece_of(BLACK, type)];
-				gradients[RING_POTENCY + type] += black_ring_attacks * weights[black_ring_index] / 100 * partial_derivative * sample.phase;
+				gradients[RING_POTENCY + type] -= black_ring_attacks * weights[black_ring_index] / 100 * partial_derivative * sample.phase;
 
 				// Zone attack potency
 				double white_zone_attacks = sample.zone_attacks[piece_of(WHITE, type)];
-				gradients[ZONE_POTENCY + type] -= white_zone_attacks * weights[white_zone_index] / 100 * partial_derivative * sample.phase;
+				gradients[ZONE_POTENCY + type] += white_zone_attacks * weights[white_zone_index] / 100 * partial_derivative * sample.phase;
 				double black_zone_attacks = sample.zone_attacks[piece_of(BLACK, type)];
-				gradients[ZONE_POTENCY + type] += black_zone_attacks * weights[black_zone_index] / 100 * partial_derivative * sample.phase;
-
-				// Mobility weights
-				gradients[MG_MOBILITY + type] -= mg_mobility(sample, type) / 100 * partial_derivative * sample.phase;
-				gradients[EG_MOBILITY + type] -= eg_mobility(sample, type) / 100 * partial_derivative * (1 - sample.phase);
-
-				// Average mobility
-				gradients[MG_AVERAGE_MOBILITY + type] -= -sample.material_difference[type] * weights[MG_MOBILITY + type] / 100 * partial_derivative * sample.phase;
-				gradients[EG_AVERAGE_MOBILITY + type] -= -sample.material_difference[type] * weights[EG_MOBILITY + type] / 100 * partial_derivative * (1 - sample.phase);
+				gradients[ZONE_POTENCY + type] -= black_zone_attacks * weights[black_zone_index] / 100 * partial_derivative * sample.phase;
 			}
 		}
 	}

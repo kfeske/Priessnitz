@@ -130,7 +130,7 @@ static inline uint64_t file(unsigned square)
 	return FILE_A << file_num(square);
 }
 
-// used in search and move ordering, evaluation has its own values
+// Used in search and move ordering. The evaluation has its own values
 // Note: The weird zeros exist, because of the encoding of pieces.
 // Element 15 is NO_PIECE.
 int const piece_value[15] = { 100, 300, 320, 500, 900, 1000, 0, 0,
