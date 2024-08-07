@@ -60,7 +60,9 @@ struct Search : Noncopyable
 
 	void update_heuristics(Board &board, Move move, int depth, int ply, Move_list &bad_quiets_searched);
 
-	void increment_history(Board &board, Move move, int bonus);
+	int history_bonus(int depth);
+
+	void update_history(Board &board, Move move, int depth, bool increase);
 
 	std::string extract_pv_line(Board &board);
 

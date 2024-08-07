@@ -529,17 +529,24 @@ void Search::update_heuristics(Board &board, Move best_move, int depth, int ply,
 		}
 
 		// Increment history score. Moves closer to the root have a bigger impact (depth * depth).
-		increment_history(board, best_move, depth * depth);
+		update_history(board, best_move, depth, true);
 
 	}
 	// Decrement history score for all previously searched quiet moves that did not improve alpha.
 	for (unsigned n = 0; n < bad_quiets_searched.size; n++)
-		increment_history(board, bad_quiets_searched.moves[n].move, -(depth * depth));
+		update_history(board, bad_quiets_searched.moves[n].move, depth, false);
 }
 
-void Search::increment_history(Board &board, Move move, int bonus)
+int Search::history_bonus(int depth)
+{
+	// Formula from Ethereal
+	return (depth > 13) ? 32 : 16 * depth * depth + 128 * std::max(depth - 1, 0);
+}
+
+void Search::update_history(Board &board, Move move, int depth, bool increase)
 {
 	int32_t &history_score = heuristics.history[board.board[move_from(move)]][move_to(move)];
+	int bonus = (increase) ? history_bonus(depth) : -history_bonus(depth);
 	// Saturate the counter, so that 16000 is not exceeded.
 	history_score += bonus - history_score * abs(bonus) / 16000;
 }
