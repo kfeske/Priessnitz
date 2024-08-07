@@ -62,7 +62,6 @@ struct UndoInfo {
 
 struct Board_state
 {
-
 	Piece board[64];
 	uint64_t pieces[15];
 
@@ -73,8 +72,8 @@ struct Board_state
 
 	unsigned game_ply;
 
-	UndoInfo history[256];
-	uint64_t position_history[256];
+	UndoInfo history[5900];
+	uint64_t position_history[5900];
 	bool repetition;
 
 	int non_pawn_material[2];
@@ -364,6 +363,7 @@ struct Board : Board_state
 
 	void set_fenpos(std::string fen)
 	{
+		reset(); // reset board to avoid overwrites
 		history[0] = UndoInfo();
 		
 		bool rights = false;

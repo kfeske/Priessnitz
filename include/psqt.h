@@ -6,7 +6,7 @@
 // engine to develop its pieces
 
 
-struct PSQT : Noncopyable
+struct PSQT// : Noncopyable
 {
 	// Phase (Endgame/Midgame), Piece, Square
 	Value psqt[16][64] {};

@@ -319,8 +319,91 @@ struct MoveGenerator : Noncopyable
 			}
 		}
 	}
-	
+
 	void generate_quiescence(Board &board)
+	{
+		Color friendly = Color(board.side_to_move);
+		
+		Color enemy = Color(!friendly);
+		uint64_t us_bb = board.color[friendly];
+		uint64_t them_bb = board.color[enemy];
+
+		// king cannot move to danger squares
+
+		unsigned ksq = lsb(board.pieces[piece_of(friendly, KING)]);
+		uint64_t pawns = board.pieces[piece_of(enemy, PAWN)];
+		uint64_t enemy_diag_sliders = board.pieces[piece_of(enemy, BISHOP)] | board.pieces[piece_of(enemy, QUEEN)];
+		uint64_t enemy_orth_sliders = board.pieces[piece_of(enemy, ROOK)]   | board.pieces[piece_of(enemy, QUEEN)];
+		Direction up_right = (enemy == WHITE) ? NORTH_EAST : SOUTH_EAST;
+		Direction up_left  = (enemy == WHITE) ? NORTH_WEST : SOUTH_WEST;
+
+		uint64_t danger = 0ULL;
+
+		danger |= shift(pawns & ~board.precomputed.file_H, up_right);
+		danger |= shift(pawns & ~board.precomputed.file_A, up_left );
+
+		danger |= board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(enemy, KING)]), 0ULL);
+
+		uint64_t knights = board.pieces[piece_of(enemy, KNIGHT)];
+		while(knights) danger |= board.precomputed.attacks_bb<KNIGHT>(pop_lsb(knights), 0ULL);
+
+		uint64_t bishops_queens = enemy_diag_sliders;
+		while(bishops_queens) danger |= board.precomputed.attacks_bb<BISHOP>(pop_lsb(bishops_queens), board.occ & ~(1ULL << ksq));
+
+		uint64_t rook_queens = enemy_orth_sliders;
+		while(rook_queens) danger |= board.precomputed.attacks_bb<ROOK>(pop_lsb(rook_queens), board.occ & ~(1ULL << ksq));
+
+
+		uint64_t attacks = board.precomputed.attacks_bb<KING>(ksq, 0ULL) & ~(us_bb | danger);
+		append_attacks<CAPTURE>(movelist, ksq, attacks & them_bb);
+
+		// leaper (knight, pawn) pieces, delivering check can be captured
+
+		uint64_t checkers = 0ULL;
+
+		checkers |= board.precomputed.pawn_attacks[friendly][ksq] & board.pieces[piece_of(enemy, PAWN)];
+		checkers |= board.precomputed.attacks_bb<KNIGHT>(ksq, 0ULL) & board.pieces[piece_of(enemy, KNIGHT)];
+
+		// sliding pieces, delivering check can either be captured or blocked
+		// or pin your pieces >:(
+
+		uint64_t sliders = (board.precomputed.attacks_bb<BISHOP>(ksq, them_bb) & enemy_diag_sliders) |
+				 (board.precomputed.attacks_bb<ROOK  >(ksq, them_bb) & enemy_orth_sliders);
+
+		uint64_t pinned = 0ULL;
+
+		while (sliders) {
+			unsigned square = pop_lsb(sliders);
+			uint64_t pin_ray = board.precomputed.between_bb[ksq][square] & us_bb;
+
+			// no pieces block the ray - check detected
+			if (pin_ray == 0) checkers |= 1ULL << square;
+
+			// one of our pieces blocks the ray - register pin
+			else if ((pin_ray & (pin_ray - 1)) == 0) pinned |= pin_ray;
+		}
+
+		uint64_t targets = 0ULL;
+		uint64_t quiets = 0ULL;
+
+		switch(pop_count(checkers)) {
+		case 2: return;
+
+		case 1:
+			targets = checkers;
+			break;
+		default:
+			targets = them_bb;
+		}
+
+		generate_pawn_moves(board, friendly, targets, quiets, pinned, ksq, enemy_orth_sliders);
+		generate_moves<KNIGHT>(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<BISHOP>(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
+	}
+	
+	/*void generate_quiescence(Board &board)
 	{
 		Color friendly = Color(board.side_to_move);
 		Color enemy = Color(!friendly);
@@ -335,7 +418,7 @@ struct MoveGenerator : Noncopyable
 		generate_moves<BISHOP>(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
-	}
+	}*/
 
 	MoveGenerator()
 	{

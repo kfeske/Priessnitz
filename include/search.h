@@ -3,15 +3,15 @@
 #include <evaluation.h>
 #include <transposition_table.h>
 
-struct Heuristics : Noncopyable
+struct Heuristics// : Noncopyable
 {
 	PSQT psqt {};
 	Move killer_move[2][64];
 	int history_move[16][64];
-	Move pv_table[64][64];
-	unsigned pv_lenght[64];
-	Move previous_pv_line[64];
-	Move pv_move = INVALID_MOVE;
+	//Move pv_table[64][64];
+	//unsigned pv_lenght[64];
+	//Move previous_pv_line[64];
+	//Move pv_move = INVALID_MOVE;
 };
 
 #include <move_ordering.h>
@@ -21,7 +21,7 @@ struct Search
 	Evaluation eval;
 	Move best_move = INVALID_MOVE;
 	Move best_move_this_iteration = INVALID_MOVE;
-	unsigned max_depth = 9999;
+	unsigned max_depth = 63;
 	double max_time = 99999;
 	unsigned current_depth;
 	int const mate_score = 31000;
@@ -43,13 +43,24 @@ struct Search
 	// Quiescence Search is a shallower search, generating only
 	// captures and check evasions to avoid the horizon effect
 
+	void reset()
+	{
+		best_move = INVALID_MOVE;
+		max_depth = 63;
+		max_time = 99999;
+		nodes_searched = 0;
+		branching_factor = 0;
+		cutoffs = 0;
+		cutoffspv = 0;
+		//tt_cutoffs = 0;
+		heuristics = {};
+	}
+
 	int qsearch(Board &board, int alpha, int beta, unsigned ply)
 	{
-		int evaluation = 0;
-
 		bool in_check = board.in_check() && ply <= 2;
 
-		evaluation = eval.evaluate(board, heuristics.psqt);
+		int evaluation = eval.evaluate(board, heuristics.psqt);
 
 		if (!in_check && evaluation >= beta)
 			return beta;
@@ -279,9 +290,9 @@ struct Search
 			}
 			std::cerr << "...\n";*/
 
-			std::cerr << "info depth " << current_depth << " score " << evaluation << " time " << SDL_GetTicks() - time_start;
-			std::cerr << " nodes " << nodes_searched << " branching " << branching_factor;
-			std::cerr << " pv " << move_string(best_move) << "\n";
+			std::cout << "info depth " << current_depth << " score cp " << evaluation << " time " << SDL_GetTicks() - time_start;
+			std::cout << " nodes " << nodes_searched << " branching " << branching_factor;
+			std::cout << " pv " << move_string(best_move) << "\n";
 		}
 
 		std::cerr << "cut offs pv " << cutoffspv << " / " << cutoffs << "\n";

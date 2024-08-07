@@ -6,6 +6,7 @@
 #include <move_generator.h>
 #include <perft.h>
 #include <search.h>
+#include <test.h>
 
 
 // the Universal Chess Interface (UCI) allows communication between the Graphical User Interface (GUI) and the engine
@@ -32,8 +33,6 @@ struct UCI
 
 	void fabricate_position(std::istringstream &iss)
 	{
-		board.reset(); // reset board to avoid overwrites
-
 		std::string parsed {};
 		iss >> parsed;
 
@@ -57,7 +56,8 @@ struct UCI
 
 	void go_command(std::istringstream &iss)
 	{
-		search.max_depth = 9999;
+		search.reset();
+		search.max_depth = 63;
 		search.max_time = 99999;
 		std::string parsed {};
 		while(iss >> parsed) {
@@ -72,9 +72,13 @@ struct UCI
 				run_perft(board, depth);
 				return;
 			}
+			else if (parsed == "test") {
+				run_test_suite(board, search);
+				return;
+			}
 		}
 		search.start_search(board);
-		std::cerr << "bestmove " << move_string(Move(search.best_move)) << "\n";
+		std::cout << "bestmove " << move_string(Move(search.best_move)) << "\n";
 	}
 
 	void await_input()
@@ -86,8 +90,9 @@ struct UCI
 		std::istringstream iss { line };
 
 		while(iss >> parsed) {
-			if (parsed == "uci") std::cerr << "uciok\n";
-			if (parsed == "isready") std::cerr << "readyok\n";
+			if (parsed == "uci") std::cout << "uciok\n";
+			if (parsed == "ucinewgame") break;
+			if (parsed == "isready") std::cout << "readyok\n";
 			if (parsed == "position") fabricate_position(iss);
 			if (parsed == "d") print_board(board);
 			if (parsed == "go") go_command(iss);

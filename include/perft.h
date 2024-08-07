@@ -4,6 +4,7 @@ struct Perft {
 	unsigned captures = 0;
 	unsigned ep_captures = 0;
 	unsigned max_depth;
+	unsigned cap = 0;
 
 	long perft(Board &board, unsigned depth)
 	{
@@ -12,6 +13,9 @@ struct Perft {
 			return 1;
 		}
 
+		MoveGenerator move_generator {};
+		move_generator.generate_quiescence(board);
+		if (depth == 1) cap += move_generator.movelist.size();
 		MoveGenerator movegenerator {};
 		movegenerator.generate_all_moves(board);
 
@@ -81,6 +85,7 @@ void run_perft(Board &board, unsigned depth)
 	{
 		Perft perft { i };
 		perft.perft(board, i);
+		std::cerr << "captures: " << perft.cap << "\n";
 		std::cerr << "DEPTH: " << i << "  LEGAL_MOVES: " << perft.nodes << "  CAPTURES: " << perft.captures
 			  << "  EN PASSANT: " << perft.ep_captures << "  TIME: " << SDL_GetTicks() - lasttime << "\n";
 	}
