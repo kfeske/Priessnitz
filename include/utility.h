@@ -186,15 +186,10 @@ Move create_move(unsigned from, unsigned to)
 	return Move((from << 6) + to);
 }
 
-Move create_move(unsigned from, unsigned to, MoveFlags mf)
+template <MoveFlags mf>
+Move create_move(unsigned from, unsigned to)
 {
 	return Move((mf << 12) | (from << 6) | to);
-}
-
-template<MoveFlags mf>
-Scored_move new_move(unsigned from, unsigned to)
-{
-	return Scored_move { create_move(from, to, mf) };
 }
 
 unsigned rank(unsigned square)

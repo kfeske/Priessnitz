@@ -28,9 +28,9 @@ struct TranspositionTable
 				// correct the mate scores, as we store mates using the distance to the node, they were found in
 				// in case of a transposition, we want to know, how far the mate is
 				if (evaluation > 31000)
-					evaluation += depth;
-				if (evaluation < -31000)
 					evaluation -= depth;
+				if (evaluation < -31000)
+					evaluation += depth;
 
 				// we have an exact score for that position. Great!
 				// (that means, we searched all moves and received a new best move)
@@ -66,9 +66,9 @@ struct TranspositionTable
 		// correct the mate scores, as we store mates using the distance to the node, they were found in
 		// in case of a transposition, we want to know, how far the mate is
 		if (evaluation > 31000)
-			evaluation -= depth;
-		if (evaluation < -31000)
 			evaluation += depth;
+		if (evaluation < -31000)
+			evaluation -= depth;
 		entry.evaluation = int16_t(evaluation);
 	}
 };

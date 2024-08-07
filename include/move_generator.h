@@ -9,7 +9,7 @@ struct MoveGenerator : Noncopyable
 	template <MoveFlags mf>
 	void append_attacks(unsigned from, uint64_t attacks)
 	{
-		while (attacks) move_list[size++] = new_move<mf>(from, pop_lsb(attacks));
+		while (attacks) move_list[size++].move = create_move<mf>(from, pop_lsb(attacks));
 	}
 
 	void generate_pawn_moves(Board &board, Color col, uint64_t targets, uint64_t quiets, uint64_t pinned, unsigned ksq, uint64_t sliders)
@@ -31,11 +31,11 @@ struct MoveGenerator : Noncopyable
 
 		while (single_pushes) {
 			unsigned square = pop_lsb(single_pushes);
-			move_list[size++] = new_move<QUIET>(square - up, square);
+			move_list[size++].move = create_move<QUIET>(square - up, square);
 		}
 		while (double_pushes) {
 			unsigned square = pop_lsb(double_pushes);
-			move_list[size++] = new_move<DOUBLE_PUSH>(square - up - up, square);
+			move_list[size++].move = create_move<DOUBLE_PUSH>(square - up - up, square);
 		}
 
 		uint64_t right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
@@ -43,11 +43,11 @@ struct MoveGenerator : Noncopyable
 
 		while (right_attacks) {
 			unsigned square = pop_lsb(right_attacks);
-			move_list[size++] = new_move<CAPTURE>(square - up_right, square);
+			move_list[size++].move = create_move<CAPTURE>(square - up_right, square);
 		}
 		while (left_attacks) {
 			unsigned square = pop_lsb(left_attacks);
-			move_list[size++] = new_move<CAPTURE>(square - up_left,  square);
+			move_list[size++].move = create_move<CAPTURE>(square - up_left,  square);
 		}
 
 		unsigned ep_square = board.history[board.game_ply].ep_sq;
@@ -66,7 +66,7 @@ struct MoveGenerator : Noncopyable
 				if ((board.precomputed.attacks_bb<ROOK>(ksq, board.occ & ~(1ULL << attacker_square)
 				    & ~(1ULL << (ep_square - up))) & board.precomputed.line_bb[ksq][attacker_square]
 				    & sliders) == 0)
-					move_list[size++] = new_move<EP_CAPTURE>(attacker_square, ep_square);
+					move_list[size++].move = create_move<EP_CAPTURE>(attacker_square, ep_square);
 			}
 
 			// pinned en passant
@@ -79,7 +79,7 @@ struct MoveGenerator : Noncopyable
 
 				// if an en passant cannot stop a check, it is illegal
 				if (((1ULL << ep_square) & quiets) || ((1ULL << (ep_square - up)) & targets))
-					move_list[size++] = new_move<EP_CAPTURE>(attacker_square, ep_square);
+					move_list[size++].move = create_move<EP_CAPTURE>(attacker_square, ep_square);
 			}
 		}
 
@@ -93,10 +93,10 @@ struct MoveGenerator : Noncopyable
 			single_pushes = shift(pawns, up) & quiets;
 			while(single_pushes) {
 				unsigned square = pop_lsb(single_pushes);
-				move_list[size++] = new_move<PR_KNIGHT>(square - up, square);
-				move_list[size++] = new_move<PR_BISHOP>(square - up, square);
-				move_list[size++] = new_move<PR_ROOK>(square - up, square);
-				move_list[size++] = new_move<PR_QUEEN>(square - up, square);
+				move_list[size++].move = create_move<PR_KNIGHT>(square - up, square);
+				move_list[size++].move = create_move<PR_BISHOP>(square - up, square);
+				move_list[size++].move = create_move<PR_ROOK>(square - up, square);
+				move_list[size++].move = create_move<PR_QUEEN>(square - up, square);
 			}
 
 			// promotion captures
@@ -105,18 +105,18 @@ struct MoveGenerator : Noncopyable
 
 			while(right_attacks) {
 				unsigned square = pop_lsb(right_attacks);
-				move_list[size++] = new_move<PC_KNIGHT>(square - up_right, square);
-				move_list[size++] = new_move<PC_BISHOP>(square - up_right, square);
-				move_list[size++] = new_move<PC_ROOK>(square - up_right, square);
-				move_list[size++] = new_move<PC_QUEEN>(square - up_right, square);
+				move_list[size++].move = create_move<PC_KNIGHT>(square - up_right, square);
+				move_list[size++].move = create_move<PC_BISHOP>(square - up_right, square);
+				move_list[size++].move = create_move<PC_ROOK>(square - up_right, square);
+				move_list[size++].move = create_move<PC_QUEEN>(square - up_right, square);
 			}
 
 			while(left_attacks) {
 				unsigned square = pop_lsb(left_attacks);
-				move_list[size++] = new_move<PC_KNIGHT>(square - up_left, square);
-				move_list[size++] = new_move<PC_BISHOP>(square - up_left, square);
-				move_list[size++] = new_move<PC_ROOK>(square - up_left, square);
-				move_list[size++] = new_move<PC_QUEEN>(square - up_left, square);
+				move_list[size++].move = create_move<PC_KNIGHT>(square - up_left, square);
+				move_list[size++].move = create_move<PC_BISHOP>(square - up_left, square);
+				move_list[size++].move = create_move<PC_ROOK>(square - up_left, square);
+				move_list[size++].move = create_move<PC_QUEEN>(square - up_left, square);
 			}
 		}
 
@@ -164,7 +164,7 @@ struct MoveGenerator : Noncopyable
 
 			while(attacks) {
 				unsigned to = pop_lsb(attacks);
-				move_list[size++] = new_move<QUIET>(from, to);
+				move_list[size++].move = create_move<QUIET>(from, to);
 			}
 
 			attacks = board.precomputed.attacks_bb<p>(from, board.occ) & targets;
@@ -172,7 +172,7 @@ struct MoveGenerator : Noncopyable
 
 			while(attacks) {
 				unsigned to = pop_lsb(attacks);
-				move_list[size++] = new_move<CAPTURE>(from, to);
+				move_list[size++].move = create_move<CAPTURE>(from, to);
 			}
 		}
 	}
@@ -266,23 +266,23 @@ struct MoveGenerator : Noncopyable
 				// kingside
 				if ((board.history[board.game_ply].castling_rights & 0b0001) &&
 				    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
-					move_list[size++] = create_move(ksq, ksq + 2, OO);
+					move_list[size++].move = create_move<OO>(ksq, ksq + 2);
 
 				// queenside
 				if ((board.history[board.game_ply].castling_rights & 0b0010) &&
 				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
-					move_list[size++] = create_move(ksq, ksq - 2, OOO);
+					move_list[size++].move = create_move<OOO>(ksq, ksq - 2);
 			}
 			else {
 				// kingside
 				if ((board.history[board.game_ply].castling_rights & 0b0100) &&
 				    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
-					move_list[size++] = create_move(ksq, ksq + 2, OO);
+					move_list[size++].move = create_move<OO>(ksq, ksq + 2);
 
 				// queenside
 				if ((board.history[board.game_ply].castling_rights & 0b1000) &&
 				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
-					move_list[size++] = create_move(ksq, ksq - 2, OOO);
+					move_list[size++].move = create_move<OOO>(ksq, ksq - 2);
 			}
 		}
 
@@ -303,11 +303,11 @@ struct MoveGenerator : Noncopyable
 
 		while (right_attacks) {
 			unsigned square = pop_lsb(right_attacks);
-			move_list[size++] = new_move<CAPTURE>(square - up_right, square);
+			move_list[size++].move = create_move<CAPTURE>(square - up_right, square);
 		}
 		while (left_attacks) {
 			unsigned square = pop_lsb(left_attacks);
-			move_list[size++] = new_move<CAPTURE>(square - up_left,  square);
+			move_list[size++].move = create_move<CAPTURE>(square - up_left,  square);
 		}
 
 		unsigned ep_square = board.history[board.game_ply].ep_sq;
@@ -316,7 +316,7 @@ struct MoveGenerator : Noncopyable
 			uint64_t ep_candidates = pawns & board.precomputed.pawn_attacks[!friendly][ep_square];
 			while (ep_candidates) {
 				unsigned attacker_square = pop_lsb(ep_candidates);
-				move_list[size++] = new_move<EP_CAPTURE>(attacker_square, ep_square);
+				move_list[size++] = create_move<EP_CAPTURE>(attacker_square, ep_square);
 			}
 		}
 	}

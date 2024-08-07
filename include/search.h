@@ -16,8 +16,9 @@ struct Heuristics// : Noncopyable
 struct Search
 {
 	Evaluation eval;
-	Move best_move = INVALID_MOVE;
-	Move best_move_this_iteration = INVALID_MOVE;
+	Move best_root_move = INVALID_MOVE;
+	int16_t root_evaluation = 0;
+
 	unsigned max_depth = 63;
 	double max_time = 99999;
 	unsigned current_depth;
@@ -43,7 +44,6 @@ struct Search
 
 	void reset()
 	{
-		best_move = INVALID_MOVE;
 		max_depth = 63;
 		max_time = 99999;
 		search_nodes = 0;
@@ -104,7 +104,6 @@ struct Search
 		{
 			// Time's up! Use the best move from the previous iteration
 			abort_search = true;
-			std::cerr << "info abort search\n";
 			return 0;
 		}
 
@@ -119,7 +118,7 @@ struct Search
 			// we reached a leaf node, start the Quiescence Search
 			return qsearch(board, alpha, beta, 0);
 
-		Move best_move_this_node = INVALID_MOVE;
+		Move best_move = INVALID_MOVE;
 		int evaluation;
 		bool in_check = board.in_check();
 
@@ -169,7 +168,6 @@ struct Search
 
 		// score each move depending on how good it looks
 		rate_moves(board, heuristics, move_generator, false, ply_from_root);
-
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
 			search_nodes++;
@@ -227,7 +225,7 @@ struct Search
 
 				// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-				tt.store(board.zobrist.key, depth, alpha, best_move_this_node, LOWERBOUND);
+				tt.store(board.zobrist.key, depth, alpha, best_move, LOWERBOUND);
 
 				if (flags_of(move) != CAPTURE) {
 					// this is a killer move - Store it!
@@ -236,6 +234,7 @@ struct Search
 
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
 				}
+
 				// *snip*
 				if (n == 0) cutoffspv++;
 				cutoffs++;
@@ -245,53 +244,53 @@ struct Search
 			if (evaluation > alpha) {
 				// found a better move
 				alpha = evaluation;
-				best_move_this_node = move;
+				best_move = move;
 				flag = EXACT;
+
+				if (ply_from_root == 0) {
+					best_root_move = best_move;
+					root_evaluation = evaluation;
+				}
 			}
 		}
+		
 
-		tt.store(board.zobrist.key, depth, alpha, best_move_this_node, flag);
+		tt.store(board.zobrist.key, depth, alpha, best_move, flag);
 
-		best_move_this_iteration = best_move_this_node;
 		return alpha;
 	}
 
-	int start_search(Board &board)
+	void start_search(Board &board)
 	{
-		int evaluation = 0;
-		int final_evaluation = 0;
 		abort_search = false;
 
 		time_start = SDL_GetTicks();
-		int nodes_previous_iteration;
+		long nodes_previous_iteration;
 		long total_nodes = 0;
 
-		//std::cerr << ".";
 		for (current_depth = 1; current_depth <= max_depth; current_depth++) {
 
 			nodes_previous_iteration = search_nodes + quiescence_nodes;
 			search_nodes = 0;
 			quiescence_nodes = 0;
 
-			evaluation = search(board, current_depth, -infinity, infinity);
+			search(board, current_depth, -infinity, infinity);
 			total_nodes += search_nodes + quiescence_nodes;
 
-			if (abort_search) break;
 
-			best_move = best_move_this_iteration;
-			final_evaluation = evaluation;
 			if (current_depth > 1) branching_factor = (search_nodes + quiescence_nodes) / double(nodes_previous_iteration) + 0.0001;
 
-			std::cout << "info depth " << current_depth << " score cp " << evaluation << " time " << SDL_GetTicks() - time_start;
+			std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << SDL_GetTicks() - time_start;
 			std::cout << " nodes " << search_nodes + quiescence_nodes << " snodes " << search_nodes << " qnodes " << quiescence_nodes;
 			std::cout << " branching " << branching_factor;
-			std::cout << " pv " << move_string(best_move) << "\n";
+			std::cout << " pv " << move_string(best_root_move) << "\n";
+
+			if (abort_search) break;
 		}
 
 		std::cerr << "cut offs pv " << cutoffspv << " / " << cutoffs << "\n";
 		std::cerr << "info total nodes " << total_nodes << "\n";
-		std::cout << "bestmove " << move_string(best_move) << "\n";
+		std::cout << "bestmove " << move_string(best_root_move) << "\n";
 		reset(); // make sure to clear all search data to avoid them affecting the next search
-		return final_evaluation;
 	}
 };
