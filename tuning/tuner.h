@@ -69,13 +69,21 @@ enum Indicies {
 	ZONE_PRESSURE = RING_PRESSURE + 8,
 	PAWN_SHIELD = ZONE_PRESSURE + 8,
 
-	END_INDEX = PAWN_SHIELD + 6
+	PAWN_COUNT_SCALE_OFFSET = PAWN_SHIELD + 6,
+	PAWN_COUNT_SCALE_WEIGHT = PAWN_COUNT_SCALE_OFFSET + 1,
+	LONE_MINOR_SCALE = PAWN_COUNT_SCALE_WEIGHT + 1,
+
+	END_INDEX = LONE_MINOR_SCALE + 1
 };
 
 enum Tuning_params {
-	NUM_TRAINING_POSITIONS = 6500000, // number of training positions
-	NUM_TEST_POSITIONS = 653653,      // number of test positions
-	NUM_TABLES = 49,		  // number of tables to be tuned (eg. pawn piece square table)
+	//NUM_TRAINING_POSITIONS = 6500000, // number of training positions
+	//NUM_TEST_POSITIONS = 653653,      // number of test positions
+	//NUM_TRAINING_POSITIONS = 1000,
+	//NUM_TEST_POSITIONS = 0,
+	NUM_TRAINING_POSITIONS = 7153653,
+	NUM_TEST_POSITIONS = 0,
+	NUM_TABLES = 52,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -90,20 +98,28 @@ double random_double(double min, double max)
 	return min + (max - min) * random_double();
 }
 
-// a single position and the game result
+// A single position and the game result
 struct Sample
 {
 	double outcome;
 
-	// stores, how much a weight influences the evaluation of a position
-	std::vector<double> influence {};
-	std::vector<Indicies> influence_index {};
+	// Stores, how much a weight influences the evaluation of a position
+	std::vector<double> mg_influence {};
+	std::vector<double> eg_influence {};
+	std::vector<Indicies> mg_influence_index {};
+	std::vector<Indicies> eg_influence_index {};
 
-	// useful for king evaluation
+	// Useful for king evaluation
 	uint8_t ring_attackers[2] {};
 	uint8_t ring_attacks[15] {};
 	uint8_t zone_attackers[2] {};
 	uint8_t zone_attacks[15] {};
+
+	// Needed for endgame scaling
+	double scale = 0; // updated during training in evaluate()
+	uint8_t pawn_count[2] {};
+	Color strong_side = WHITE;
+	double eg_evaluation = 0;
 
 	// Midgame / Endgame gamephase of the position
 	double phase = 0;
@@ -122,6 +138,8 @@ struct Tuner
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
+					   PAWN_COUNT_SCALE_OFFSET,
+					   PAWN_COUNT_SCALE_WEIGHT,
 			     	      	   END_INDEX };
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
@@ -137,7 +155,7 @@ struct Tuner
 	double gradients[NUM_WEIGHTS];
 	double sum_squared_gradients[NUM_WEIGHTS];
 
-	// returns the value in a table at a position
+	// Returns the value in a table at a position
 	int table_value(Indicies table_index, unsigned pos)
 	{
 		switch (table_index) {
@@ -197,11 +215,15 @@ struct Tuner
 		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
 		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
 		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
+
+		case PAWN_COUNT_SCALE_OFFSET: return eval.pawn_count_scale_offset;
+		case PAWN_COUNT_SCALE_WEIGHT: return eval.pawn_count_scale_weight;
+
 		default: return 0;
 		}
 	}
 
-	// returns the table described with the index. (see table[] array)
+	// Returns the table described with the index. (see table[] array)
 	Indicies table_of(unsigned index)
 	{
 		for (unsigned i = 0; i < NUM_TABLES; i++) {
@@ -212,7 +234,7 @@ struct Tuner
 		return END_INDEX;
 	}
 
-	// returns the weight at an index from the evaluation function
+	// Returns the weight at an index from the evaluation function
 	double load_weight(unsigned index)
 	{
 		Indicies table_index = table_of(index);
@@ -352,6 +374,9 @@ struct Tuner
 		std::cerr <<   "int eg_knight_outpost = "	    << int_weight(EG_KNIGHT_OUTPOST) << ";\n";
 		std::cerr << "\nint mg_knight_outpost_supported = " << int_weight(MG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
 		std::cerr <<   "int eg_knight_outpost_supported = " << int_weight(EG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
+
+		std::cerr << "\nint pawn_count_scale_offset = " << int_weight(PAWN_COUNT_SCALE_OFFSET) << ";\n";
+		std::cerr <<   "int pawn_count_scale_weight = " << int_weight(PAWN_COUNT_SCALE_WEIGHT) << ";\n";
 	}
 
 	// this functions sets the result of a game; 0 for black win, 0.5 for a draw and 1 for white win
@@ -386,7 +411,8 @@ struct Tuner
 	// (the derivatives of the evaluation in respect to the weights)
 	void extract_features(Sample &sample)
 	{
-		double influences[NUM_WEIGHTS] {};
+		double mg_influences[NUM_WEIGHTS] {};
+		double eg_influences[NUM_WEIGHTS] {};
 		int taper_start = 6377;
 		int taper_end = 321;
 
@@ -409,14 +435,14 @@ struct Tuner
 			int side = (friendly == WHITE) ? 1 : -1;
 
 			// material
-			influences[MG_VALUES + type] += side * mg_phase;
-			influences[EG_VALUES + type] += side * eg_phase;
+			mg_influences[MG_VALUES + type] += side * mg_phase;
+			eg_influences[EG_VALUES + type] += side * eg_phase;
 
 			// PSQT
 			unsigned mg_index = MG_PAWN_PSQT + type * 64 + normalize[friendly][square];
 			unsigned eg_index = EG_PAWN_PSQT + type * 64 + normalize[friendly][square];
-			influences[mg_index] += side * mg_phase;
-			influences[eg_index] += side * eg_phase;
+			mg_influences[mg_index] += side * mg_phase;
+			eg_influences[eg_index] += side * eg_phase;
 
 			switch (type) {
 			case PAWN:
@@ -434,34 +460,34 @@ struct Tuner
 
 				// isolated pawns
 				if (!(adjacent_files & friendly_pawns)) {
-					influences[MG_ISOLATED] += side * mg_phase;
-					influences[EG_ISOLATED] += side * eg_phase;
+					mg_influences[MG_ISOLATED] += side * mg_phase;
+					eg_influences[EG_ISOLATED] += side * eg_phase;
 				}
 
 				// doubled pawns
 				else if (doubled) {
-					influences[MG_DOUBLED] += side * mg_phase;
-					influences[EG_DOUBLED] += side * eg_phase;
+					mg_influences[MG_DOUBLED] += side * mg_phase;
+					eg_influences[EG_DOUBLED] += side * eg_phase;
 				}
 
 				// backward pawns
 				else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
-					influences[MG_BACKWARD] += side * mg_phase;
-					influences[EG_BACKWARD] += side * eg_phase;
+					mg_influences[MG_BACKWARD] += side * mg_phase;
+					eg_influences[EG_BACKWARD] += side * eg_phase;
 				}
 
 				// reward chained pawns
 				if (chained) {
-					influences[MG_CHAINED] += side * mg_phase;
-					influences[EG_CHAINED] += side * eg_phase;
+					mg_influences[MG_CHAINED] += side * mg_phase;
+					eg_influences[EG_CHAINED] += side * eg_phase;
 				}
 
 				// passed pawns
 				if (passed && !doubled) {
 					unsigned mg_index = MG_PASSED_PAWN + normalize[friendly][square];
 					unsigned eg_index = EG_PASSED_PAWN + normalize[friendly][square];
-					influences[mg_index] += side * mg_phase;
-					influences[eg_index] += side * eg_phase;
+					mg_influences[mg_index] += side * mg_phase;
+					eg_influences[eg_index] += side * eg_phase;
 				}
 				continue;
 				}
@@ -473,18 +499,18 @@ struct Tuner
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				influences[MG_KNIGHT_MOBILITY + safe_squares] += side * mg_phase;
-				influences[EG_KNIGHT_MOBILITY + safe_squares] += side * eg_phase;
+				mg_influences[MG_KNIGHT_MOBILITY + safe_squares] += side * mg_phase;
+				eg_influences[EG_KNIGHT_MOBILITY + safe_squares] += side * eg_phase;
 
 				if (1ULL << square & outpost_mask(friendly) &&
 				    !(pawn_threat_mask(friendly, square) & board.pieces(enemy, PAWN))) {
 					if (pawn_attacks(enemy, square) & board.pieces(friendly, PAWN)) {
-						influences[MG_KNIGHT_OUTPOST_SUPPORTED] += side * mg_phase;
-						influences[EG_KNIGHT_OUTPOST_SUPPORTED] += side * eg_phase;
+						mg_influences[MG_KNIGHT_OUTPOST_SUPPORTED] += side * mg_phase;
+						eg_influences[EG_KNIGHT_OUTPOST_SUPPORTED] += side * eg_phase;
 					}
 					else {
-						influences[MG_KNIGHT_OUTPOST] += side * mg_phase;
-						influences[EG_KNIGHT_OUTPOST] += side * eg_phase;
+						mg_influences[MG_KNIGHT_OUTPOST] += side * mg_phase;
+						eg_influences[EG_KNIGHT_OUTPOST] += side * eg_phase;
 					}
 
 				}
@@ -497,8 +523,8 @@ struct Tuner
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				influences[MG_BISHOP_MOBILITY + safe_squares] += side * mg_phase;
-				influences[EG_BISHOP_MOBILITY + safe_squares] += side * eg_phase;
+				mg_influences[MG_BISHOP_MOBILITY + safe_squares] += side * mg_phase;
+				eg_influences[EG_BISHOP_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
 				}
 			case ROOK:
@@ -508,18 +534,18 @@ struct Tuner
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				influences[MG_ROOK_MOBILITY + safe_squares] += side * mg_phase;
-				influences[EG_ROOK_MOBILITY + safe_squares] += side * eg_phase;
+				mg_influences[MG_ROOK_MOBILITY + safe_squares] += side * mg_phase;
+				eg_influences[EG_ROOK_MOBILITY + safe_squares] += side * eg_phase;
 
 				uint64_t rook_file = file(square);
 				if (!(rook_file & board.pieces(friendly, PAWN))) {
 					if (!(rook_file & board.pieces(enemy, PAWN))) {
-						influences[MG_ROOK_OPEN_FILE] += side * mg_phase;
-						influences[EG_ROOK_OPEN_FILE] += side * eg_phase;
+						mg_influences[MG_ROOK_OPEN_FILE] += side * mg_phase;
+						eg_influences[EG_ROOK_OPEN_FILE] += side * eg_phase;
 					}
 					else {
-						influences[MG_ROOK_HALF_OPEN_FILE] += side * mg_phase;
-						influences[EG_ROOK_HALF_OPEN_FILE] += side * eg_phase;
+						mg_influences[MG_ROOK_HALF_OPEN_FILE] += side * mg_phase;
+						eg_influences[EG_ROOK_HALF_OPEN_FILE] += side * eg_phase;
 					}
 				}
 				continue;
@@ -530,8 +556,8 @@ struct Tuner
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				influences[MG_QUEEN_MOBILITY + safe_squares] += side * mg_phase;
-				influences[EG_QUEEN_MOBILITY + safe_squares] += side * eg_phase;
+				mg_influences[MG_QUEEN_MOBILITY + safe_squares] += side * mg_phase;
+				eg_influences[EG_QUEEN_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
 				}
 			case KING:
@@ -539,14 +565,14 @@ struct Tuner
 				uint64_t attacks = piece_attacks(KING, square, 0ULL);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
-				influences[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
+				mg_influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
+				eg_influences[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
 
 				uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
 				while (shield_pawns) {
 					unsigned pawn_square = pop_lsb(shield_pawns);
 					unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
-					influences[PAWN_SHIELD + shield_square] += side * mg_phase;
+					mg_influences[PAWN_SHIELD + shield_square] += side * mg_phase;
 				}
 				continue;
 				}
@@ -554,28 +580,33 @@ struct Tuner
 		}
 		// bishop pair
 		if (pop_count(board.pieces(WHITE, BISHOP)) >= 2) {
-			influences[MG_DOUBLE_BISHOP] += mg_phase;
-			influences[EG_DOUBLE_BISHOP] += eg_phase;
+			mg_influences[MG_DOUBLE_BISHOP] += mg_phase;
+			eg_influences[EG_DOUBLE_BISHOP] += eg_phase;
 		}
 		if (pop_count(board.pieces(BLACK, BISHOP)) >= 2) {
-			influences[MG_DOUBLE_BISHOP] -= mg_phase;
-			influences[EG_DOUBLE_BISHOP] -= eg_phase;
+			mg_influences[MG_DOUBLE_BISHOP] -= mg_phase;
+			eg_influences[EG_DOUBLE_BISHOP] -= eg_phase;
 		}
 
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
-			if (influences[i] != 0) {
-				sample.influence.emplace_back(influences[i]);
-				sample.influence_index.emplace_back(Indicies(i));
+			if (mg_influences[i] != 0) {
+				sample.mg_influence.emplace_back(mg_influences[i]);
+				sample.mg_influence_index.emplace_back(Indicies(i));
+			}
+			if (eg_influences[i] != 0) {
+				sample.eg_influence.emplace_back(eg_influences[i]);
+				sample.eg_influence_index.emplace_back(Indicies(i));
 			}
 		}
+		sample.pawn_count[WHITE] = pop_count(board.pieces(WHITE, PAWN));
+		sample.pawn_count[BLACK] = pop_count(board.pieces(BLACK, PAWN));
 	}
 
 	void load_training_set()
 	{
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
-		//file.open("training_set.epd");
 		file.open("lichess-big3-resolved.book");
 		if (file.is_open()) {
 			std::string input;
@@ -653,13 +684,27 @@ struct Tuner
 		return pressure / 100;
 	}
 
+	double scale_factor(Sample &sample, double eg_evaluation)
+	{
+		sample.strong_side = (eg_evaluation > 0) ? WHITE : BLACK;
+
+		return weights[PAWN_COUNT_SCALE_OFFSET] + sample.pawn_count[sample.strong_side] * weights[PAWN_COUNT_SCALE_WEIGHT];
+	}
+
 	double evaluate(Sample &sample)
 	{
 		// all 'normal' evaluation parts can easily be computed
 
-		double evaluation = 0;
-		for (unsigned i = 0; i < sample.influence.size(); i++)
-			evaluation += sample.influence[i] * weights[sample.influence_index[i]];
+		double mg_evaluation = 0;
+		for (unsigned i = 0; i < sample.mg_influence.size(); i++)
+			mg_evaluation += sample.mg_influence[i] * weights[sample.mg_influence_index[i]];
+
+		sample.eg_evaluation = 0;
+		for (unsigned i = 0; i < sample.eg_influence.size(); i++)
+			sample.eg_evaluation += sample.eg_influence[i] * weights[sample.eg_influence_index[i]];
+
+		sample.scale = scale_factor(sample, sample.eg_evaluation);
+		double evaluation = mg_evaluation + sample.eg_evaluation * sample.scale / 128;
 
 		// king safety is a bit tricky, because two different weights affect each other
 
@@ -754,8 +799,10 @@ struct Tuner
 			// Most gradients can easily be computed
 			// The influence array holds the derivatives of each parameter in respect to the evaluation function
 			// (in this case, it is the game phase multiplied by how often it is used in the position)
-			for (unsigned i = 0; i < sample.influence.size(); i++)
-				gradients[sample.influence_index[i]] += sample.influence[i] * partial_derivative;
+			for (unsigned i = 0; i < sample.mg_influence.size(); i++)
+				gradients[sample.mg_influence_index[i]] += sample.mg_influence[i] * partial_derivative;
+			for (unsigned i = 0; i < sample.eg_influence.size(); i++)
+				gradients[sample.eg_influence_index[i]] += sample.eg_influence[i] * partial_derivative * sample.scale / 128;
 
 			// King safety always needs extra work, because two parameters affect each other
 
@@ -784,6 +831,9 @@ struct Tuner
 				double black_zone_attacks = sample.zone_attacks[piece_of(BLACK, type)];
 				gradients[ZONE_POTENCY + type] -= black_zone_attacks * weights[black_zone_index] / 100 * partial_derivative * sample.phase;
 			}
+			// Endgame scaling
+			gradients[PAWN_COUNT_SCALE_OFFSET] += sample.eg_evaluation / 128 * partial_derivative;
+			gradients[PAWN_COUNT_SCALE_WEIGHT] += sample.pawn_count[sample.strong_side] * sample.eg_evaluation / 128 * partial_derivative;
 		}
 	}
 
@@ -791,22 +841,23 @@ struct Tuner
 	void tune()
 	{
 		print_weights();
-		double best_error = average_cost(test_set);
-		std::cerr << "\ntest error " << best_error << "\n";
+		//double best_error = average_cost(test_set);
+		//std::cerr << "\ntest error " << best_error << "\n";
 
-		for (unsigned iteration = 0; iteration < 2000; iteration++) {
+		for (unsigned iteration = 0; iteration < 700; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 				compute_gradients(batch);
 				apply_gradients();
 			}
-			double test_error = average_cost(test_set);
-			if (test_error < best_error - 0.0000001) {
-				best_error = test_error;
-				print_weights();
-				std::cerr << "\ntest error " << test_error << "\n";
-			}
-			else break;
+			//double test_error = average_cost(test_set);
+			//if (test_error < best_error - 0.0000001) {
+			//	best_error = test_error;
+			//	print_weights();
+			//	std::cerr << "\ntest error " << test_error << "\n";
+			//}
+			//else break;
+			print_weights();
 		}
 		std::cerr << "\ntraining error " << average_cost(training_set) << "\n";
 		std::cerr << "\ntest error " << average_cost(test_set) << "\n";
