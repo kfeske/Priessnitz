@@ -66,12 +66,20 @@ enum Phase {
 	MIDGAME, ENDGAME
 };
 
-enum Value : int {
+/*enum Value : int {
 	PAWN_MG   = 126,   PAWN_EG   = 208,
 	KNIGHT_MG = 781,   KNIGHT_EG = 854,
 	BISHOP_MG = 825,   BISHOP_EG = 915,
 	ROOK_MG   = 1276,  ROOK_EG   = 1380,
 	QUEEN_MG  = 2538,  QUEEN_EG  = 2682
+};*/
+
+enum Value : int {
+	PAWN_MG = 100,  PAWN_EG = 100,
+	KNIGHT_MG = 300, KNIGHT_EG = 300,
+	BISHOP_MG = 320, BISHOP_EG = 320,
+	ROOK_MG = 500,  ROOK_EG = 500,
+	QUEEN_MG = 950, QUEEN_EG = 950
 };
 
 Value get_piece_value(Piece pc, Phase ph)
