@@ -16,7 +16,7 @@ struct Perft {
 		movegenerator.generate_all_moves(board, false);
 
 		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
-			Move move = movegenerator.movelist.at(n);
+			Move move = movegenerator.movelist.at(n).move;
 
 			if (depth == 1) {
 				switch(flags_of(move)) {
@@ -50,7 +50,7 @@ struct Perft {
 		movegenerator.generate_all_moves(board, false);
 
 		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
-			Move move = movegenerator.movelist.at(n);
+			Move move = movegenerator.movelist.at(n).move;
 
 			board.make_move(move);
 

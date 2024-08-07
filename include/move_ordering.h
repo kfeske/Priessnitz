@@ -3,50 +3,55 @@
 int value(Piece p)
 {
 	switch(p) {
-	case W_PAWN:   case B_PAWN:   return 10;
-	case W_KNIGHT: case B_KNIGHT: return 30;
-	case W_BISHOP: case B_BISHOP: return 30;
-	case W_ROOK:   case B_ROOK:   return 50;
-	case W_QUEEN:  case B_QUEEN:  return 90;
+	case W_PAWN:   case B_PAWN:   return PAWN_MG;
+	case W_KNIGHT: case B_KNIGHT: return KNIGHT_MG;
+	case W_BISHOP: case B_BISHOP: return BISHOP_MG;
+	case W_ROOK:   case B_ROOK:   return ROOK_MG;
+	case W_QUEEN:  case B_QUEEN:  return QUEEN_MG;
 	default: return 0;
 	}
 }
 
-struct MoveOrderer : Noncopyable
+void rate_moves(Board &board, Heuristics &, MoveGenerator &move_generator, Move pv_move, bool , unsigned ply_from_root)
 {
-	int rate_move(Board &board, Heuristics &, Move move, bool , unsigned )
-	{
-		int score = 0;
-		MoveFlags flags = flags_of(move);
-		PieceType pt = type_of(board.board[move_from(move)]);
+	(void) ply_from_root;
+	for (Scored_move &m : move_generator.movelist) {
+		MoveFlags flags = flags_of(m.move);
+		//PieceType pt = type_of(board.board[move_from(m.move)]);
+		(void) board;
+		(void) m;
 
+		(void) pv_move;
 		// same move as principle variation move of previous iteration (iterative deepening)
-		//if (move == pv_move)
-		//	return 30000;
+		if (m.move == pv_move) {
+			m.score += 30000;
+			//std::cerr << move_string(m.move) << " ";
+			continue;
+		}
 
 		// transposition table move
 		//if (move == heuristics.pv_move)
 		//	return 10000;
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
-		if (flags == CAPTURE)
-			score += 10 * value(board.board[move_to(move)]) - value(board.board[move_from(move)]);
+		else if (flags == CAPTURE)
+			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
 
 		// a promotion is likely to be a good idea
-		if (pt == PAWN) {
+		/*if (pt == PAWN) {
 			switch(flags) {
 			case PR_KNIGHT: case PC_KNIGHT: case PR_BISHOP: case PC_BISHOP:
-				score += 300;
+				m.score += 300;
 				break;
 			case PR_ROOK: case PC_ROOK:
-				score += 500;
+				m.score += 500;
 				break;
 			case PR_QUEEN: case PC_QUEEN:
-				score += 900;
+				m.score += 900;
 				break;
 			default: break;
 			}
-		}
+		}*/
 
 		//if (!quiescence) {
 
@@ -58,35 +63,21 @@ struct MoveOrderer : Noncopyable
 
 		//	// if everything else fails, score history moves
 		//	//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
-		//}	
-		return score; 
+		//}
 	}
+}
 
-	void sort_moves(Board &board, Heuristics &heuristics, std::vector<Move> &unsorted, bool quiescence, unsigned ply)
-	{
-		unsigned n = unsorted.size();
-		std::pair<int, Move> pair[n];
-
-		for (unsigned i = 0; i < n; i++) {
-			Move move = unsorted.at(i);
-			pair[i].first  = -rate_move(board, heuristics, move, quiescence, ply); // negative to simplify sorting
-			pair[i].second = move;
+Move next_move(MoveGenerator &move_generator, unsigned index)
+{
+	unsigned best_index = index;
+	uint16_t best_score = move_generator.movelist.at(index).score;
+	for (unsigned n = index + 1; n < move_generator.movelist.size(); n++) {
+		Scored_move &m = move_generator.movelist.at(n);
+		if (m.score > best_score) {
+			best_score = m.score;
+			best_index = n;
 		}
-		std::sort(pair, pair + n);
-
-		for (unsigned i = 0; i < n; i++)
-			unsorted[i] = pair[i].second;
 	}
-
-	MoveOrderer(Board &board, Heuristics &heuristics, std::vector<Move> &unsorted, unsigned ply)
-	{
-		sort_moves(board, heuristics, unsorted, false, ply);
-	}
-
-	// seperate move orderer for quiescence search
-	MoveOrderer(Board &board, Heuristics &heuristics, std::vector<Move> &unsorted)
-	{
-		sort_moves(board, heuristics, unsorted, true, 0);
-	}
-};
-
+	std::swap(move_generator.movelist.at(index), move_generator.movelist.at(best_index));
+	return move_generator.movelist.at(index).move;
+}

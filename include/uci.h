@@ -23,9 +23,9 @@ struct UCI
 	{
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board, false);
-		for (Move m : move_generator.movelist) {
-			if (move_string(m) == move)
-				return m;
+		for (Scored_move m : move_generator.movelist) {
+			if (move_string(m.move) == move)
+				return m.move;
 		}
 		return INVALID_MOVE;
 	}

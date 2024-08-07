@@ -133,6 +133,17 @@ enum Move : uint16_t {
 	INVALID_MOVE
 };
 
+struct Scored_move
+{
+	Move move;
+	int16_t score;
+
+	Scored_move(Move move)
+	:
+		move(move), score(0)
+	{}
+};
+
 enum MoveFlags {
 	QUIET = 0b0000,
 	DOUBLE_PUSH = 0b0001,
@@ -165,6 +176,12 @@ Move create_move(unsigned from, unsigned to)
 Move create_move(unsigned from, unsigned to, MoveFlags mf)
 {
 	return Move((mf << 12) | (from << 6) | to);
+}
+
+template<MoveFlags mf>
+Scored_move new_move(unsigned from, unsigned to)
+{
+	return Scored_move { create_move(from, to, mf) };
 }
 
 unsigned rank(unsigned square)

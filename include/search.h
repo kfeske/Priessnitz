@@ -38,13 +38,6 @@ struct Search
 	double time_start;
 	bool abort_search;
 
-	// ply describes how far we are from the root of the search tree
-
-	unsigned ply(unsigned depth)
-	{
-		return current_depth - depth;
-	}
-
 	// Quiescence Search is a shallower search, generating only
 	// captures and check evasions to avoid the horizon effect
 
@@ -65,11 +58,11 @@ struct Search
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board, true); // only captures and check evasions
 
-		MoveOrderer { board, heuristics, move_generator.movelist };
+		//MoveOrderer { board, heuristics, move_generator.movelist };
 
 		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
 
-			Move move = move_generator.movelist.at(n);
+			Move move = move_generator.movelist.at(n).move;
 			board.make_move(move);
 	
 			evaluation = -qsearch(board, -beta, -alpha);
@@ -89,7 +82,7 @@ struct Search
 
 	int search(Board &board, unsigned depth, int alpha, int beta)
 	{
-		if ((nodes_searched & 255) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
+		if ((nodes_searched & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
 			// Time's up! Use the best move from the previous iteration
 			abort_search = true;
@@ -112,7 +105,9 @@ struct Search
 		Move best_move_this_node = INVALID_MOVE;
 		int evaluation;
 		bool in_check = board.in_check();
-		unsigned ply_from_root = ply(depth);
+
+		// ply describes how far we are from the root of the search tree
+		unsigned ply_from_root = current_depth - depth;
 		//unsigned ply = current_depth - depth;
 		//heuristics.pv_lenght[ply] = ply;
 		//TTEntryFlag flag = UPPERBOUND;
@@ -157,16 +152,13 @@ struct Search
 			else return 0;
 		}
 
-		if (board.repetition || board.history[board.game_ply].rule_50 >= 100) {
-			//std::cerr << "rep: " << int(board.repetition) << "\n";
+		if (board.repetition || board.history[board.game_ply].rule_50 >= 100)
 			return 0;
-		}
 
-		(void) ply_from_root;
-		MoveOrderer { board, heuristics, move_generator.movelist, ply_from_root };
+		rate_moves(board, heuristics, move_generator, best_move, false, ply_from_root);
 
 		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
-			Move move = move_generator.movelist.at(n);
+			Move move = next_move(move_generator, n);
 
 			//std::cerr << "depth: " << depth;
 			//std::cerr << " move: ";
