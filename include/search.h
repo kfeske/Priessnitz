@@ -49,6 +49,11 @@ struct Search : Noncopyable
 		for (TTEntry &entry : tt.entries) entry = {};
 	}
 
+	bool mate(int score)
+	{
+		return (abs(score) >= mate_score - 100);
+	}
+
 	// Quiescence Search is a shallower search, generating only
 	// captures and check evasions to avoid the horizon effect
 	int qsearch(Board &board, int alpha, int beta, unsigned ply)
@@ -142,6 +147,13 @@ struct Search : Noncopyable
 
 		bool pv_node = beta - alpha != 1;
 
+		// static evaluation of the position
+		int static_eval = eval.evaluate(board);
+
+		// Reverse Futility Pruning
+		if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 80 * depth >= beta)
+			return beta;
+
 		// Null Move Pruning
 		// if there is a beta cutoff even if we skip our turn (permitting the opponent to play two moves in a row),
 		// the position is so terrible for the opponent that we can just prune the whole branch
@@ -149,7 +161,7 @@ struct Search : Noncopyable
 
 		// (should not be used in complicated endgames and zugzwang positions!!!)
 		if (!pv_node && allow_null_move && !in_check && ply > 0 && depth >= 3 &&
-		    board.non_pawn_material[board.side_to_move]) {
+		    board.non_pawn_material[board.side_to_move] && static_eval >= beta) {
 
 			unsigned ep_square = board.make_null_move();
 
@@ -158,7 +170,7 @@ struct Search : Noncopyable
 
 			board.unmake_null_move(ep_square);
 
-			if (evaluation >= beta && fabs(evaluation) < mate_score - 100) {
+			if (evaluation >= beta && !mate(evaluation)) {
 				null_cuts++;
 				return beta;
 			}
@@ -168,11 +180,9 @@ struct Search : Noncopyable
 		// very close to the horizon of the search, where we are in a position that is much worse than alpha,
 		// it is wise to prune this node completely and not waste our time on futile positions
 		bool futile = false;
-		if (!pv_node && depth <= 4 && !in_check && alpha < mate_score - 100 && beta < mate_score - 100) {
-			int static_evaluation = eval.evaluate(board);
-			futile = static_evaluation + futility_margin[depth] <= alpha;
-		}
-		
+		if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
+			futile = static_eval + futility_margin[depth] <= alpha;
+
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
 

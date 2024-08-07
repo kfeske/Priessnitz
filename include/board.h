@@ -381,6 +381,8 @@ struct Board : Board_state
 	{
 		reset(); // reset board to avoid overwrites
 		history[0] = UndoInfo();
+
+		zobrist.piece_side_key = 0ULL;
 		
 		bool rights = false;
 		unsigned square = 0;
@@ -421,7 +423,10 @@ struct Board : Board_state
 
 				// side to move
 				if      (character == 'w') side_to_move = WHITE;
-				else if (character == 'b') side_to_move = BLACK;
+				else if (character == 'b') {
+					side_to_move = BLACK;
+					zobrist.piece_side_key ^= zobrist.side_rand;
+				}
 
 				// castling rights
 				else if (character == 'K') history[0].castling_rights |= WHITE_OO;
@@ -452,6 +457,10 @@ struct Board : Board_state
 				zobrist.piece_side_key ^= zobrist.piece_rand[pc][square];
 			}
 		}
+		zobrist.key = zobrist.piece_side_key;
+		zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
+		if (history[game_ply].ep_sq != SQ_NONE)
+			zobrist.key ^= zobrist.ep_rand[file(history[game_ply].ep_sq)];
 	}
 
 	void set_startpos()
@@ -493,4 +502,5 @@ void print_board(Board &board)
 	}
 	str += "      A   B   C   D   E   F   G   H\n\n";
 	std::cerr << str;
+	std::cerr << "key " << board.zobrist.key << "\n";
 }

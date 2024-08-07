@@ -1,0 +1,14 @@
+
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4 c7c5 g1f3 d7d6 f1d3 b8c6 e1g1 g8f6 b1c3 e7e5 c3d5 f6d5 e4d5 c6e7 d3c4 c8d7 d2d3 b7b5 c4b3 d8c7 c2c4 h7h6 c4b5 d7b5 f3h4 a8b8 f1e1 g7g5 h4f3 f8g7 h2h4 f7f6 h4g5 h6g5 f3h2 c5c4 d3c4 b5c4 d1c2 b8c8 e1d1 c4b3 c2b3 e8f7 h2g4 f6f5 g4h2 f5f4 c1d2 c7c2 h2f3 g7f6 b3c2 c8c2 d2c3 g5g4 f3e1 c2e2 g1f1 e2e4 f1g1 e7f5 a1c1 g4g3 e1d3 g3f2 d3f2 e4a4 a2a3 f5e3 d1d2 f6e7 c3b4 h8g8 f2e4 a7a5 b2b3 a5b4 b3a4 b4a3 c1c7 g8a8 e4d6 f7f8 d6e4 e7b4 e4c3 a8a4 d5d6 a4a8 c7c6 b4c3 d6d7 a8d8
+go movetime 3000
+
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4 c7c5 g1f3 d7d6 f1d3 g8f6 e1g1 b8c6 b1c3 a7a6 h2h3 c8d7 a2a4 e7e6 d3c4 f8e7 d2d3 e8g8 c1e3 h7h6 c4b3 c6a5 b3a2 a5c6 a2b3 f8e8 f1e1 b7b6 d1e2 f6h7 d3d4 c5d4 f3d4 e7f6 a1d1 d8c7 e2c4 e8b8 d4c6 d7c6 c3d5 c7b7 d5b6 c6e4 b6a8 e4g2 a8b6 g2h3 b6d5 e6d5 c4d5 b7d5 d1d5 f6e5 f2f4 h7f6 f4e5 f6d5 b3d5 d6e5 
+
+catastrophic blunder - culprits might be unrestricted nullmoves or no pawn promotions in quiescence
+position startpos moves e2e4 e7e6 d2d4 d7d5 b1c3 f8b4 e4e5 c7c5 a2a3 b4c3 b2c3 b8c6 g1f3 g8e7 f1e2 e7g6 e1g1 h7h6 a3a4 c5c4 c1a3 g6f4 f1e1 d8a5 d1d2 f4e2 e1e2 a5a4 e2e1 a4a5 a3f8 a5a1 f8g7 a1e1 f3e1 h8g8 d2h6 c8d7 e1f3 a7a5 f3g5 a5a4 h6f6 c6d8 g5h7 a4a3
+
+blunders pawn promotion
+position startpos moves e2e4 c7c5 g1f3 d7d6 b1c3 b8c6 f1c4 c8d7 d2d3 e7e6 c1e3 g8f6 e1g1 f8e7 d3d4 c5d4 f3d4 a7a6 c4e2 e8g8 d4c6 d7c6 e2f3 f6d7 a2a4 a8c8 a4a5 d8c7 f1e1 f7f5 e4f5 c6f3 d1f3 f8f5 f3g4 e7f6 c3d5 c7c6 e1d1 d7e5 d5f6 f5f6 g4a4 c6a4 a1a4 c8c2 a4b4 d6d5 b4b7 e5c6 e3d2 e6e5 h2h3 d5d4 b2b4 f6f7 b7b6 f7a7 d2g5 a7c7 b6a6 c6b4 a6b6 b4d5 b6b8 g8f7 d1e1 d5f6 e1e5 c7d7 g5f6 g7f6 e5e8 d4d3 e8f8 f7e7
+
+king move ??
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB1R w KQkq 0 1 moves b1c3 d7d5 d2d4 b8c6 c1g5 h7h6 g5f4 e7e6 d1d2 g8f6 e1c1 f8b4 f2f3 c8d7 a2a3 b4c3 d2c3 e8g8 g2g4 a8c8 e2e3 c6e7 h2h4 f8e8 g4g5 f6h5 f4e5 e7f5 h1g1 f5h4 g5h6 h4f3 f1e2 f3g1 d1g1 g8h7 h6g7 d8h4 e2h5
