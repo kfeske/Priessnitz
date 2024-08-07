@@ -39,6 +39,9 @@ enum File : uint64_t {
 	FILE_H = FILE_A << 7,
 };
 
+uint64_t const CENTER = (FILE_C | FILE_D | FILE_E | FILE_F) &
+			(RANK_3 | RANK_4 | RANK_5 | RANK_6);
+
 // mirror a square, useful for applying the evaluation tables for both white and black
 uint8_t const normalize_square[2][64] =
 {

@@ -24,13 +24,16 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 	uint64_t friendly_pawns = board.pieces(friendly, PAWN);
 	uint64_t enemy_pawns    = board.pieces(enemy,    PAWN);
 
-	info.attacked_by_pawn[friendly] = board.all_pawn_attacks(friendly);
+	uint64_t attacks = board.all_pawn_attacks(friendly);
+	info.attacked[friendly] 	       |= attacks;
+	info.attacked_by_piece[friendly][PAWN]  = attacks;
 
 	uint64_t temp = friendly_pawns;
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
 
+		// Material + PSQT
 		info.mg_bonus[friendly] += mg_pawn_psqt[relative_square] + mg_piece_value[PAWN];
 		info.eg_bonus[friendly] += eg_pawn_psqt[relative_square] + eg_piece_value[PAWN];
 
@@ -80,6 +83,7 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 				info.mg_bonus[friendly] += mg_passed_bonus_blocked[relative_rank];
 				info.eg_bonus[friendly] += eg_passed_bonus_blocked[relative_rank];
 			}
+			// Evaluate based on the distance of the two kings from the passer
 			unsigned friendly_distance = square_distance(square, board.square(friendly, KING));
 			info.mg_bonus[friendly] += friendly_distance * mg_passed_friendly_distance[relative_rank];
 			info.eg_bonus[friendly] += friendly_distance * eg_passed_friendly_distance[relative_rank];
@@ -94,10 +98,14 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 void Evaluation::evaluate_knights(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
+	info.attacked_by_piece[friendly][KNIGHT] = 0ULL;
+
 	uint64_t temp = board.pieces(friendly, KNIGHT);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
+
+		// Material + PSQT
 		info.mg_bonus[friendly] += mg_knight_psqt[relative_square] + mg_piece_value[KNIGHT];
 		info.eg_bonus[friendly] += eg_knight_psqt[relative_square] + eg_piece_value[KNIGHT];
 
@@ -114,13 +122,15 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 			}
 
 		}
+		uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
+		info.attacked[friendly]			 |= attacks;
+		info.attacked_by_piece[friendly][KNIGHT] |= attacks;
 
 		// Attack on the enemy king
-		uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
 		note_king_attacks(KNIGHT, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_pawn[enemy]);
+		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 		info.mg_bonus[friendly] += mg_knight_mobility[safe_squares];
 		info.eg_bonus[friendly] += eg_knight_mobility[safe_squares];
 	}
@@ -129,22 +139,29 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 void Evaluation::evaluate_bishops(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
+	info.attacked_by_piece[friendly][BISHOP] = 0ULL;
+
 	uint64_t temp = board.pieces(friendly, BISHOP);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
 
+		// Material + PSQT
 		info.mg_bonus[friendly] += mg_bishop_psqt[relative_square] + mg_piece_value[BISHOP];
 		info.eg_bonus[friendly] += eg_bishop_psqt[relative_square] + eg_piece_value[BISHOP];
 
-		// Attack on the enemy king
-		// queen is not counted as a blocker, because a bishop behind a queen makes the attack more potent
+
+		// A queen is not counted as a blocker, because a bishop behind a queen makes the attack stronger
 		uint64_t ray_blockers = board.occ & ~board.pieces(friendly, QUEEN);
 		uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
+		info.attacked[friendly]			 |= attacks;
+		info.attacked_by_piece[friendly][BISHOP] |= attacks;
+
+		// Attack on the enemy king
 		note_king_attacks(BISHOP, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_pawn[enemy]);
+		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 		info.mg_bonus[friendly] += mg_bishop_mobility[safe_squares];
 		info.eg_bonus[friendly] += eg_bishop_mobility[safe_squares];
 	}
@@ -158,22 +175,28 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 void Evaluation::evaluate_rooks(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
+	info.attacked_by_piece[friendly][ROOK] = 0ULL;
+
 	uint64_t temp = board.pieces(friendly, ROOK);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
 
+		// Material + PSQT
 		info.mg_bonus[friendly] += mg_rook_psqt[relative_square] + mg_piece_value[ROOK];
 		info.eg_bonus[friendly] += eg_rook_psqt[relative_square] + eg_piece_value[ROOK];
 
-		// Attack on the enemy king
-		// queen and rooks are not counted as a blockers, because their pressure increases when stacked
+		// Queens and rooks are not counted as a blockers, because their strength increases when stacked
 		uint64_t ray_blockers = board.occ & ~(board.pieces(friendly, QUEEN) | board.pieces(friendly, ROOK));
 		uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
+		info.attacked[friendly]		       |= attacks;
+		info.attacked_by_piece[friendly][ROOK] |= attacks;
+
+		// Attack on the enemy king
 		note_king_attacks(ROOK, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_pawn[enemy]);
+		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 		info.mg_bonus[friendly] += mg_rook_mobility[safe_squares];
 		info.eg_bonus[friendly] += eg_rook_mobility[safe_squares];
 
@@ -190,6 +213,7 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 			}
 		}
 
+		// Rook on the 7th rank, trapping the king on the last rank
 		if (rank_num(relative_square) == 1 && rank_num(normalize_square[friendly][board.square(enemy, KING)]) <= 1) {
 			info.mg_bonus[friendly] += mg_rook_on_seventh;
 			info.eg_bonus[friendly] += eg_rook_on_seventh;
@@ -200,20 +224,26 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 void Evaluation::evaluate_queens(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
+	info.attacked_by_piece[friendly][QUEEN] = 0ULL;
+
 	uint64_t temp = board.pieces(friendly, QUEEN);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
 
+		// Material + PSQT
 		info.mg_bonus[friendly] += mg_queen_psqt[relative_square] + mg_piece_value[QUEEN];
 		info.eg_bonus[friendly] += eg_queen_psqt[relative_square] + eg_piece_value[QUEEN];
 
-		// Attack on the enemy king
 		uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
+		info.attacked[friendly]			|= attacks;
+		info.attacked_by_piece[friendly][QUEEN] |= attacks;
+
+		// Attack on the enemy king
 		note_king_attacks(QUEEN, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_pawn[enemy]);
+		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 		info.mg_bonus[friendly] += mg_queen_mobility[safe_squares];
 		info.eg_bonus[friendly] += eg_queen_mobility[safe_squares];
 	}
@@ -222,16 +252,20 @@ void Evaluation::evaluate_queens(Board &board, Color friendly)
 void Evaluation::evaluate_kings(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
+
 	unsigned square = board.square(friendly, KING);
 	unsigned relative_square = normalize_square[friendly][square];
 
+	// PSQT
 	info.mg_bonus[friendly] += mg_king_psqt[relative_square];
 	info.eg_bonus[friendly] += eg_king_psqt[relative_square];
 
 	uint64_t attacks = piece_attacks(KING, square, 0ULL);
+	info.attacked_by_piece[friendly][KING]  = attacks;
+	info.attacked[friendly]		       |= attacks;
 
 	// Mobility
-	unsigned safe_squares = pop_count(attacks & ~info.attacked_by_pawn[enemy]);
+	unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 	info.mg_bonus[friendly] += mg_king_mobility[safe_squares];
 	info.eg_bonus[friendly] += eg_king_mobility[safe_squares];
 
@@ -243,8 +277,16 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 		info.mg_bonus[friendly] += mg_pawn_shield[shield_square];
 	}
 	
+	// Evaluate king safety based on the number of attacks near the king
 	info.mg_bonus[friendly] -= info.ring_pressure[friendly] * ring_pressure_weight[std::min(info.ring_attackers[friendly], 7)] / 100;
 	info.mg_bonus[friendly] -= info.zone_pressure[friendly] * zone_pressure_weight[std::min(info.zone_attackers[friendly], 7)] / 100;
+}
+
+void Evaluation::evaluate_center_control(Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t center_attacks = ~info.attacked[enemy] & info.attacked[friendly] & CENTER;
+	info.mg_bonus[friendly] += pop_count(center_attacks) * mg_center_control / 128;
 }
 
 int Evaluation::scale_factor(Board &board, int eg_value)
@@ -276,11 +318,15 @@ int Evaluation::evaluate(Board &board)
 	evaluate_kings(  board, WHITE);
 	evaluate_kings(  board, BLACK);
 
+	evaluate_center_control(WHITE);
+	evaluate_center_control(BLACK);
+
 	info.mg_bonus[board.side_to_move] += tempo_bonus;
 
 	int mg_value = info.mg_bonus[WHITE] - info.mg_bonus[BLACK];
 	int eg_value = info.eg_bonus[WHITE] - info.eg_bonus[BLACK];
 
+	// Scale down drawish looking endgames
 	int scale = scale_factor(board, eg_value);
 	eg_value = eg_value * scale / 128;
 

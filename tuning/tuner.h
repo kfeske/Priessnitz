@@ -78,7 +78,9 @@ enum Indicies {
 	ZONE_PRESSURE = RING_PRESSURE + 8,
 	PAWN_SHIELD = ZONE_PRESSURE + 8,
 
-	PAWN_COUNT_SCALE_OFFSET = PAWN_SHIELD + 6,
+	CENTER_CONTROL = PAWN_SHIELD + 6,
+
+	PAWN_COUNT_SCALE_OFFSET = CENTER_CONTROL + 1,
 	PAWN_COUNT_SCALE_WEIGHT = PAWN_COUNT_SCALE_OFFSET + 1,
 	LONE_MINOR_SCALE = PAWN_COUNT_SCALE_WEIGHT + 1,
 
@@ -92,7 +94,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 60,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 61,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -150,6 +152,7 @@ struct Tuner
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
+					   CENTER_CONTROL,
 					   PAWN_COUNT_SCALE_OFFSET,
 					   PAWN_COUNT_SCALE_WEIGHT,
 			     	      	   END_INDEX };
@@ -236,6 +239,8 @@ struct Tuner
 		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
 		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
 		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
+
+		case CENTER_CONTROL: return eval.mg_center_control;
 
 		case PAWN_COUNT_SCALE_OFFSET: return eval.pawn_count_scale_offset;
 		case PAWN_COUNT_SCALE_WEIGHT: return eval.pawn_count_scale_weight;
@@ -420,6 +425,8 @@ struct Tuner
 		std::cerr << "\nint mg_knight_outpost_supported = " << int_weight(MG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
 		std::cerr <<   "int eg_knight_outpost_supported = " << int_weight(EG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
 
+		std::cerr << "\nint mg_center_control = " << int_weight(CENTER_CONTROL) << ";\n";
+
 		std::cerr << "\nint pawn_count_scale_offset = " << int_weight(PAWN_COUNT_SCALE_OFFSET) << ";\n";
 		std::cerr <<   "int pawn_count_scale_weight = " << int_weight(PAWN_COUNT_SCALE_WEIGHT) << ";\n";
 	}
@@ -469,6 +476,9 @@ struct Tuner
 		double mg_phase = sample.phase;
 		double eg_phase = (1 - sample.phase);
 
+		uint64_t attacked[2] {};
+		attacked[WHITE] |= board.all_pawn_attacks(WHITE);
+		attacked[BLACK] |= board.all_pawn_attacks(BLACK);
 
 		uint64_t all_pieces = board.occ;
 		while (all_pieces) {
@@ -557,6 +567,7 @@ struct Tuner
 			case KNIGHT:
 				{
 				uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
+				attacked[friendly] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -581,6 +592,7 @@ struct Tuner
 				{
 				uint64_t ray_blockers = board.occ & ~board.pieces(friendly, QUEEN);
 				uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
+				attacked[friendly] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -592,6 +604,7 @@ struct Tuner
 				{
 				uint64_t ray_blockers = board.occ & ~(board.pieces(friendly, QUEEN) | board.pieces(friendly, ROOK));
 				uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
+				attacked[friendly] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -618,6 +631,7 @@ struct Tuner
 			case QUEEN:
 				{
 				uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
+				attacked[friendly] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -628,6 +642,7 @@ struct Tuner
 			case KING:
 				{
 				uint64_t attacks = piece_attacks(KING, square, 0ULL);
+				attacked[friendly] |= attacks;
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 				mg_influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
@@ -652,6 +667,11 @@ struct Tuner
 			mg_influences[MG_DOUBLE_BISHOP] -= mg_phase;
 			eg_influences[EG_DOUBLE_BISHOP] -= eg_phase;
 		}
+
+		// Center control
+		uint64_t white_center_attacks = ~attacked[BLACK] & attacked[WHITE] & CENTER;
+		uint64_t black_center_attacks = ~attacked[WHITE] & attacked[BLACK] & CENTER;
+		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) / 128;
 
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
@@ -719,6 +739,7 @@ struct Tuner
 			weights[RING_POTENCY + i] = attack_potency[i];
 			weights[ZONE_POTENCY + i] = attack_potency[i];
 		}
+		weights[CENTER_CONTROL] = 300;
 	}
 
 	void engine_weights()
