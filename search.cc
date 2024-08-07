@@ -464,7 +464,7 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 
 		// Respond instantly in case of a single legal move.
 		if (move_list.size == 1)
-			hard_time_cap = 1;
+			max_depth = 1;
 
 		else if (fixed_time)
 			hard_time_cap = std::min(hard_time_cap, move_time);

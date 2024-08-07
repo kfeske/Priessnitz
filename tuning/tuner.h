@@ -121,7 +121,7 @@ enum Tuning_params {
 	NUM_TEST_POSITIONS = 0,
 	NUM_TABLES = 82,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
-	BATCH_SIZE = 50000	          // how much the training set is split for computational efficiency
+	BATCH_SIZE = 7153653	          // how much the training set is split for computational efficiency
 };
 
 double random_double()
@@ -190,7 +190,7 @@ struct Tuner
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
 	double const TINY_NUMBER = 0.00000001;   // difference quotient step size
-	double const LEARN_RATE = 0.5;	 	 // step size
+	double const LEARN_RATE = 10;	 	 // step size
 
 	Board board {};
 	Evaluation eval {};
@@ -1131,22 +1131,13 @@ struct Tuner
 	void tune()
 	{
 		print_weights();
-		//double best_error = average_cost(test_set);
-		//std::cerr << "\ntest error " << best_error << "\n";
 
-		for (unsigned iteration = 0; iteration < 3500; iteration++) {
+		for (unsigned iteration = 0; iteration < 20000; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 				compute_gradients(batch);
 				apply_gradients();
 			}
-			//double test_error = average_cost(test_set);
-			//if (test_error < best_error - 0.0000001) {
-			//	best_error = test_error;
-			//	print_weights();
-			//	std::cerr << "\ntest error " << test_error << "\n";
-			//}
-			//else break;
 			print_weights();
 		}
 		std::cerr << "\ntraining error " << average_cost(training_set) << "\n";
