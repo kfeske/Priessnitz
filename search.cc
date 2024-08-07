@@ -213,7 +213,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// Search extensions make the program spend more time in important positions
 		unsigned extension = 0;
 
-		//if (gives_check && see(board, move) >= 0) extension = 1;
+		if (gives_check && see(board, move) >= 0) extension = 1;
 
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
