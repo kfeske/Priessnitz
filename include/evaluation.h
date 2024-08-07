@@ -12,6 +12,10 @@ struct Evaluation : Noncopyable
 	int attack_potency[6] = { 0, 20, 20, 40, 80, 0 };
 	int king_danger_weight[8] = { 0, 0, 50, 75, 88, 94, 97 };
 
+	int average_mobility[6] = { 0, 3, 4, 5, 0, 0 };
+	int mg_mobility_weight[6] = { 0, 4, 5, 2, 1 };
+	int eg_mobility_weight[6] = { 0, 4, 5, 4, 2 };
+
 	int mg_passed_bonus[64] =
 	{
 	  0,  0,  0,  0,  0,  0,  0,  0,
@@ -75,10 +79,10 @@ struct Evaluation : Noncopyable
 		}
 
 		// punish isolated pawns
-		if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
+		/*if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
 			mg_bonus[color] -= 15;
 			eg_bonus[color] -= 5;
-		}
+		}*/
 	}
 
 	void evaluate_kings()
@@ -96,19 +100,28 @@ struct Evaluation : Noncopyable
 		}
 	}
 
+	template <PieceType pt>
+	void evaluate_mobility(Board &board, uint64_t attacks, Color friendly)
+	{
+		unsigned safe_squares = pop_count(attacks & ~board.pieces[piece_of(!friendly, PAWN)]);
+		mg_bonus[friendly] += (safe_squares - average_mobility[pt]) * mg_mobility_weight[pt];
+		eg_bonus[friendly] += (safe_squares - average_mobility[pt]) * eg_mobility_weight[pt];
+	}
+
 	void evaluate_piece(Board &board, Piece p, unsigned square)
 	{
 		Color friendly = color_of(p);
 
 		switch (type_of(p)) {
 		case PAWN:
-			//evaluate_pawn(board, square, color_of(p));
+			evaluate_pawn(board, square, color_of(p));
 			return;
 
 		case KNIGHT:
 			{
 			uint64_t attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL) & king_zone[!friendly];
 			note_king_attacks<KNIGHT>(attacks, friendly);
+			evaluate_mobility<KNIGHT>(board, attacks, friendly);
 			return;
 			}
 		case BISHOP:
@@ -117,6 +130,7 @@ struct Evaluation : Noncopyable
 			uint64_t ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
 			uint64_t attacks = board.precomputed.attacks_bb<BISHOP>(square, ray_blockers);
 			note_king_attacks<BISHOP>(attacks, friendly);
+			evaluate_mobility<BISHOP>(board, attacks, friendly);
 			return;
 			}
 		case ROOK:
@@ -125,12 +139,14 @@ struct Evaluation : Noncopyable
 			uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
 			uint64_t attacks = board.precomputed.attacks_bb<ROOK>(square, ray_blockers);
 			note_king_attacks<ROOK>(attacks, friendly);
+			evaluate_mobility<ROOK>(board, attacks, friendly);
 			return;
 			}
 		case QUEEN:
 			{
 			uint64_t attacks = board.precomputed.attacks_bb<QUEEN>(square, board.occ);
 			note_king_attacks<QUEEN>(attacks, friendly);
+			evaluate_mobility<QUEEN>(board, attacks, friendly);
 			return;
 			}
 		case KING: return;

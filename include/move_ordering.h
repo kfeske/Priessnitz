@@ -33,7 +33,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
 		else if (flags == CAPTURE)
-			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
+			m.score += std::min(10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]), 29999);
 
 		else if (!quiescence) {
 
@@ -44,7 +44,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 			else if (m.move == heuristics.killer_move[1][ply]) m.score += 75;
 
 			// if everything else fails, score history moves
-			else m.score += 75 - (30000 - std::min(heuristics.history[board.board[move_from(m.move)]][move_to(m.move)], 30000));
+			else m.score += std::min(-30000 + heuristics.history[board.board[move_from(m.move)]][move_to(m.move)], 74);
 		}
 	}
 }

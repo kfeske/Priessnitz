@@ -11,13 +11,13 @@
 
 struct Zobrist
 {
-	uint64_t piece_side_key; // here, we keep track of the piece positions and side to move
-	uint64_t key; // final zobrist key  (we add the castling rights and en passant file, only if needed)
+	uint64_t piece_side_key = 0; // here, we keep track of the piece positions and side to move
+	uint64_t key = 0; // final zobrist key  (we add the castling rights and en passant file, only if needed)
 
-	uint64_t piece_rand[16][64];
-	uint64_t ep_rand[8];
-	uint64_t castling_rand[16];
-	uint64_t side_rand;
+	uint64_t piece_rand[16][64] {};
+	uint64_t ep_rand[8] {};
+	uint64_t castling_rand[16] {};
+	uint64_t side_rand = 0;
 
 	void populate()
 	{
@@ -43,11 +43,14 @@ struct Zobrist
 		side_rand = random_64();
 	}
 
+	Zobrist()
+	{
+		populate();
+	}
 };
 
 // used in unmake_move()
 // stores essential position data that cannot be restored
-
 struct UndoInfo {
 	Piece captured = NO_PIECE;
 	uint8_t ep_sq = SQ_NONE; // save en passant square in case the last move was a double pawn push
@@ -425,8 +428,6 @@ struct Board : Board_state
 		color[BLACK] = pieces[B_PAWN] | pieces[B_KNIGHT] | pieces[B_BISHOP] |
 				     pieces[B_ROOK] | pieces[B_QUEEN]  | pieces[B_KING];
 		occ = color[WHITE] | color[BLACK];
-
-		zobrist.populate();
 
 		// array
 

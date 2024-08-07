@@ -12,8 +12,7 @@ enum Square {
 	SQ_NONE
 };
 
-enum Rank : uint64_t
-{
+enum Rank : uint64_t {
 	RANK_1 = 0xff,
 	RANK_2 = RANK_1 << (8 * 1),
 	RANK_3 = RANK_1 << (8 * 2),
@@ -24,8 +23,7 @@ enum Rank : uint64_t
 	RANK_8 = RANK_1 << (8 * 7)
 };
 
-enum File : uint64_t
-{
+enum File : uint64_t {
 	FILE_A = 0x0101010101010101,
 	FILE_B = FILE_A << 1,
 	FILE_C = FILE_A << 2,
@@ -86,14 +84,6 @@ PieceType type_of(Piece p)
 	return PieceType(p & 0b111);
 }
 
-/*enum Value : int {
-	PAWN_MG   = 126,   PAWN_EG   = 208,
-	KNIGHT_MG = 781,   KNIGHT_EG = 854,
-	BISHOP_MG = 825,   BISHOP_EG = 915,
-	ROOK_MG   = 1276,  ROOK_EG   = 1380,
-	QUEEN_MG  = 2538,  QUEEN_EG  = 2682
-};*/
-
 enum Value : int {
 	PAWN_MG = 82,  PAWN_EG = 94,
 	KNIGHT_MG = 337, KNIGHT_EG = 281,
@@ -105,8 +95,8 @@ enum Value : int {
 enum Phase {
 	MIDGAME, ENDGAME,
 	// the bounds in which midgame and endgame are interpolated
-	MAX_MATERIAL = 2 * (KNIGHT_MG + 2 * BISHOP_MG + 2 * ROOK_MG + QUEEN_MG),
-	MIN_MATERIAL = ROOK_EG + QUEEN_EG
+	MAX_MATERIAL = 6192,
+	MIN_MATERIAL = 518
 };
 
 Value piece_value(Piece pc, Phase ph)
@@ -353,3 +343,12 @@ void print_move(Move move)
 {
 	std::cerr << move_string(move);
 }
+
+struct Noncopyable
+{
+	public:
+		Noncopyable() {}
+	private:
+		Noncopyable(Noncopyable const &);
+		Noncopyable &operator = (Noncopyable const &);
+};

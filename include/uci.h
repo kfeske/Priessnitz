@@ -63,6 +63,7 @@ struct UCI
 				iss >> search.max_depth;
 			else if (parsed == "movetime")
 				iss >> search.max_time;
+
 			else if (parsed == "perft") {
 				unsigned depth;
 				iss >> depth;
@@ -80,6 +81,11 @@ struct UCI
 				return;
 			}
 		}
+		int eval = search.eval.evaluate(board);
+		board.side_to_move = Color (!board.side_to_move);
+		if (eval != -search.eval.evaluate(board)) std::cerr << "unmirrored evaluation";
+		board.side_to_move = Color (!board.side_to_move);
+
 		search.start_search(board);
 	}
 

@@ -6,18 +6,7 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
-struct Noncopyable
-{
-	public:
-		Noncopyable(){}
-	private:
-		Noncopyable(Noncopyable const &);
-		Noncopyable & operator = (Noncopyable const &);
-
-};
-
-
-struct Window : Noncopyable
+struct Window
 {
 	int const width;
 	int const height;
@@ -45,7 +34,7 @@ struct Window : Noncopyable
 	//SDL_Surface& screen = *SDL_GetWindowSurface( &window );
 };
 
-struct Image : Noncopyable
+struct Image
 {
 	SDL_Surface& _init_surface(std::string path)
 	{
@@ -77,7 +66,7 @@ struct Image : Noncopyable
 	}
 };
 
-struct Renderer : Noncopyable
+struct Renderer
 {
 	SDL_Renderer& _init_renderer(Window &window)
 	{
@@ -100,7 +89,7 @@ struct Renderer : Noncopyable
 	}
 };
 
-struct Texture : Noncopyable
+struct Texture
 {
 	SDL_Texture& _init_texture(Renderer &renderer, std::string &path)
 	{
@@ -137,7 +126,7 @@ struct Texture : Noncopyable
 	}
 };
 
-struct EmptyTexture : Noncopyable
+struct EmptyTexture
 {
 	SDL_Texture& _init_texture(Renderer &renderer, int const w, int const h)
 	{
@@ -173,7 +162,7 @@ struct EmptyTexture : Noncopyable
 		SDL_DestroyTexture(&texture);
 	}
 };
-struct Font : Noncopyable
+struct Font
 {
 	TTF_Font& _init_font(std::string font, int const size)
 	{
