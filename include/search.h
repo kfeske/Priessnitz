@@ -111,7 +111,7 @@ struct Search
 		if (board.immediate_draw(ply))
 			return 0;
 
-		if (depth == 0)
+		if (depth <= 0)
 			// we reached a leaf node, start the Quiescence Search
 			return qsearch(board, alpha, beta, 0);
 
@@ -189,7 +189,7 @@ struct Search
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 			}
 
-			//evaluation = -search(board, depth - 1, -beta, -alpha);
+			//evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 
 			/*if (n == 0)
 				// search pv move with full alpha-beta window
@@ -217,43 +217,44 @@ struct Search
 
 			if (evaluation > best_evaluation) {
 				best_evaluation = evaluation;
-				best_move = move;
-				if (ply == 0) {
-					best_root_move = best_move;
-					root_evaluation = evaluation;
-				}
-
-				if (evaluation >= beta) {
-
-					// Beta cutoff. There is a better line for the opponent.
-					// We know the opponent can get at least beta, so a branch that evaluates to more than beta
-					// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-					// where he can get at least beta.
-
-					// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
-					// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-					flag = LOWERBOUND;
-
-					if (flags_of(move) != CAPTURE) {
-						// this is a killer move - Store it!
-						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
-						heuristics.killer_move[0][ply] = move;
-
-						// increment history score
-						heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
-					}
-
-					// *snip*
-					if (n == 0) cutoffspv++;
-					cutoffs++;
-					break;
-				}
 
 				if (evaluation > alpha) {
 					// found a better move
+
+					if (evaluation >= beta) {
+
+						// Beta cutoff. There is a better line for the opponent.
+						// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+						// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+						// where he can get at least beta.
+
+						// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
+						// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
+						flag = LOWERBOUND;
+
+						if (flags_of(move) != CAPTURE) {
+							// this is a killer move - Store it!
+							heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
+							heuristics.killer_move[0][ply] = move;
+
+							// increment history score
+							heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
+						}
+						if (n == 0) cutoffspv++;
+						cutoffs++;
+
+						// *snip*
+						break;
+					}
+
 					alpha = evaluation;
 					flag = EXACT;
 
+					best_move = move;
+					if (ply == 0) {
+						best_root_move = best_move;
+						root_evaluation = evaluation;
+					}
 				}
 			}
 		}
@@ -292,7 +293,7 @@ struct Search
 			if (abort_search) break;
 		}
 
-		std::cerr << "cut offs pv " << cutoffspv << " / " << cutoffs << "\n";
+		std::cerr << "cut offs " << cutoffs << " pv " << double(cutoffspv) / double(cutoffs) << "\n";
 		std::cerr << "info total nodes " << total_nodes << "\n";
 		std::cout << "bestmove " << move_string(best_root_move) << "\n";
 		reset(); // make sure to clear all search data to avoid them affecting the next search
