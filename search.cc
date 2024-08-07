@@ -65,11 +65,13 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	// Generate winning captures and Queen promotions only. In check, generate all moves.
 	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
 	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
+	int move_count = 0;
 
 	Move move;
 	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
 
+		move_count++;
 		statistics.quiescence_nodes++;
 
 		board.make_move(move);
@@ -77,7 +79,6 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		int evaluation = -quiescence_search(board, -beta, -alpha, ply + 1);
 
 		board.unmake_move(move);
-
 
 		if (evaluation > alpha) {
 			alpha = evaluation;
@@ -91,6 +92,8 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 			flag = EXACT;
 		}
 	}
+
+	if (in_check && move_count == 0) return -MATE_SCORE + ply;
 
 	tt.store(board.zobrist.key, 0, alpha, best_move, static_evaluation, flag, age);
 
@@ -115,7 +118,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	if (depth <= 0)
 		// We reached a leaf node, start the Quiescence Search
-		return quiescence_search(board, alpha, beta, 0);
+		return quiescence_search(board, alpha, beta, ply);
 
 	// Mate Distance Pruning
 	// If a forced mate was found, we do not need to search deeper than to where it was found,
@@ -162,7 +165,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Prune bad looking positions close to the horizon by testing, if a Quiescence Search can improve them.
 	int razor_alpha = alpha - search_constants.RAZOR_MARGIN;
 	if (!pv_node && depth == 1 && static_eval < razor_alpha && !in_check && !mate(alpha)) {
-		if (quiescence_search(board, razor_alpha, razor_alpha + 1, 0) <= razor_alpha)
+		if (quiescence_search(board, razor_alpha, razor_alpha + 1, ply) <= razor_alpha)
 			return alpha;
 	}
 
