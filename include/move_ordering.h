@@ -12,20 +12,14 @@ int value(Piece p)
 	}
 }
 
-void rate_moves(Board &board, Heuristics &, MoveGenerator &move_generator, Move pv_move, bool , unsigned ply_from_root)
+void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, Move pv_move, bool quiescence, unsigned ply_from_root)
 {
-	(void) ply_from_root;
 	for (Scored_move &m : move_generator.movelist) {
 		MoveFlags flags = flags_of(m.move);
 		//PieceType pt = type_of(board.board[move_from(m.move)]);
-		(void) board;
-		(void) m;
-
-		(void) pv_move;
 		// same move as principle variation move of previous iteration (iterative deepening)
 		if (m.move == pv_move) {
 			m.score += 30000;
-			//std::cerr << move_string(m.move) << " ";
 			continue;
 		}
 
@@ -34,7 +28,7 @@ void rate_moves(Board &board, Heuristics &, MoveGenerator &move_generator, Move 
 		//	return 10000;
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
-		else if (flags == CAPTURE)
+		if (flags == CAPTURE)
 			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
 
 		// a promotion is likely to be a good idea
@@ -53,17 +47,17 @@ void rate_moves(Board &board, Heuristics &, MoveGenerator &move_generator, Move 
 			}
 		}*/
 
-		//if (!quiescence) {
+		if (!quiescence) {
 
-		//	// primary killer move (non capture move that caused a beta cutoff)
-		//	if (move == heuristics.killer_move[0][ply]) score += 80;
+			// primary killer move (non capture move that caused a beta cutoff)
+			if (m.move == heuristics.killer_move[0][ply_from_root]) m.score += 80;
 
-		//	// secondary killer move
-		//	else if (move == heuristics.killer_move[1][ply]) score += 75;
+			// secondary killer move
+			else if (m.move == heuristics.killer_move[1][ply_from_root]) m.score += 75;
 
-		//	// if everything else fails, score history moves
-		//	//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
-		//}
+			// if everything else fails, score history moves
+			//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
+		}
 	}
 }
 

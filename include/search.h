@@ -29,6 +29,8 @@ struct Search
 
 	long nodes_searched = 0;
 	double branching_factor = 0;
+	long cutoffs = 0;
+	long cutoffspv = 0;
 	//long tt_cutoffs = 0;
 
 	Heuristics heuristics {};
@@ -41,31 +43,34 @@ struct Search
 	// Quiescence Search is a shallower search, generating only
 	// captures and check evasions to avoid the horizon effect
 
-	int qsearch(Board &board, int alpha, int beta)
+	int qsearch(Board &board, int alpha, int beta, unsigned ply)
 	{
 		int evaluation = 0;
 
+		bool in_check = board.in_check() && ply <= 2;
+
 		evaluation = eval.evaluate(board, heuristics.psqt);
 
-		if (!board.in_check()) {
-			if (evaluation >= beta)
-				return beta;
-		}
+		if (!in_check && evaluation >= beta)
+			return beta;
 
 		if (evaluation > alpha)
 			alpha = evaluation;
 
 		MoveGenerator move_generator {};
-		move_generator.generate_all_moves(board, true); // only captures and check evasions
+		if (in_check)
+			move_generator.generate_all_moves(board);
+		else
+			move_generator.generate_quiescence(board); // only captures
 
-		//MoveOrderer { board, heuristics, move_generator.movelist };
+		rate_moves(board, heuristics, move_generator, best_move, true, ply);
 
 		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
+			Move move = next_move(move_generator, n);
 
-			Move move = move_generator.movelist.at(n).move;
 			board.make_move(move);
 	
-			evaluation = -qsearch(board, -beta, -alpha);
+			evaluation = -qsearch(board, -beta, -alpha, ply + 1);
 	
 			board.unmake_move(move);
 	
@@ -108,7 +113,6 @@ struct Search
 
 		// ply describes how far we are from the root of the search tree
 		unsigned ply_from_root = current_depth - depth;
-		//unsigned ply = current_depth - depth;
 		//heuristics.pv_lenght[ply] = ply;
 		//TTEntryFlag flag = UPPERBOUND;
 
@@ -116,8 +120,7 @@ struct Search
 		if (depth == 0) {
 			nodes_searched++;
 			// we reached a leaf node, start the Quiescence Search
-			//return qsearch(board, alpha, beta);
-			return eval.evaluate(board, heuristics.psqt);
+			return qsearch(board, alpha, beta, 0);
 		}
 
 		// check for any transpositions
@@ -131,7 +134,7 @@ struct Search
 		// may cause search instability, but it is worth the risk. If we want the speed, we have to live in fear
 
 		// (should not be used in complicated endgames and zugzwang positions!!!)
-		/*if (!in_check && ply_from_root > 0 && depth >= 3 &&
+		if (!in_check && ply_from_root > 0 && depth >= 3 &&
 		    board.non_pawn_material[board.side_to_move]) {
 
 			unsigned ep_square = board.make_null_move();
@@ -142,10 +145,10 @@ struct Search
 
 			if (evaluation >= beta && fabs(evaluation) < mate_score)
 				return beta;
-		}*/
+		}
 
 		MoveGenerator move_generator {};
-		move_generator.generate_all_moves(board, false);
+		move_generator.generate_all_moves(board);
 
 		if (move_generator.movelist.size() == 0) {
 			if (in_check) return -mate_score - depth;
@@ -202,12 +205,14 @@ struct Search
 
 				//flag = LOWERBOUND;
 
-				/*if (flags_of(move) != CAPTURE) {
+				if (flags_of(move) != CAPTURE) {
 					// this is a killer move - Store it!
-					heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
-					heuristics.killer_move[0][ply] = move;
-				}*/
+					heuristics.killer_move[1][ply_from_root] = heuristics.killer_move[0][ply_from_root];
+					heuristics.killer_move[0][ply_from_root] = move;
+				}
 				// *snip*
+				if (n == 0) cutoffspv++;
+				cutoffs++;
 				return beta;
 			}
 
@@ -278,6 +283,8 @@ struct Search
 			std::cerr << " nodes " << nodes_searched << " branching " << branching_factor;
 			std::cerr << " pv " << move_string(best_move) << "\n";
 		}
+
+		std::cerr << "cut offs pv " << cutoffspv << " / " << cutoffs << "\n";
 		std::cerr << "info total nodes " << total_nodes << "\n";
 		return final_evaluation;
 	}

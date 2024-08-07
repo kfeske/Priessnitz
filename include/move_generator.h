@@ -20,6 +20,7 @@ struct MoveGenerator : Noncopyable
 
 		// pawns on the board (unpinned and pinned)
 		uint64_t pawns = board.pieces[piece_of(col, PAWN)] & ~pinned;
+		// special case if pawn is about to promote
 		pawns &= (col == WHITE) ? ~board.precomputed.rank_2 : ~board.precomputed.rank_7;
 		uint64_t pinned_pawns = board.pieces[piece_of(col, PAWN)] & pinned;
 
@@ -175,9 +176,8 @@ struct MoveGenerator : Noncopyable
 		}
 	}
 
-	void generate_all_moves(Board &board, bool quiescence)
+	void generate_all_moves(Board &board)
 	{
-		//movelist = {};
 		Color friendly = Color(board.side_to_move);
 		
 		Color enemy = Color(!friendly);
@@ -211,8 +211,7 @@ struct MoveGenerator : Noncopyable
 
 
 		uint64_t attacks = board.precomputed.attacks_bb<KING>(ksq, 0ULL) & ~(us_bb | danger);
-		if ((quiescence && danger & (1ULL << ksq)) || !quiescence)
-			append_attacks<QUIET>(movelist, ksq, attacks & ~them_bb);
+		append_attacks<QUIET>(movelist, ksq, attacks & ~them_bb);
 		append_attacks<CAPTURE>(movelist, ksq, attacks & them_bb);
 
 		// leaper (knight, pawn) pieces, delivering check can be captured
@@ -258,47 +257,86 @@ struct MoveGenerator : Noncopyable
 			break;
 		default:
 			targets = them_bb;
-			if (!quiescence)
-				quiets  = ~board.occ;
+			quiets  = ~board.occ;
 
 			// castling
 
-			// kingside
+			if (friendly == WHITE) {
+				// kingside
+				if ((board.history[board.game_ply].castling_rights & 0b0001) &&
+				    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
+					movelist.emplace_back(create_move(ksq, ksq + 2, OO));
 
-			if (!quiescence) {
-				if (friendly == WHITE) {
-					// kingside
-					if ((board.history[board.game_ply].castling_rights & 0b0001) &&
-					    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
-						movelist.emplace_back(create_move(ksq, ksq + 2, OO));
+				// queenside
+				if ((board.history[board.game_ply].castling_rights & 0b0010) &&
+				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
+					movelist.emplace_back(create_move(ksq, ksq - 2, OOO));
+			}
+			else {
+				// kingside
+				if ((board.history[board.game_ply].castling_rights & 0b0100) &&
+				    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
+					movelist.emplace_back(create_move(ksq, ksq + 2, OO));
 
-					// queenside
-					if ((board.history[board.game_ply].castling_rights & 0b0010) &&
-					    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
-						movelist.emplace_back(create_move(ksq, ksq - 2, OOO));
-				}
-				else {
-					// kingside
-					if ((board.history[board.game_ply].castling_rights & 0b0100) &&
-					    !((danger | board.occ) & board.precomputed.oo_blockers[friendly]))
-						movelist.emplace_back(create_move(ksq, ksq + 2, OO));
-
-					// queenside
-					if ((board.history[board.game_ply].castling_rights & 0b1000) &&
-					    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
-						movelist.emplace_back(create_move(ksq, ksq - 2, OOO));
-				}
+				// queenside
+				if ((board.history[board.game_ply].castling_rights & 0b1000) &&
+				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
+					movelist.emplace_back(create_move(ksq, ksq - 2, OOO));
 			}
 		}
-
 
 		generate_pawn_moves(board, friendly, targets, quiets, pinned, ksq, enemy_orth_sliders);
 		generate_moves<KNIGHT>(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<BISHOP>(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
-
 	}
+
+	void generate_pawn_attacks(Board &board, Color friendly, uint64_t targets)
+	{
+		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
+		Direction up_left  = (friendly == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		uint64_t pawns = board.pieces[piece_of(friendly, PAWN)];
+		uint64_t right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
+		uint64_t left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
+
+		while (right_attacks) {
+			unsigned square = pop_lsb(right_attacks);
+			movelist.emplace_back(new_move<CAPTURE>(square - up_right, square));
+		}
+		while (left_attacks) {
+			unsigned square = pop_lsb(left_attacks);
+			movelist.emplace_back(new_move<CAPTURE>(square - up_left,  square));
+		}
+
+		unsigned ep_square = board.history[board.game_ply].ep_sq;
+		if (ep_square != SQ_NONE) {
+
+			uint64_t ep_candidates = pawns & board.precomputed.pawn_attacks[!friendly][ep_square];
+			while (ep_candidates) {
+				unsigned attacker_square = pop_lsb(ep_candidates);
+				movelist.emplace_back(new_move<EP_CAPTURE>(attacker_square, ep_square));
+			}
+		}
+	}
+	
+	void generate_quiescence(Board &board)
+	{
+		Color friendly = Color(board.side_to_move);
+		Color enemy = Color(!friendly);
+
+		unsigned ksq = 0;
+		uint64_t pinned = 0ULL;
+		uint64_t quiets = 0ULL;
+		uint64_t targets = board.color[enemy] & ~board.pieces[piece_of(enemy, KING)];
+
+		generate_pawn_attacks(board, friendly, targets);
+		generate_moves<KNIGHT>(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<BISHOP>(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
+		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
+	}
+
 	MoveGenerator()
 	{
 		movelist.reserve(60);

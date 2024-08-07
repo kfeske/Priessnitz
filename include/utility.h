@@ -260,15 +260,18 @@ void pop_bit(uint64_t &b, unsigned square)
 	b &= ~(1ULL << square);
 }
 
-unsigned pop_count(uint64_t b) {
+unsigned pop_count(uint64_t b)
+{
 	return __builtin_popcountll(b);
 }
 
-unsigned lsb(uint64_t b) {
+unsigned lsb(uint64_t b)
+{
 	return __builtin_ctzll(b);
 }
 
-unsigned pop_lsb(uint64_t &b) {
+unsigned pop_lsb(uint64_t &b)
+{
 	unsigned square = lsb(b);
 	pop_bit(b, square);
 	return square;

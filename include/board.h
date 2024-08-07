@@ -348,6 +348,7 @@ struct Board : Board_state
 
 	bool in_check()
 	{
+		if (pieces[piece_of(side_to_move, KING)] == 0ULL) std::cerr << "no king\n";
 		unsigned ksq = lsb(pieces[piece_of(side_to_move, KING)]);
 		uint64_t enemy_diag_sliders = pieces[piece_of(!side_to_move, BISHOP)] | pieces[piece_of(!side_to_move, QUEEN)];
 		uint64_t enemy_orth_sliders = pieces[piece_of(!side_to_move, ROOK  )] | pieces[piece_of(!side_to_move, QUEEN)];

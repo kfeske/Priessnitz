@@ -22,7 +22,7 @@ struct UCI
 	Move create_move(std::string move)
 	{
 		MoveGenerator move_generator {};
-		move_generator.generate_all_moves(board, false);
+		move_generator.generate_all_moves(board);
 		for (Scored_move m : move_generator.movelist) {
 			if (move_string(m.move) == move)
 				return m.move;

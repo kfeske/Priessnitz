@@ -13,7 +13,7 @@ struct Perft {
 		}
 
 		MoveGenerator movegenerator {};
-		movegenerator.generate_all_moves(board, false);
+		movegenerator.generate_all_moves(board);
 
 		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
 			Move move = movegenerator.movelist.at(n).move;
@@ -47,7 +47,7 @@ struct Perft {
 		}
 
 		MoveGenerator movegenerator {};
-		movegenerator.generate_all_moves(board, false);
+		movegenerator.generate_all_moves(board);
 
 		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
 			Move move = movegenerator.movelist.at(n).move;
