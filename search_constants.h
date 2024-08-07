@@ -2,9 +2,7 @@
 
 struct Search_constants
 {
-	int FUTILITY_MARGIN[7] = {
-		0, 100, 200, 300, 400, 550, 650
-	};
+	int FUTILITY_MARGIN = 130;
 
 	int REVERSE_FUTILITY_MARGIN = 60;
 

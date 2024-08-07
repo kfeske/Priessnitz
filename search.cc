@@ -231,11 +231,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 	}
 
-
-	bool futile = false;
-	if (!pv_node && depth < 7 && !in_check)
-		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
-
 	// Internal Iterative Reductions
 	if (depth > 6 && pv_node && hash_move == INVALID_MOVE) depth--;
 
@@ -266,7 +261,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// Futility Pruning
 			// Very close to the horizon of the search, where we are in a position that looks really bad,
 			// it is wise to skip quiet moves that will likely not improve the situation.
-			if (futile && quiet_move)
+			if (depth < 12 && static_eval + search_constants.FUTILITY_MARGIN * depth <= alpha && quiet_move)
 				continue;
 
 			// SEE Pruning

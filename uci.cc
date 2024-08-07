@@ -121,34 +121,9 @@ void UCI::setoption_command(std::istringstream &iss)
 		iss >> size;
 		search.tt.resize(size);
 	}
-	if (parsed == "FpMargin1") {
+	if (parsed == "FpMargin") {
 		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[1];
-		iss >> value;
-	}
-	if (parsed == "FpMargin2") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[2];
-		iss >> value;
-	}
-	if (parsed == "FpMargin3") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[3];
-		iss >> value;
-	}
-	if (parsed == "FpMargin4") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[4];
-		iss >> value;
-	}
-	if (parsed == "FpMargin5") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[5];
-		iss >> value;
-	}
-	if (parsed == "FpMargin6") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.FUTILITY_MARGIN[6];
+		int &value = search.search_constants.FUTILITY_MARGIN;
 		iss >> value;
 	}
 	if (parsed == "RfpMargin") {
