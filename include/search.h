@@ -18,7 +18,7 @@ struct Heuristics : Noncopyable
 
 struct Search
 {
-	Evaluation eval {};
+	Evaluation eval;
 	Move best_move = INVALID_MOVE;
 	Move best_move_this_iteration = INVALID_MOVE;
 	unsigned max_depth = 9999;
@@ -38,6 +38,13 @@ struct Search
 	double time_start;
 	bool abort_search;
 
+	// ply describes how far we are from the root of the search tree
+
+	unsigned ply(unsigned depth)
+	{
+		return current_depth - depth;
+	}
+
 	// Quiescence Search is a shallower search, generating only
 	// captures and check evasions to avoid the horizon effect
 
@@ -55,14 +62,14 @@ struct Search
 		if (evaluation > alpha)
 			alpha = evaluation;
 
-		MoveGenerator movegenerator {};
-		movegenerator.generate_all_moves(board, true); // only captures and check evasions
+		MoveGenerator move_generator {};
+		move_generator.generate_all_moves(board, true); // only captures and check evasions
 
-		//MoveOrderer { board, heuristics, movegenerator.movelist };
+		MoveOrderer { board, heuristics, move_generator.movelist };
 
-		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
+		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
 
-			Move move = movegenerator.movelist.at(n);
+			Move move = move_generator.movelist.at(n);
 			board.make_move(move);
 	
 			evaluation = -qsearch(board, -beta, -alpha);
@@ -105,6 +112,7 @@ struct Search
 		Move best_move_this_node = INVALID_MOVE;
 		int evaluation;
 		bool in_check = board.in_check();
+		unsigned ply_from_root = ply(depth);
 		//unsigned ply = current_depth - depth;
 		//heuristics.pv_lenght[ply] = ply;
 		//TTEntryFlag flag = UPPERBOUND;
@@ -128,7 +136,7 @@ struct Search
 		// may cause search instability, but it is worth the risk. If we want the speed, we have to live in fear
 
 		// (should not be used in complicated endgames and zugzwang positions!!!)
-		/*if (!in_check && ply > 0 && depth >= 3 &&
+		/*if (!in_check && ply_from_root > 0 && depth >= 3 &&
 		    board.non_pawn_material[board.side_to_move]) {
 
 			unsigned ep_square = board.make_null_move();
@@ -141,11 +149,10 @@ struct Search
 				return beta;
 		}*/
 
-		MoveGenerator movegenerator {};
-		movegenerator.generate_all_moves(board, false);
+		MoveGenerator move_generator {};
+		move_generator.generate_all_moves(board, false);
 
-	
-		if (movegenerator.movelist.size() == 0) {
+		if (move_generator.movelist.size() == 0) {
 			if (in_check) return -mate_score - depth;
 			else return 0;
 		}
@@ -155,11 +162,11 @@ struct Search
 			return 0;
 		}
 
-		//MoveOrderer { board, heuristics, movegenerator.movelist, ply };
+		(void) ply_from_root;
+		MoveOrderer { board, heuristics, move_generator.movelist, ply_from_root };
 
-		//std::cerr << "size: " << movegenerator.movelist.size() << "\n";
-		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
-			Move move = movegenerator.movelist.at(n);
+		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
+			Move move = move_generator.movelist.at(n);
 
 			//std::cerr << "depth: " << depth;
 			//std::cerr << " move: ";
@@ -195,7 +202,7 @@ struct Search
 
 			if (abort_search) return 0;
 
-			//if (evaluation >= beta) {
+			if (evaluation >= beta) {
 				// Beta cutoff. There is a better line for the opponent
 				// we know the opponent can get at least beta, so a branch that evaluates to more than beta
 				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
@@ -209,8 +216,8 @@ struct Search
 					heuristics.killer_move[0][ply] = move;
 				}*/
 				// *snip*
-			//	return beta;
-			//}
+				return beta;
+			}
 
 			if (evaluation > alpha) {
 				// found a better move
@@ -276,9 +283,10 @@ struct Search
 			std::cerr << "...\n";*/
 
 			std::cerr << "info depth " << current_depth << " score " << evaluation << " time " << SDL_GetTicks() - time_start;
-			std::cerr << " nodes " << total_nodes << " branching " << branching_factor;
+			std::cerr << " nodes " << nodes_searched << " branching " << branching_factor;
 			std::cerr << " pv " << move_string(best_move) << "\n";
 		}
+		std::cerr << "info total nodes " << total_nodes << "\n";
 		return final_evaluation;
 	}
 };

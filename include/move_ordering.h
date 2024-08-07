@@ -14,19 +14,19 @@ int value(Piece p)
 
 struct MoveOrderer : Noncopyable
 {
-	int rate_move(Board &board, Heuristics &heuristics, Move move, bool quiescence, unsigned ply)
+	int rate_move(Board &board, Heuristics &, Move move, bool , unsigned )
 	{
 		int score = 0;
 		MoveFlags flags = flags_of(move);
 		PieceType pt = type_of(board.board[move_from(move)]);
 
-		// same move at same depth in principle variation of previous iteration (iterative deepening)
-		if (move == heuristics.pv_table[ply][0])
-			return 30000;
+		// same move as principle variation move of previous iteration (iterative deepening)
+		//if (move == pv_move)
+		//	return 30000;
 
 		// transposition table move
-		if (move == heuristics.pv_move)
-			return 10000;
+		//if (move == heuristics.pv_move)
+		//	return 10000;
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
 		if (flags == CAPTURE)
@@ -48,17 +48,17 @@ struct MoveOrderer : Noncopyable
 			}
 		}
 
-		if (!quiescence) {
+		//if (!quiescence) {
 
-			// primary killer move (non capture move that caused a beta cutoff)
-			if (move == heuristics.killer_move[0][ply]) score += 80;
+		//	// primary killer move (non capture move that caused a beta cutoff)
+		//	if (move == heuristics.killer_move[0][ply]) score += 80;
 
-			// secondary killer move
-			else if (move == heuristics.killer_move[1][ply]) score += 75;
+		//	// secondary killer move
+		//	else if (move == heuristics.killer_move[1][ply]) score += 75;
 
-			// if everything else fails, score history moves
-			//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
-		}	
+		//	// if everything else fails, score history moves
+		//	//else score += heuristics.history_move[board.board[move_from(move)]][move_to(move)];
+		//}	
 		return score; 
 	}
 
@@ -76,7 +76,6 @@ struct MoveOrderer : Noncopyable
 
 		for (unsigned i = 0; i < n; i++)
 			unsorted[i] = pair[i].second;
-		
 	}
 
 	MoveOrderer(Board &board, Heuristics &heuristics, std::vector<Move> &unsorted, unsigned ply)
