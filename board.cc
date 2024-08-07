@@ -288,6 +288,8 @@ unsigned Board::make_null_move()
 		zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 	}
 
+	update_checkers_and_pinners();
+
 	// returns a square to restore the ep square when we undo the null move
 	return ep;
 }
