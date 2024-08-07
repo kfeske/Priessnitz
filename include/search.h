@@ -54,14 +54,14 @@ struct Search : Noncopyable
 	{
 		bool in_check = board.in_check() && ply <= 2;
 
-		int evaluation = eval.evaluate(board);
+		int static_evaluation = eval.evaluate(board);
 
-		if (!in_check && evaluation >= beta)
+		if (!in_check && static_evaluation >= beta)
 			return beta;
 
 
-		if (evaluation > alpha)
-			alpha = evaluation;
+		if (static_evaluation > alpha)
+			alpha = static_evaluation;
 
 		MoveGenerator move_generator {};
 		if (in_check)
@@ -76,16 +76,16 @@ struct Search : Noncopyable
 
 			// Delta Pruning
 			// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
-			int gain = piece_value(board.board[move_to(move)], MG);
-			if (evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
-				return alpha;
+			int gain = abs(piece_value(board.board[move_to(move)], MIDGAME));
+			if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
+				continue;
 
 			quiescence_nodes++;
 
 
 			board.make_move(move);
 	
-			evaluation = -qsearch(board, -beta, -alpha, ply + 1);
+			int evaluation = -qsearch(board, -beta, -alpha, ply + 1);
 	
 			board.unmake_move(move);
 	

@@ -168,7 +168,7 @@ struct Evaluation : Noncopyable
 
 		evaluate_kings();
 
-		mg_bonus[board.side_to_move] += tempo_bonus;
+		//mg_bonus[board.side_to_move] += tempo_bonus;
 
 		mg_value += mg_bonus[WHITE] - mg_bonus[BLACK];
 		eg_value += eg_bonus[WHITE] - eg_bonus[BLACK];
