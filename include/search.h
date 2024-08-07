@@ -27,7 +27,8 @@ struct Search
 	int const mate_score = 31000;
 	int const infinity = 32000;
 
-	long nodes_searched = 0;
+	long search_nodes = 0;
+	long quiescence_nodes = 0;
 	double branching_factor = 0;
 	long cutoffs = 0;
 	long cutoffspv = 0;
@@ -48,7 +49,8 @@ struct Search
 		best_move = INVALID_MOVE;
 		max_depth = 63;
 		max_time = 99999;
-		nodes_searched = 0;
+		search_nodes = 0;
+		quiescence_nodes = 0;
 		branching_factor = 0;
 		cutoffs = 0;
 		cutoffspv = 0;
@@ -78,6 +80,8 @@ struct Search
 		rate_moves(board, heuristics, move_generator, true, ply);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
+			quiescence_nodes++;
+
 			Move move = next_move(move_generator, n);
 
 			board.make_move(move);
@@ -99,7 +103,7 @@ struct Search
 
 	int search(Board &board, unsigned depth, int alpha, int beta)
 	{
-		if ((nodes_searched & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
+		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
 			// Time's up! Use the best move from the previous iteration
 			abort_search = true;
@@ -115,10 +119,10 @@ struct Search
 		unsigned ply_from_root = current_depth - depth;
 
 		if (depth == 0) {
-			nodes_searched++;
 			// we reached a leaf node, start the Quiescence Search
 			return qsearch(board, alpha, beta, 0);
 		}
+
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
 		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
@@ -153,6 +157,8 @@ struct Search
 			if (evaluation >= beta && fabs(evaluation) < mate_score)
 				return beta;
 		}
+		
+		//if (in_check) depth++;
 
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
@@ -169,6 +175,7 @@ struct Search
 		rate_moves(board, heuristics, move_generator, false, ply_from_root);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
+			search_nodes++;
 
 			Move move = next_move(move_generator, n);
 
@@ -188,6 +195,8 @@ struct Search
 					// if a move happens to be better, we need to re-search with a full window
 					evaluation = -search(board, depth - 1, -beta, -alpha);
 			}
+
+			//evaluation = -search(board, depth - 1, -beta, -alpha);
 
 			/*if (n == 0)
 				// search pv move with full alpha-beta window
@@ -261,20 +270,22 @@ struct Search
 		//std::cerr << ".";
 		for (current_depth = 1; current_depth <= max_depth; current_depth++) {
 
-			nodes_previous_iteration = nodes_searched;
-			nodes_searched = 0;
+			nodes_previous_iteration = search_nodes + quiescence_nodes;
+			search_nodes = 0;
+			quiescence_nodes = 0;
 
 			evaluation = search(board, current_depth, -infinity, infinity);
-			total_nodes += nodes_searched;
+			total_nodes += search_nodes + quiescence_nodes;
 
 			if (abort_search) break;
 
 			best_move = best_move_this_iteration;
 			final_evaluation = evaluation;
-			if (current_depth > 1) branching_factor = nodes_searched / double(nodes_previous_iteration) + 0.0001;
+			if (current_depth > 1) branching_factor = (search_nodes + quiescence_nodes) / double(nodes_previous_iteration) + 0.0001;
 
 			std::cout << "info depth " << current_depth << " score cp " << evaluation << " time " << SDL_GetTicks() - time_start;
-			std::cout << " nodes " << nodes_searched << " branching " << branching_factor;
+			std::cout << " nodes " << search_nodes + quiescence_nodes << " snodes " << search_nodes << " qnodes " << quiescence_nodes;
+			std::cout << " branching " << branching_factor;
 			std::cout << " pv " << move_string(best_move) << "\n";
 		}
 
