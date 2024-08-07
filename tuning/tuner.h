@@ -121,7 +121,7 @@ enum Tuning_params {
 	NUM_TEST_POSITIONS = 0,
 	NUM_TABLES = 82,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
-	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
+	BATCH_SIZE = 50000	          // how much the training set is split for computational efficiency
 };
 
 double random_double()
@@ -1134,7 +1134,7 @@ struct Tuner
 		//double best_error = average_cost(test_set);
 		//std::cerr << "\ntest error " << best_error << "\n";
 
-		for (unsigned iteration = 0; iteration < 700; iteration++) {
+		for (unsigned iteration = 0; iteration < 3500; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 				compute_gradients(batch);
