@@ -288,6 +288,7 @@ void Evaluation::evaluate_passed_pawns(Board &board, Color friendly)
 		uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
 		bool blocked = advance_square & board.occ;
 		bool safe_advance = advance_square & ~info.attacked[enemy];
+		bool safe_path = !(passed_pawn_mask(friendly, square) & file(square) & (board.pieces(enemy) | info.attacked[enemy]));
 
 		// Evaluate based on rank and ability to advance
 		if (!blocked) {
@@ -302,6 +303,11 @@ void Evaluation::evaluate_passed_pawns(Board &board, Color friendly)
 		if (safe_advance) {
 			info.mg_bonus[friendly] += mg_passed_pawn_safe_advance;
 			info.eg_bonus[friendly] += eg_passed_pawn_safe_advance;
+		}
+
+		if (safe_path) {
+			info.mg_bonus[friendly] += mg_passed_pawn_safe_path;
+			info.eg_bonus[friendly] += eg_passed_pawn_safe_path;
 		}
 
 		// Evaluate based on the distance of the two kings from the passer

@@ -34,7 +34,9 @@ enum Indicies {
 	EG_PASSED_PAWN_BLOCKED = MG_PASSED_PAWN_BLOCKED + 8,
 	MG_PASSED_SAFE_ADVANCE = EG_PASSED_PAWN_BLOCKED + 8,
 	EG_PASSED_SAFE_ADVANCE = MG_PASSED_SAFE_ADVANCE + 1,
-	MG_PASSED_FRIENDLY_DISTANCE = EG_PASSED_SAFE_ADVANCE + 1,
+	MG_PASSED_SAFE_PATH = EG_PASSED_SAFE_ADVANCE + 1,
+	EG_PASSED_SAFE_PATH = MG_PASSED_SAFE_PATH + 1,
+	MG_PASSED_FRIENDLY_DISTANCE = EG_PASSED_SAFE_PATH + 1,
 	EG_PASSED_FRIENDLY_DISTANCE = MG_PASSED_FRIENDLY_DISTANCE + 8,
 	MG_PASSED_ENEMY_DISTANCE    = EG_PASSED_FRIENDLY_DISTANCE + 8,
 	EG_PASSED_ENEMY_DISTANCE    = MG_PASSED_ENEMY_DISTANCE + 8,
@@ -116,7 +118,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 79,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 81,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -164,7 +166,7 @@ struct Tuner
 					   MG_PAWN_PSQT, MG_KNIGHT_PSQT, MG_BISHOP_PSQT, MG_ROOK_PSQT, MG_QUEEN_PSQT, MG_KING_PSQT,
 	       				   EG_PAWN_PSQT, EG_KNIGHT_PSQT, EG_BISHOP_PSQT, EG_ROOK_PSQT, EG_QUEEN_PSQT, EG_KING_PSQT,
 			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_PASSED_PAWN_BLOCKED, EG_PASSED_PAWN_BLOCKED,
-					   MG_PASSED_SAFE_ADVANCE, EG_PASSED_SAFE_ADVANCE,
+					   MG_PASSED_SAFE_ADVANCE, EG_PASSED_SAFE_ADVANCE, MG_PASSED_SAFE_PATH, EG_PASSED_SAFE_PATH,
 					   MG_PASSED_FRIENDLY_DISTANCE, EG_PASSED_FRIENDLY_DISTANCE, MG_PASSED_ENEMY_DISTANCE, EG_PASSED_ENEMY_DISTANCE,
 					   MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
@@ -224,6 +226,8 @@ struct Tuner
 		case EG_PASSED_PAWN_BLOCKED: return eval.eg_passed_pawn_blocked[pos];
 		case MG_PASSED_SAFE_ADVANCE: return eval.mg_passed_pawn_safe_advance;
 		case EG_PASSED_SAFE_ADVANCE: return eval.eg_passed_pawn_safe_advance;
+		case MG_PASSED_SAFE_PATH: return eval.mg_passed_pawn_safe_path;
+		case EG_PASSED_SAFE_PATH: return eval.eg_passed_pawn_safe_path;
 		case MG_PASSED_FRIENDLY_DISTANCE: return eval.mg_passed_friendly_distance[pos];
 		case EG_PASSED_FRIENDLY_DISTANCE: return eval.eg_passed_friendly_distance[pos];
 		case MG_PASSED_ENEMY_DISTANCE: return eval.mg_passed_enemy_distance[pos];
@@ -437,21 +441,24 @@ struct Tuner
 		std::cerr << "\nint mg_queen_threatened_by_lesser = " << int_weight(MG_QUEEN_THREATENED_BY_LESSER) << ";\n";
 		std::cerr <<   "int eg_queen_threatened_by_lesser = " << int_weight(EG_QUEEN_THREATENED_BY_LESSER) << ";\n";
 
-		std::cerr << "\nint mg_passed_bonus[8] = { ";
+		std::cerr << "\nint mg_passed_pawn[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_PAWN + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_passed_bonus[8] = { ";
+		std::cerr << "int eg_passed_pawn[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_PASSED_PAWN + i);
 		std::cerr << "};\n";
-		std::cerr << "int mg_passed_bonus_blocked[8] = { ";
+		std::cerr << "int mg_passed_pawn_blocked[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_PAWN_BLOCKED + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_passed_bonus_blocked[8] = { ";
+		std::cerr << "int eg_passed_pawn_blocked[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_PASSED_PAWN_BLOCKED + i);
 		std::cerr << "};\n";
 
 		std::cerr << "\nint mg_passed_pawn_safe_advance = " << int_weight(MG_PASSED_SAFE_ADVANCE) << ";\n";
 		std::cerr <<   "int eg_passed_pawn_safe_advance = " << int_weight(EG_PASSED_SAFE_ADVANCE) << ";\n";
+
+		std::cerr << "\nint mg_passed_pawn_safe_path = " << int_weight(MG_PASSED_SAFE_PATH) << ";\n";
+		std::cerr <<   "int eg_passed_pawn_safe_path = " << int_weight(EG_PASSED_SAFE_PATH) << ";\n";
 
 		std::cerr << "\nint mg_passed_friendly_distance[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_FRIENDLY_DISTANCE + i);
@@ -748,6 +755,7 @@ struct Tuner
 				uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
 				bool blocked = advance_square & board.occ;
 				bool safe_advance = advance_square & ~attacked[enemy];
+				bool safe_path = !(passed_pawn_mask(friendly, square) & file(square) & (board.pieces(enemy) | attacked[enemy]));
 
 				if (!blocked) {
 					mg_influences[MG_PASSED_PAWN + relative_rank] += side * mg_phase;
@@ -761,6 +769,11 @@ struct Tuner
 				if (safe_advance) {
 					mg_influences[MG_PASSED_SAFE_ADVANCE] += side * mg_phase;
 					eg_influences[EG_PASSED_SAFE_ADVANCE] += side * eg_phase;
+				}
+
+				if (safe_path) {
+					mg_influences[MG_PASSED_SAFE_PATH] += side * mg_phase;
+					eg_influences[EG_PASSED_SAFE_PATH] += side * eg_phase;
 				}
 
 				unsigned friendly_distance = square_distance(square, board.square(friendly, KING));
