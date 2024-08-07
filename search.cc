@@ -40,6 +40,13 @@ bool Search::crossed_hard_time_limit()
 // captures and check evasions to avoid the horizon effect
 int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 {
+	TT_entry &tt_entry = tt.probe(board.zobrist.key);
+	if (tt.hit) {
+		if (tt_entry.flag == EXACT) return tt_entry.evaluation;
+		if (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta ) return beta;
+		if (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha) return alpha;
+	}
+
 	bool in_check = board.in_check();
 
 	int static_evaluation = eval.evaluate(board);
