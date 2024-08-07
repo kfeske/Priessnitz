@@ -267,10 +267,10 @@ struct Tuner
 		for (unsigned i = 0; i < 8; i++) print_int_weight(ZONE_PRESSURE + i);
 		std::cerr << "};\n";
 
-		std::cerr << "\nint mg_knight_mobility[6] = { ";
+		std::cerr << "\nint mg_knight_mobility[9] = { ";
 		for (unsigned i = 0; i < 9; i++) print_int_weight(MG_KNIGHT_MOBILITY + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_knight_mobility[6] = { ";
+		std::cerr << "int eg_knight_mobility[9] = { ";
 		for (unsigned i = 0; i < 9; i++) print_int_weight(EG_KNIGHT_MOBILITY + i);
 		std::cerr << "};\n";
 		std::cerr << "\nint mg_bishop_mobility[14] = { ";
