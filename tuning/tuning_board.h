@@ -94,3 +94,38 @@ struct Board : Board_state
 		}
 	}
 };
+
+std::string name_of_square(Board &board, unsigned square)
+{
+	uint64_t square_bb = 1ULL << square;
+	if (board.pieces[W_PAWN]   & square_bb) return "P";
+	if (board.pieces[B_PAWN]   & square_bb) return "p";
+	if (board.pieces[W_KNIGHT] & square_bb) return "N";
+	if (board.pieces[B_KNIGHT] & square_bb) return "n";
+	if (board.pieces[W_BISHOP] & square_bb) return "B";
+	if (board.pieces[B_BISHOP] & square_bb) return "b";
+	if (board.pieces[W_ROOK]   & square_bb) return "R";
+	if (board.pieces[B_ROOK]   & square_bb) return "r";
+	if (board.pieces[W_QUEEN]  & square_bb) return "Q";
+	if (board.pieces[B_QUEEN]  & square_bb) return "q";
+	if (board.pieces[W_KING]   & square_bb) return "K";
+	if (board.pieces[B_KING]   & square_bb) return "k";
+	return " ";
+}
+
+void print_board(Board &board)
+{
+	std::string str = "    +---+---+---+---+---+---+---+---+\n";
+
+	for (unsigned rank = 0; rank < 8; rank++) { 
+		str += "  " + std::to_string(8 - rank) + " ";
+		for (unsigned file = 0; file < 8; file++) {
+			unsigned square = rank * 8 + file;
+			str += "| " + name_of_square(board, square) + " ";
+
+		}
+		str += "|\n    +---+---+---+---+---+---+---+---+\n";
+	}
+	str += "      A   B   C   D   E   F   G   H\n\n";
+	std::cerr << str;
+}

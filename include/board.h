@@ -364,6 +364,14 @@ struct Board : Board_state
 		return (checkers != 0);
 	}
 
+	uint64_t pawn_attacks(Color friendly)
+	{
+		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
+		Direction up_left  = (friendly == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		uint64_t pawns = pieces[piece_of(friendly, PAWN)];
+		return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
+	}
+
 	bool immediate_draw(unsigned ply_from_root)
 	{
 		return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);

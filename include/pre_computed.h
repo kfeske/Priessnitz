@@ -36,6 +36,7 @@ struct PreComputed : Noncopyable
 	uint64_t passed_pawn_mask[2][64];
 	uint64_t forward_file_mask[2][64];
 	uint64_t isolated_pawn_mask[8];
+	uint64_t neighbor_mask[64];
 
 	uint64_t rank_bb(unsigned square)
 	{
@@ -284,8 +285,10 @@ struct PreComputed : Noncopyable
 			forward_file_mask[WHITE][square] = file_bb(square) & white_forward_mask;
 			forward_file_mask[BLACK][square] = file_bb(square) & black_forward_mask;
 
-			// a pawn is isolated, if there are no neighbor pawns
+			// a pawn is isolated, if there are no pawns on the neighbor files
 			isolated_pawn_mask[file(square)] = adjacent_mask & ~file_bb(square);
+
+			neighbor_mask[square] = adjacent_mask & rank_bb(square) & ~(1ULL << square);
 		}
 	}
 
@@ -293,5 +296,7 @@ struct PreComputed : Noncopyable
 	{
 		generate_attacks();
 		generate_evaluation_tables();
+		//for (unsigned square = 0; square < 64; square++)
+		//	print_bitboard(neighbor_mask[square]);
 	}
 };

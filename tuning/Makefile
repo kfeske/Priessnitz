@@ -4,7 +4,7 @@ CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -I../include
 
 main: Makefile
 main:
-	g++ tuner.cc -o main $(CXXFLAGS)
+	g++ main.cc -o main $(CXXFLAGS)
 
 
 

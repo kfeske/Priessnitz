@@ -9,59 +9,100 @@ struct Evaluation : Noncopyable
 	int king_danger[2];
 	int king_attackers[2];
 
-	int attack_potency[6] = { 0, -4, 27, 32, 87, 0 };
-	int king_danger_weight[8] = { 0, 11, 55, 98, 136, 43, 0, 0 };
+	int mg_piece_value[6] = { 97, 345, 383, 506, 1207, 0 };
+	int eg_piece_value[6] = { 107, 293, 313, 547, 931, 0 };
 
-	int average_mobility[6] = { 0, -42, -21, -49, -112, 0 };
-	int mg_mobility_weight[6] = { 0, 144, 91, 77, 22, 0 };
-	int eg_mobility_weight[6] = { 0, -15, 29, 29, 69, 0 };
+	int attack_potency[6] = { 0, 2, 30, 42, 121, 0 };
+	int king_danger_weight[8] = { 0, 9, 39, 68, 111, 56, 0, 0 };
 
-	int mg_isolated_penalty = 21;
-	int eg_isolated_penalty = 11;
+	int mg_average_mobility[6] = { 0, -22, -27, -24, -80, 0 };
+	int eg_average_mobility[6] = { 0, 6, 10, -9, -13, 0 };
+	int mg_mobility_weight[6] = { 0, 109, 94, 85, 23, 0 };
+	int eg_mobility_weight[6] = { 0, 11, 24, 31, 82, 0 };
 
-	int tempo_bonus = 1;
+	int mg_isolated_penalty = -19;
+	int eg_isolated_penalty = -12;
+
+	int mg_doubled_penalty = -3;
+	int eg_doubled_penalty = -6;
+
+	int mg_backward_penalty = -12;
+	int eg_backward_penalty = -13;
+
+	int mg_chained_bonus = 10;
+	int eg_chained_bonus = 7;
 
 	int mg_passed_bonus[64] =
 	{
-	0, 0, 0, 0, 0, 0, 0, 0, 
-	55, 84, 44, 67, 46, 79, 14, -10, 
-	67, 24, 28, 14, 0, 16, -23, -25, 
-	38, 13, 10, -4, 2, 29, -7, 0, 
-	26, -13, -20, -19, -20, -15, -12, 25, 
-	10, -5, -21, -36, -3, 24, 11, 27, 
-	7, 10, 15, -19, -13, 20, 19, 4, 
-	0, 0, 0, 0, 0, 0, 0, 0, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
+	 39, 70, 27, 52, 31, 71, 0, -29, 
+	 55, 16, 28, 9, -11, -2, -51, -41, 
+	 38, 20, 15, -1, 7, 33, -2, -2, 
+	 24, -15, -24, -20, -22, -16, -14, 22, 
+	 11, -7, -19, -39, -1, 30, 9, 29, 
+	 2, 6, 9, -21, -11, 21, 17, 0, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
 
 	int eg_passed_bonus[64] =
 	{
-	0, 0, 0, 0, 0, 0, 0, 0, 
-	115, 106, 101, 81, 94, 83, 105, 121, 
-	144, 145, 111, 95, 74, 102, 123, 135, 
-	78, 72, 58, 49, 36, 41, 75, 69, 
-	43, 43, 33, 26, 24, 28, 48, 38, 
-	20, 19, 20, 18, 9, 5, 25, 16, 
-	16, 19, 1, 17, 19, 8, 17, 18, 
-	0, 0, 0, 0, 0, 0, 0, 0, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
+	 113, 102, 97, 78, 90, 79, 103, 121, 
+	 152, 150, 113, 101, 82, 107, 130, 143, 
+	 84, 73, 61, 52, 41, 47, 78, 77, 
+	 47, 45, 37, 28, 29, 33, 51, 43, 
+	 19, 20, 18, 17, 9, 5, 26, 17, 
+	 17, 18, 2, 17, 20, 8, 18, 20, 
+	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
+	
+	int tempo_bonus = 0;
+
+	int taper_start = 6377;
+	int taper_end = 321;
 
 	// pawn structure evaluation
-	void evaluate_pawn(Board &board, unsigned square, Color color)
+	void evaluate_pawn(Board &board, unsigned square, Color friendly)
 	{
-		uint64_t friendly_pawns = board.pieces[piece_of(color, PAWN)];
-		uint64_t enemy_pawns = board.pieces[piece_of(!color, PAWN)];
-		bool blocked = board.precomputed.forward_file_mask[color][square] & friendly_pawns;
+		uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
+		uint64_t enemy_pawns = board.pieces[piece_of(!friendly, PAWN)];
+		unsigned forward = (friendly == WHITE) ? NORTH : SOUTH;
+		uint64_t adjacent_files = board.precomputed.isolated_pawn_mask[file(square)];
 
-		// reward passed pawns
-		if (!(board.precomputed.passed_pawn_mask[color][square] & enemy_pawns) && !blocked) {
-			mg_bonus[color] += mg_passed_bonus[normalize[color][square]];
-			eg_bonus[color] += eg_passed_bonus[normalize[color][square]];
-		}
+		bool passed = !(board.precomputed.passed_pawn_mask[friendly][square] & enemy_pawns);
+		bool doubled = board.precomputed.forward_file_mask[friendly][square] & friendly_pawns;
+		bool neighbored = board.precomputed.neighbor_mask[square] & friendly_pawns;
+		bool supported = board.precomputed.passed_pawn_mask[!friendly][square] & adjacent_files & friendly_pawns;
+		bool chained = board.precomputed.pawn_attacks[!friendly][square] & friendly_pawns;
 
 		// punish isolated pawns
-		if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
-			mg_bonus[color] -= mg_isolated_penalty;
-			eg_bonus[color] -= eg_isolated_penalty;
+		if (!(adjacent_files & friendly_pawns)) {
+			mg_bonus[friendly] += mg_isolated_penalty;
+			eg_bonus[friendly] += eg_isolated_penalty;
+		}
+
+		// punish doubled pawns
+		else if (doubled) {
+			mg_bonus[friendly] += mg_doubled_penalty;
+			eg_bonus[friendly] += eg_doubled_penalty;
+		}
+
+		// punish backward pawns
+		else if (!(supported || neighbored) && board.precomputed.pawn_attacks[friendly][square + forward] & enemy_pawns) {
+			mg_bonus[friendly] += mg_backward_penalty;
+			eg_bonus[friendly] += eg_backward_penalty;
+		}
+
+		// reward chained pawns
+		if (chained) {
+			mg_bonus[friendly] += mg_chained_bonus;
+			eg_bonus[friendly] += eg_chained_bonus;
+		}
+
+		// reward passed pawns
+		if (passed && !doubled) {
+			mg_bonus[friendly] += mg_passed_bonus[normalize[friendly][square]];
+			eg_bonus[friendly] += eg_passed_bonus[normalize[friendly][square]];
 		}
 	}
 
@@ -83,9 +124,10 @@ struct Evaluation : Noncopyable
 	template <PieceType pt>
 	void evaluate_mobility(Board &board, uint64_t attacks, Color friendly)
 	{
-		int safe_squares = pop_count(attacks & ~board.pieces[piece_of(!friendly, PAWN)]);
-		mg_bonus[friendly] += (10 * safe_squares - average_mobility[pt]) * mg_mobility_weight[pt] / 100;
-		eg_bonus[friendly] += (10 * safe_squares - average_mobility[pt]) * eg_mobility_weight[pt] / 100;
+		// do not count mobility, when the squares are protected by enemy pawns
+		int safe_squares = pop_count(attacks & ~board.pawn_attacks(Color(!friendly)));
+		mg_bonus[friendly] += (10 * safe_squares - mg_average_mobility[pt]) * mg_mobility_weight[pt] / 100;
+		eg_bonus[friendly] += (10 * safe_squares - eg_average_mobility[pt]) * eg_mobility_weight[pt] / 100;
 	}
 
 	void evaluate_piece(Board &board, Piece p, unsigned square)
@@ -94,12 +136,12 @@ struct Evaluation : Noncopyable
 
 		switch (type_of(p)) {
 		case PAWN:
-			evaluate_pawn(board, square, color_of(p));
+			evaluate_pawn(board, square, friendly);
 			return;
 
 		case KNIGHT:
 			{
-			uint64_t attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL) & king_zone[!friendly];
+			uint64_t attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL);
 			note_king_attacks<KNIGHT>(attacks, friendly);
 			evaluate_mobility<KNIGHT>(board, attacks, friendly);
 			return;
@@ -115,7 +157,7 @@ struct Evaluation : Noncopyable
 			}
 		case ROOK:
 			{
-			// queen and rooks are not counted as a blockers, because they increase the pressure on a king square when cooperating
+			// queen and rooks are not counted as a blockers, because their pressure increases when stacked
 			uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
 			uint64_t attacks = board.precomputed.attacks_bb<ROOK>(square, ray_blockers);
 			note_king_attacks<ROOK>(attacks, friendly);
@@ -151,17 +193,19 @@ struct Evaluation : Noncopyable
 		king_zone[BLACK] = board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(BLACK, KING)]), 0ULL);
 
 		int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
-		material = std::max(int(MIN_MATERIAL), std::min(material, int(MAX_MATERIAL))); // endgame and midgame limit clamp
-		int phase = ((material - MIN_MATERIAL) * 256) / (MAX_MATERIAL - MIN_MATERIAL); // 0(Endgame) - 256(Midgame) linear interpolation
+		material = std::max(taper_end, std::min(material, taper_start)); // endgame and midgame limit clamp
+		int phase = ((material - taper_end) * 256) / (taper_start - taper_end); // 0(Endgame) - 256(Midgame) linear interpolation
 
 		uint64_t pieces = board.occ;
 
 		while (pieces) {
 			unsigned square = pop_lsb(pieces);
 			Piece p = board.board[square];
+			PieceType type = type_of(p);
+			Color friendly = color_of(p);
 
-			mg_value += psqt.midgame[p][square] + piece_value(p, MIDGAME);
-			eg_value += psqt.endgame[p][square] + piece_value(p, ENDGAME);
+			mg_bonus[friendly] += psqt.midgame[type][normalize[friendly][square]] + mg_piece_value[type];
+			eg_bonus[friendly] += psqt.endgame[type][normalize[friendly][square]] + eg_piece_value[type];
 
 			evaluate_piece(board, p, square);
 		}
