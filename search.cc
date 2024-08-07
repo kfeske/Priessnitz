@@ -183,7 +183,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		unsigned ep_square = board.make_null_move();
 
-		unsigned reduction = 3 + depth / 5;
+		unsigned reduction = 3 + depth / 5 + std::min(3, (static_eval - beta) / 200);
 		evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, INVALID_MOVE, false);
 
 		board.unmake_null_move(ep_square);
