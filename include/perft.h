@@ -14,13 +14,10 @@ struct Perft {
 		}
 
 		MoveGenerator move_generator {};
-		move_generator.generate_quiescence(board);
-		if (depth == 1) cap += move_generator.size;
-		MoveGenerator movegenerator {};
-		movegenerator.generate_all_moves(board);
+		move_generator.generate_all_moves(board);
 
-		for (unsigned n = 0; n < movegenerator.size; n++) {
-			Move move = movegenerator.move_list[n].move;
+		for (unsigned n = 0; n < move_generator.size; n++) {
+			Move move = move_generator.move_list[n].move;
 
 			if (depth == 1) {
 				switch(flags_of(move)) {

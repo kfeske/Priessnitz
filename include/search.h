@@ -117,7 +117,6 @@ struct Search
 
 		Move best_move = INVALID_MOVE;
 		int evaluation;
-		int best_evaluation = -infinity;
 		bool in_check = board.in_check();
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
@@ -194,7 +193,7 @@ struct Search
 			/*if (n == 0)
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
-				evaluation = -search(board, depth - 1, -beta, -alpha);
+				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
 
@@ -204,65 +203,65 @@ struct Search
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE)
 					reduction = 1;
 
-				evaluation = -search(board, depth - reduction - 1, -alpha - 1, -alpha);
+				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha);
 
-				if (evaluation > alpha && evaluation < beta)
+				if (reduction && evaluation > alpha)
+					// if the reduced search does not fail low, it needs a re-search to the full depth
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+
+				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
-					evaluation = -search(board, depth - 1, -beta, -alpha);
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 			}*/
 
 			board.unmake_move(move);
 
 			if (abort_search) return 0;
 
-			if (evaluation > best_evaluation) {
-				best_evaluation = evaluation;
+			if (evaluation > alpha) {
+				// found a better move
+				best_move = move;
+				alpha = evaluation;
 
-				if (evaluation > alpha) {
-					// found a better move
+				if (evaluation >= beta) {
 
-					if (evaluation >= beta) {
+					// Beta cutoff. There is a better line for the opponent.
+					// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+					// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+					// where he can get at least beta.
 
-						// Beta cutoff. There is a better line for the opponent.
-						// We know the opponent can get at least beta, so a branch that evaluates to more than beta
-						// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-						// where he can get at least beta.
+					// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
+					// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
+					tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND);
 
-						// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
-						// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-						flag = LOWERBOUND;
+					if (flags_of(move) != CAPTURE) {
+						// this is a killer move - Store it!
+						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
+						heuristics.killer_move[0][ply] = move;
 
-						if (flags_of(move) != CAPTURE) {
-							// this is a killer move - Store it!
-							heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
-							heuristics.killer_move[0][ply] = move;
-
-							// increment history score
-							heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
-						}
-						if (n == 0) cutoffspv++;
-						cutoffs++;
-
-						// *snip*
-						break;
+						// increment history score
+						heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
 					}
+					if (n == 0) cutoffspv++;
+					cutoffs++;
 
-					alpha = evaluation;
-					flag = EXACT;
+					// *snip*
+					return beta;
+				}
 
-					best_move = move;
-					if (ply == 0) {
-						best_root_move = best_move;
-						root_evaluation = evaluation;
-					}
+				flag = EXACT;
+
+				if (ply == 0) {
+					best_root_move = best_move;
+					root_evaluation = evaluation;
 				}
 			}
 		}
 		
 		// store position in the hash table
-		tt.store(board.zobrist.key, depth, best_evaluation, best_move, flag);
+		tt.store(board.zobrist.key, depth, alpha, best_move, flag);
 
-		return best_evaluation;
+		return alpha;
 	}
 
 	void start_search(Board &board)
