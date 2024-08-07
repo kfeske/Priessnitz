@@ -56,7 +56,7 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		}
 
 		// Pawn chain
-		else if (chained) {
+		else if (chained || neighbored) {
 			info.mg_bonus[friendly] += mg_chained_bonus;
 			info.eg_bonus[friendly] += eg_chained_bonus;
 		}

@@ -650,7 +650,7 @@ struct Tuner
 				}
 
 				// reward chained pawns
-				else if (chained) {
+				else if (chained || neighbored) {
 					mg_influences[MG_CHAINED] += side * mg_phase;
 					eg_influences[EG_CHAINED] += side * eg_phase;
 				}
