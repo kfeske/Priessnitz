@@ -21,10 +21,6 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 	uint64_t friendly_pawns = board.pieces(friendly, PAWN);
 	uint64_t enemy_pawns    = board.pieces(enemy,    PAWN);
 
-	uint64_t attacks = board.all_pawn_attacks(friendly);
-	info.attacked[friendly] 	       |= attacks;
-	info.attacked_by_piece[friendly][PAWN]  = attacks;
-
 	uint64_t temp = friendly_pawns;
 	while (temp) {
 		unsigned square = pop_lsb(temp);
@@ -67,7 +63,7 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 
 		// Passed pawns
 		if (passed && !doubled)
-			info.passed_pawns[friendly] |= 1ULL << square;
+			info.passed_pawns |= 1ULL << square;
 	}
 }
 
@@ -286,7 +282,7 @@ void Evaluation::evaluate_passed_pawns(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
 
-	uint64_t temp = info.passed_pawns[friendly];
+	uint64_t temp = info.passed_pawns & board.pieces(friendly);
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
@@ -378,13 +374,24 @@ int Evaluation::scale_factor(Board &board, int eg_value)
 int Evaluation::evaluate(Board &board)
 {
 	info.init(board);
+	int mg_value = 0;
+	int eg_value = 0;
 
 	int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
 	material = std::max(taper_end, std::min(material, taper_start)); // endgame and midgame limit clamp
 	int phase = ((material - taper_end) * 256) / (taper_start - taper_end); // 0(Endgame) - 256(Midgame) linear interpolation
 
-	evaluate_pawns(  board, WHITE);
-	evaluate_pawns(  board, BLACK);
+	Pawn_hash_entry &entry = pawn_hash_table.probe(board.zobrist.pawn_key);
+	if (pawn_hash_table.hit) {
+		mg_value = entry.mg_evaluation;
+		eg_value = entry.eg_evaluation;
+		info.passed_pawns = entry.passed_pawns;
+	}
+	else {
+		evaluate_pawns(  board, WHITE);
+		evaluate_pawns(  board, BLACK);
+		pawn_hash_table.store(board.zobrist.pawn_key, info.mg_bonus[WHITE] - info.mg_bonus[BLACK], info.eg_bonus[WHITE] - info.eg_bonus[BLACK], info.passed_pawns);
+	}
 	evaluate_knights(board, WHITE);
 	evaluate_knights(board, BLACK);
 	evaluate_bishops(board, WHITE);
@@ -407,8 +414,8 @@ int Evaluation::evaluate(Board &board)
 
 	info.mg_bonus[board.side_to_move] += tempo_bonus;
 
-	int mg_value = info.mg_bonus[WHITE] - info.mg_bonus[BLACK];
-	int eg_value = info.eg_bonus[WHITE] - info.eg_bonus[BLACK];
+	mg_value += info.mg_bonus[WHITE] - info.mg_bonus[BLACK];
+	eg_value += info.eg_bonus[WHITE] - info.eg_bonus[BLACK];
 
 	// Scale down drawish looking endgames
 	int scale = scale_factor(board, eg_value);

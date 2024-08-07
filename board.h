@@ -5,13 +5,14 @@
 
 struct Zobrist
 {
-	uint64_t piece_side_key = 0; // here, we keep track of the piece positions and side to move
-	uint64_t key = 0; // final zobrist key  (we add the castling rights and en passant file, only if needed)
+	uint64_t piece_side_key = 0ULL; // here, we keep track of the piece positions and side to move
+	uint64_t key = 0ULL; // final zobrist key  (we add the castling rights and en passant file, only if needed)
+	uint64_t pawn_key = 0ULL; // Key for the pawn hash table
 
 	uint64_t piece_rand[16][64] {};
 	uint64_t ep_rand[8] {};
 	uint64_t castling_rand[16] {};
-	uint64_t side_rand = 0;
+	uint64_t side_rand = 0ULL;
 
 	void populate();
 
@@ -94,6 +95,7 @@ struct Board : Board_state
 		board[square] = piece;
 		non_pawn_material[friendly] += non_pawn_value[piece];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
+		if (type_of(piece) == PAWN) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void remove_piece(unsigned square)
@@ -107,6 +109,7 @@ struct Board : Board_state
 		board[square] = NO_PIECE;
 		non_pawn_material[friendly] -= non_pawn_value[piece];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
+		if (type_of(piece) == PAWN) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void push_piece_quiet(unsigned from, unsigned to)
@@ -122,6 +125,10 @@ struct Board : Board_state
 		board[from] = NO_PIECE;
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][from];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][to];
+		if (type_of(piece) == PAWN) {
+			zobrist.pawn_key ^= zobrist.piece_rand[piece][from];
+			zobrist.pawn_key ^= zobrist.piece_rand[piece][to];
+		}
 	}
 
 	void make_move(Move move);

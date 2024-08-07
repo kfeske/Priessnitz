@@ -81,3 +81,48 @@ struct Transposition_table
 		 buckets(new TT_bucket[bucket_count])
 	{}
 };
+
+unsigned const DEFAULT_PAWN_HASH_SIZE = 32; // MB
+
+struct Pawn_hash_entry
+{
+	uint64_t key;
+	int16_t mg_evaluation;
+	int16_t eg_evaluation;
+	uint64_t passed_pawns;
+};
+
+struct Pawn_hash_table
+{
+	unsigned entry_count = (DEFAULT_PAWN_HASH_SIZE * 1024 * 1024) / sizeof(Pawn_hash_entry);
+	Pawn_hash_entry *entries;
+	Pawn_hash_entry empty_entry {};
+	bool hit = false;
+
+	Pawn_hash_entry &probe(uint64_t key)
+	{
+		hit = false;
+		unsigned index = key % entry_count;
+		Pawn_hash_entry &entry = entries[index];
+		if (entry.key == key) {
+			hit = true;
+			return entry;
+		}
+		return empty_entry;
+	}
+
+	void store(uint64_t key, int16_t mg_evaluation, int16_t eg_evaluation, uint64_t passed_pawns)
+	{
+		unsigned index = key % entry_count;
+		Pawn_hash_entry &entry = entries[index];
+		entry.key = key;
+		entry.mg_evaluation = mg_evaluation;
+		entry.eg_evaluation = eg_evaluation;
+		entry.passed_pawns = passed_pawns;
+	}
+
+	Pawn_hash_table()
+	:
+		entries(new Pawn_hash_entry[entry_count])
+	{}
+};

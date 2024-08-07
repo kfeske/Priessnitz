@@ -57,7 +57,7 @@ void Board::make_move(Move move)
 
 	zobrist.key = 0ULL;
 
-	if (type_of(board[move_from(move)]) == PAWN)
+	if (type_of(board[from]) == PAWN)
 		history[game_ply].rule_50 = 0;
 
 	Move_flags flags = flags_of(move);
@@ -423,6 +423,7 @@ void Board::set_fenpos(std::string fen)
 	reset(); // reset board to avoid overwrites
 	history[0] = {};
 	zobrist.piece_side_key = 0ULL;
+	zobrist.pawn_key = 0ULL;
 
 	std::istringstream iss { fen };
 	std::string parsed {};

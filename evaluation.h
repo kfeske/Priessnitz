@@ -2,6 +2,7 @@
 
 #include "utility.h"
 #include "board.h"
+#include "transposition_table.h"
 
 struct Eval_info : Noncopyable
 {
@@ -11,7 +12,7 @@ struct Eval_info : Noncopyable
 	int mg_king_ring_pressure[2];
 	int eg_king_ring_pressure[2];
 	int king_ring_attackers[2];
-	uint64_t passed_pawns[2];
+	uint64_t passed_pawns;
 
 	uint64_t attacked[2];
 	uint64_t attacked_by_piece[2][6];
@@ -27,15 +28,22 @@ struct Eval_info : Noncopyable
 		unsigned black_king_square = board.square(BLACK, KING);
 		king_ring[WHITE] = king_ring_mask(white_king_square);
 		king_ring[BLACK] = king_ring_mask(black_king_square);
-		passed_pawns[WHITE] = passed_pawns[BLACK] = 0ULL;
+		passed_pawns = 0ULL;
 		attacked[WHITE] = attacked_by_piece[WHITE][KING] = piece_attacks(KING, white_king_square, 0ULL);
 		attacked[BLACK] = attacked_by_piece[BLACK][KING] = piece_attacks(KING, black_king_square, 0ULL);
+		uint64_t white_pawn_attacks = board.all_pawn_attacks(WHITE);
+		attacked[WHITE]	 	      |= white_pawn_attacks;
+		attacked_by_piece[WHITE][PAWN] = white_pawn_attacks;
+		uint64_t black_pawn_attacks = board.all_pawn_attacks(BLACK);
+		attacked[BLACK]	 	      |= black_pawn_attacks;
+		attacked_by_piece[BLACK][PAWN] = black_pawn_attacks;
 	}
 };
 
 struct Evaluation : Noncopyable
 {
 	Eval_info info {};
+	Pawn_hash_table pawn_hash_table;
 
 	int mg_piece_value[6] = { 35, 260, 276, 320, 694, 0, };
 	int eg_piece_value[6] = { 62, 291, 298, 507, 949, 0, };
