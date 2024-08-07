@@ -305,14 +305,13 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 void Search::start_search(Board &board)
 {
+	time_start = std::chrono::high_resolution_clock::now();
+
 	abort_search = false;
 	age++;
 	age %= 64; // fits in 6 bits (important for the hash table)
 
-	time_start = std::chrono::high_resolution_clock::now();
-
 	statistics = {};
-	heuristics = {};
 	long nodes_previous_iteration;
 	long total_nodes = 0;
 
@@ -320,6 +319,11 @@ void Search::start_search(Board &board)
 	int alpha = -INFINITY_SCORE;
 	int beta = INFINITY_SCORE;
 	int window_size = 0;
+
+	heuristics = {};
+	best_root_move = INVALID_MOVE;
+	Move last_best_move = INVALID_MOVE;
+	int last_best_move_depth = 0;
 
 	// Iterative Deepening
 	// We want to be able to stop the search at any moment, so we start with a one depth search and
@@ -330,6 +334,7 @@ void Search::start_search(Board &board)
 
 	for (current_depth = 1; current_depth <= max_depth; current_depth++) {
 
+		last_best_move = best_root_move;
 		nodes_previous_iteration = statistics.search_nodes + statistics.quiescence_nodes;
 		statistics.search_nodes = 0;
 		statistics.quiescence_nodes = 0;
@@ -350,11 +355,12 @@ void Search::start_search(Board &board)
 			evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
-			if (time_management && current_depth >= 4) {
-				if (evaluation <= alpha && time_elapsed() >= soft_time_cap)
-					soft_time_cap = time_elapsed() + search_time_increment;
+			// Stop here, if the allocated time for the move runs out.
+			// We continue searching, if we failed low.
+			if (time_management && current_depth > 1 && evaluation > alpha) {
+				double stable_best_move = (last_best_move_depth + 7 < current_depth) ? 0.9 : 1.2;
+				if (time_elapsed() >= soft_time_cap * stable_best_move) abort_search = true;
 			}
-			if (time_management && current_depth > 1 && time_elapsed() >= soft_time_cap) abort_search = true;
 			if (abort_search) break;
 
 			// The returned evaluation was not inside the windows :/
@@ -370,6 +376,7 @@ void Search::start_search(Board &board)
 			else break;
 		}
 
+		if (best_root_move != last_best_move) last_best_move_depth = current_depth;
 
 		plot_info(board, nodes_previous_iteration);
 

@@ -25,8 +25,8 @@ struct Search : Noncopyable
 	Move best_root_move = INVALID_MOVE;
 	int16_t root_evaluation;
 
-	unsigned max_depth = 63;
-	unsigned current_depth;
+	int max_depth = 63;
+	int current_depth;
 	bool fixed_time = false;
 	bool time_management = false;;
 	bool infinite_search = false;
