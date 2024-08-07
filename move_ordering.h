@@ -42,6 +42,7 @@ struct Move_orderer
 	Move hash_move;
 	Move first_killer;
 	Move second_killer;
+	Heuristics &heuristics;
 	unsigned ply;
 
 	// Picks the next move from the movelist that has the highest score.
@@ -75,7 +76,8 @@ struct Move_orderer
 		if (sort_type == QUIET_GEN) {
 			for (unsigned n = position; n < move_list.size; n++) {
 				Scored_move &scored_move = move_list.moves[n];
-				scored_move.score = 0;
+				Move move = scored_move.move;
+				scored_move.score = std::min(30000000, heuristics.history[board.board[move_from(move)]][move_to(move)]) >> 3;
 			}
 		}
 		if (sort_type == IN_CHECK_GEN) {
@@ -194,8 +196,7 @@ struct Move_orderer
 		hash_move(hash_move),
 		first_killer( heuristics.killer_move[0][ply]),
 		second_killer(heuristics.killer_move[1][ply]),
-		//first_killer(INVALID_MOVE),
-		//second_killer(INVALID_MOVE),
+		heuristics(heuristics),
 		ply(ply)
 	{}
 };

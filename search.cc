@@ -268,11 +268,11 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			best_move = move;
 			alpha = evaluation;
 
-			// Beta cutoff. There is a better line for the opponent.
-			// We know the opponent can get at least beta, so a branch that evaluates to more than beta
-			// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-			// where he can get at least beta.
 			if (evaluation >= beta) {
+				// Beta cutoff. There is a better line for the opponent.
+				// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+				// where he can get at least beta.
 
 				// We have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
@@ -287,6 +287,14 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 					// increment history score
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
+					/*if (heuristics.history[board.board[move_from(move)]][move_to(move)] > 100000) {
+						std::cerr << "decay history\n";
+						for (unsigned piece = 0; piece < 16; piece++) {
+							for (unsigned square = 0; square < 64; square++) {
+								heuristics.history[piece][square] >>= 6;
+							}
+						}
+					}*/
 				}
 				if (move_count == 1) statistics.cutoffspv++;
 				statistics.cutoffs++;
@@ -326,14 +334,16 @@ unsigned Statistics::hash_full(Transposition_table &tt)
 	return hits;
 }
 
-// Searches the sequence of moves according to the computer from the hash table.
+// The best sequence of moves can be extracted from the hash table.
 void Search::extract_pv_line(Board &board)
 {
 	Board temp_board = board;
-	for (unsigned depth = current_depth; depth > 0; depth--) {
+	temp_board.make_move(best_root_move);
+	std::cout << move_string(best_root_move) << " ";
+	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
 		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY, INFINITY);
 		if (!hit) return;
-		std::cerr << move_string(tt.pv_move) << " ";
+		std::cout << move_string(tt.pv_move) << " ";
 		temp_board.make_move(tt.pv_move);
 	}
 }
