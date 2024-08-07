@@ -231,7 +231,7 @@ struct Search : Noncopyable
 
 			// Late Move Pruning
 			if (!pv_node && depth <= 3 && !gives_check && !mate(alpha) && n >= lmp_margins[depth]
-			    && flags_of(move) != CAPTURE && !promotion(move)) {
+			    && flags_of(move) != CAPTURE && !promotion(move) && !board.passed_push(move)) {
 				board.unmake_move(move);
 				continue;
 			}

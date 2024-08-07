@@ -42,15 +42,17 @@ enum Indicies {
 	EG_AVERAGE_MOBILITY = MG_AVERAGE_MOBILITY + 6,
 	MG_MOBILITY = EG_AVERAGE_MOBILITY + 6,
 	EG_MOBILITY = MG_MOBILITY + 6,
-	ATTACK_POTENCY = EG_MOBILITY + 6,
-	KING_DANGER = ATTACK_POTENCY + 6,
-	END_INDEX = KING_DANGER + 8
+	RING_POTENCY = EG_MOBILITY + 6,
+	ZONE_POTENCY = RING_POTENCY + 6,
+	RING_PRESSURE = ZONE_POTENCY + 6,
+	ZONE_PRESSURE = RING_PRESSURE + 8,
+	END_INDEX = ZONE_PRESSURE + 8
 };
 
 enum Tuning_params {
 	NUM_TRAINING_POSITIONS = 700000, // number of training positions
 	NUM_TEST_POSITIONS = 25000,      // number of test positions
-	NUM_TABLES = 30,		 // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 32,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -77,8 +79,10 @@ struct Sample
 	double influence[NUM_WEIGHTS] {};
 
 	// useful for king evaluation
-	uint8_t king_attackers[2] {};
-	uint8_t king_attacks[15] {};
+	uint8_t ring_attackers[2] {};
+	uint8_t ring_attacks[15] {};
+	uint8_t zone_attackers[2] {};
+	uint8_t zone_attacks[15] {};
 
 	// useful for mobility evaluation
 	int mobility_squares[6] {};
@@ -95,7 +99,7 @@ struct Tuner
 			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 			     	      	   MG_AVERAGE_MOBILITY, EG_AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
-			     	      	   ATTACK_POTENCY, KING_DANGER,
+			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE,
 			     	      	   END_INDEX };
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
@@ -140,8 +144,10 @@ struct Tuner
 		case EG_AVERAGE_MOBILITY: return eval.eg_average_mobility[pos];
 		case MG_MOBILITY: return eval.mg_mobility_weight[pos];
 		case EG_MOBILITY: return eval.eg_mobility_weight[pos];
-		case ATTACK_POTENCY: return eval.attack_potency[pos];
-		case KING_DANGER: return eval.king_danger_weight[pos];
+		case RING_POTENCY: return eval.ring_attack_potency[pos];
+		case ZONE_POTENCY: return eval.zone_attack_potency[pos];
+		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
+		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
 		case MG_VALUES: return eval.mg_piece_value[pos];
 		case EG_VALUES: return eval.eg_piece_value[pos];
 		default: return eval.eg_passed_bonus[pos];
@@ -195,8 +201,10 @@ struct Tuner
 		case EG_AVERAGE_MOBILITY: std::cerr << "\neg average mobility\n"; break;
 		case MG_MOBILITY: std::cerr << "\nmg mobility\n"; break;
 		case EG_MOBILITY: std::cerr << "\neg mobility\n"; break;
-		case ATTACK_POTENCY: std::cerr << "\nattack potency\n"; break;
-		case KING_DANGER: std::cerr << "\nking danger\n"; break;
+		case RING_POTENCY: std::cerr << "\nring attack potency\n"; break;
+		case ZONE_POTENCY: std::cerr << "\nzone attack potency\n"; break;
+		case RING_PRESSURE: std::cerr << "\nking ring pressure weight\n"; break;
+		case ZONE_PRESSURE: std::cerr << "\nking zone pressure weight\n"; break;
 		case MG_VALUES: std::cerr << "\nmg values\n"; break;
 		case EG_VALUES: std::cerr << "\neg values\n"; break;
 		default: return;
@@ -230,18 +238,23 @@ struct Tuner
 	}
 
 	// we can precompute the number of king attackers and attacks
-	void extract_king_safety(Sample &sample, Piece piece, uint64_t king_attacks)
+	void extract_king_safety(Sample &sample, Piece piece, uint64_t attacks, uint64_t king_ring, uint64_t king_zone)
 	{
-		if (king_attacks) {
-			sample.king_attacks[piece] += pop_count(king_attacks);
-			sample.king_attackers[color_of(piece)]++;
+		uint64_t ring_attacks = attacks & king_ring;
+		if (ring_attacks) {
+			sample.ring_attacks[piece] += pop_count(ring_attacks);
+			if (sample.ring_attackers[color_of(piece)] < 7) sample.ring_attackers[color_of(piece)]++;
+		}
+		uint64_t zone_attacks = attacks & king_zone;
+		if (zone_attacks) {
+			sample.zone_attacks[piece] += pop_count(zone_attacks);
+			if (sample.zone_attackers[color_of(piece)] < 7) sample.zone_attackers[color_of(piece)]++;
 		}
 	}
 
 	// necessary for partial derivative of the mobility weight
 	void extract_mobility(Sample &sample, Piece piece, uint64_t attacks, int side) {
 		sample.mobility_squares[type_of(piece)] += 10 * pop_count(attacks & ~board.pawn_attacks(Color(!color_of(piece)))) * side;
-		//std::cerr << "mobility squares " << sample.mobility_squares[type_of(piece)] << "\n";
 		sample.material_difference[type_of(piece)] += side;
 	}
 
@@ -265,8 +278,13 @@ struct Tuner
 		double mg_phase = sample.phase;
 		double eg_phase = (1 - sample.phase);
 
-		uint64_t king_zone[2] { board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(WHITE, KING)]), 0ULL),
-					board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(BLACK, KING)]), 0ULL) };
+		unsigned friendly_king_square = lsb(board.pieces[piece_of(WHITE, KING)]);
+		unsigned enemy_king_square = lsb(board.pieces[piece_of(BLACK, KING)]);
+		uint64_t king_ring[2] { board.precomputed.attacks_bb<KING>(friendly_king_square, 0ULL),
+					board.precomputed.attacks_bb<KING>(enemy_king_square, 0ULL) };
+
+		uint64_t king_zone[2] { board.precomputed.king_zone[WHITE][friendly_king_square], 
+			 		board.precomputed.king_zone[BLACK][enemy_king_square] };
 
 		uint64_t all_pieces = board.occ;
 		while (all_pieces) {
@@ -335,27 +353,27 @@ struct Tuner
 				}
 				continue;
 				}
-			// king safety
+			// king safety + mobility
 			case KNIGHT:
 				attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL);
-				extract_king_safety(sample, piece, attacks & king_zone[!friendly]);
+				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case BISHOP:
 				ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
 				attacks = board.precomputed.attacks_bb<BISHOP>(square, ray_blockers);
-				extract_king_safety(sample, piece, attacks & king_zone[!friendly]);
+				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case ROOK:
 				ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
 				attacks = board.precomputed.attacks_bb<ROOK>(square, ray_blockers);
-				extract_king_safety(sample, piece, attacks & king_zone[!friendly]);
+				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case QUEEN:
 				attacks = board.precomputed.attacks_bb<QUEEN>(square, board.occ);
-				extract_king_safety(sample, piece, attacks & king_zone[!friendly]);
+				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case KING: continue;
@@ -408,7 +426,8 @@ struct Tuner
 
 		double attack_potency[6] = { 0, 10, 30, 30, 80, 0 };
 		for (unsigned i = 0; i < 6; i++) {
-			weights[ATTACK_POTENCY + i] = attack_potency[i];
+			weights[RING_POTENCY + i] = attack_potency[i];
+			weights[ZONE_POTENCY + i] = attack_potency[i];
 		}
 
 		/*double average_mobility[6] = { 0, 40, 50, 40, 40, 0 };
@@ -425,13 +444,25 @@ struct Tuner
 	}
 
 	template <Color color>
-	double king_danger(Sample &sample)
+	double king_ring_pressure(Sample &sample)
 	{
-		double danger = 0;
-		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN })
-			danger += weights[ATTACK_POTENCY + type] * sample.king_attacks[piece_of(color, type)];
+		double pressure = 0;
+		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+			pressure += weights[RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
+		}
 
-		return danger / 100;
+		return pressure / 100;
+	}
+
+	template <Color color>
+	double king_zone_pressure(Sample &sample)
+	{
+		double pressure = 0;
+		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+			pressure += weights[ZONE_POTENCY + type] * sample.zone_attacks[piece_of(color, type)];
+		}
+
+		return pressure / 100;
 	}
 
 	double mg_mobility(Sample &sample, PieceType type)
@@ -455,9 +486,11 @@ struct Tuner
 
 		// king safety is a bit tricky, because two different weights affect each other
 
-		double white_danger = king_danger<WHITE>(sample) * weights[KING_DANGER + sample.king_attackers[WHITE]] * sample.phase;
-		double black_danger = king_danger<BLACK>(sample) * weights[KING_DANGER + sample.king_attackers[BLACK]] * sample.phase;
-		evaluation += (white_danger - black_danger);
+		double white_pressure = king_ring_pressure<WHITE>(sample) * weights[RING_PRESSURE + sample.ring_attackers[WHITE]] * sample.phase;
+		white_pressure += king_zone_pressure<WHITE>(sample) * weights[ZONE_PRESSURE + sample.zone_attackers[WHITE]] * sample.phase;
+		double black_pressure = king_ring_pressure<BLACK>(sample) * weights[RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
+		black_pressure += king_zone_pressure<BLACK>(sample) * weights[ZONE_PRESSURE + sample.zone_attackers[BLACK]] * sample.phase;
+		evaluation += (white_pressure - black_pressure);
 
 		// mobility is another inconvenience
 
@@ -545,36 +578,52 @@ struct Tuner
 			double sigm = sigmoid(evaluation);
 			double partial_derivative = cost_derivative(sample, sigm) * sigmoid_derivative(evaluation);
 
+			// Most gradients can easily be computed
+			// The feature array holds the derivatives of each parameter in respect to the evaluation function
+			// (in this case, it is the game phase multiplied by how often it is used in the position)
 			for (unsigned w = 0; w < NUM_WEIGHTS; w++)
 				gradients[w] -= sample.influence[w] * partial_derivative;
 
-			// king safety and mobility always needs extra work
-			unsigned white_danger_index = KING_DANGER + sample.king_attackers[WHITE];
-			unsigned black_danger_index = KING_DANGER + sample.king_attackers[BLACK];
+			// King safety and mobility always needs extra work, because they basically have two parameters
+			// that affect each other
 
-			// danger weights
-			gradients[white_danger_index] -= king_danger<WHITE>(sample) * partial_derivative * sample.phase;
-			gradients[black_danger_index] += king_danger<BLACK>(sample) * partial_derivative * sample.phase;
+			// king ring pressure weights
+			unsigned white_ring_index = RING_PRESSURE + sample.ring_attackers[WHITE];
+			gradients[white_ring_index] -= king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
+			unsigned black_ring_index = RING_PRESSURE + sample.ring_attackers[BLACK];
+			gradients[black_ring_index] += king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
+
+			// king zone pressure weights
+			unsigned white_zone_index = ZONE_PRESSURE + sample.zone_attackers[WHITE];
+			gradients[white_zone_index] -= king_zone_pressure<WHITE>(sample) * partial_derivative * sample.phase;
+			unsigned black_zone_index = ZONE_PRESSURE + sample.zone_attackers[BLACK];
+			gradients[black_zone_index] += king_zone_pressure<BLACK>(sample) * partial_derivative * sample.phase;
 			
-			// attack potency
 			for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-				double white_attacks = sample.king_attacks[piece_of(WHITE, type)];
-				double black_attacks = sample.king_attacks[piece_of(BLACK, type)];
-				gradients[ATTACK_POTENCY + type] -= white_attacks * weights[white_danger_index] / 100 * partial_derivative * sample.phase;
-				gradients[ATTACK_POTENCY + type] += black_attacks * weights[black_danger_index] / 100 * partial_derivative * sample.phase;
+				// Ring attack potency
+				double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
+				gradients[RING_POTENCY + type] -= white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;
+				double black_ring_attacks = sample.ring_attacks[piece_of(BLACK, type)];
+				gradients[RING_POTENCY + type] += black_ring_attacks * weights[black_ring_index] / 100 * partial_derivative * sample.phase;
 
-				// mobility weights
+				// Zone attack potency
+				double white_zone_attacks = sample.zone_attacks[piece_of(WHITE, type)];
+				gradients[ZONE_POTENCY + type] -= white_zone_attacks * weights[white_zone_index] / 100 * partial_derivative * sample.phase;
+				double black_zone_attacks = sample.zone_attacks[piece_of(BLACK, type)];
+				gradients[ZONE_POTENCY + type] += black_zone_attacks * weights[black_zone_index] / 100 * partial_derivative * sample.phase;
+
+				// Mobility weights
 				gradients[MG_MOBILITY + type] -= mg_mobility(sample, type) / 100 * partial_derivative * sample.phase;
 				gradients[EG_MOBILITY + type] -= eg_mobility(sample, type) / 100 * partial_derivative * (1 - sample.phase);
 
-				// average mobility
+				// Average mobility
 				gradients[MG_AVERAGE_MOBILITY + type] -= -sample.material_difference[type] * weights[MG_MOBILITY + type] / 100 * partial_derivative * sample.phase;
 				gradients[EG_AVERAGE_MOBILITY + type] -= -sample.material_difference[type] * weights[EG_MOBILITY + type] / 100 * partial_derivative * (1 - sample.phase);
 			}
 		}
 	}
 
-	// main function of the tuner
+	// Main function of the tuner
 	void tune()
 	{
 		print_weights();

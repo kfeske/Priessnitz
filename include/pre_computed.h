@@ -37,6 +37,7 @@ struct PreComputed : Noncopyable
 	uint64_t forward_file_mask[2][64];
 	uint64_t isolated_pawn_mask[8];
 	uint64_t neighbor_mask[64];
+	uint64_t king_zone[2][64];
 
 	uint64_t rank_bb(unsigned square)
 	{
@@ -289,6 +290,10 @@ struct PreComputed : Noncopyable
 			isolated_pawn_mask[file(square)] = adjacent_mask & ~file_bb(square);
 
 			neighbor_mask[square] = adjacent_mask & rank_bb(square) & ~(1ULL << square);
+
+			// the king zone squares are the squares, the king can reach plus three squares in the enemy direction
+			if (square >= 24) king_zone[WHITE][square] = king_attacks[square - 24] | 1ULL << (square - 24);
+			if (square <= 39) king_zone[BLACK][square] = king_attacks[square + 24] | 1ULL << (square + 24);
 		}
 	}
 
