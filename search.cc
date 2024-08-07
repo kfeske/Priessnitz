@@ -178,7 +178,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// the position is so terrible for the opponent that we can just prune the whole branch.
 	// (should not be used in complicated endgames and zugzwang positions!!!)
 	if (!pv_node && allow_null_move && !in_check && ply > 0 && depth > 1 &&
-	    board.non_pawn_material[board.side_to_move] && static_eval >= beta) {
+	    board.non_pawn_material[board.side_to_move] && static_eval >= beta &&
+	    !(tt.hit && tt_entry.flag == UPPERBOUND && tt_entry.evaluation < beta)) {
 
 		unsigned ep_square = board.make_null_move();
 
