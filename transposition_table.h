@@ -24,15 +24,18 @@ struct Transposition_table
 	unsigned bucket_count = entry_count / BUCKET_SIZE;
 	TT_bucket *buckets;
 	TT_entry empty_entry {};
+	bool hit = false;
 
 	TT_entry &probe(uint64_t key)
 	{
+		hit = true;
 		uint64_t index = key % bucket_count;
 		TT_bucket &bucket = buckets[index];
 		for (unsigned i = 0; i < BUCKET_SIZE; i++) {
 			TT_entry &entry = bucket.entries[i];
 			if (entry.key == key) return entry;
 		}
+		hit = false;
 		return empty_entry;
 	}
 

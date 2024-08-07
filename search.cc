@@ -106,10 +106,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		return quiescence_search(board, alpha, beta, 0);
 
 	// Mate Distance Pruning
-	// If a forced mate was found, we do not need to search deeper than to where it was found, because we
-	// only care for the shortest mate.
+	// If a forced mate was found, we do not need to search deeper than to where it was found,
+	// because we only care about the shortest mate.
 	alpha = std::max(alpha, -MATE_SCORE + ply);
-	beta  = std::min(beta, MATE_SCORE - ply);
+	beta  = std::min(beta,   MATE_SCORE - ply);
 	if (alpha >= beta) return alpha;
 	
 	bool pv_node = beta - alpha != 1;
@@ -117,7 +117,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Check for any transpositions at higher or equal depths
 	TT_entry &tt_entry = tt.probe(board.zobrist.key);
 	Move hash_move = Move(tt_entry.best_move);
-	if (!pv_node && tt_entry.depth >= depth && hash_move != skip) {
+	if (tt.hit && !pv_node && tt_entry.depth >= depth && hash_move != skip) {
 		// we have an exact score for that position. Great!
 		// (that means, we searched all moves and received a new best move)
 		if (tt_entry.flag == EXACT)
@@ -367,7 +367,7 @@ void Search::start_search(Board &board)
 		if (current_depth >= 4) {
 			window_size = 14;
 			alpha = root_evaluation - window_size;
-			beta = root_evaluation + window_size;
+			beta  = root_evaluation + window_size;
 		}
 
 		while (true) {
@@ -385,12 +385,12 @@ void Search::start_search(Board &board)
 			// The returned evaluation was not inside the windows :/
 			// A costly re-search has to be done with a wider window.
 			if (evaluation <= alpha) {
-				window_size += window_size;
-				alpha -= window_size / 2;
+				alpha -= window_size;
+				window_size += window_size / 2;
 			}
 			else if (evaluation >= beta) {
-				window_size += window_size;
-				beta += window_size / 2;
+				beta += window_size;
+				window_size += window_size / 2;
 			}
 			else break;
 		}
