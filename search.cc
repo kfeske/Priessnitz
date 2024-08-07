@@ -13,7 +13,7 @@ int const futility_margin[5] = {
 };
 
 unsigned const lmp_margins[4] = {
-	0, 9, 13, 17
+	0, 6, 9, 12
 };
 
 bool mate(int score)
@@ -183,6 +183,14 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		move_count++;
 		statistics.search_nodes++;
 
+		bool late_move = (move_count >= 4 && !in_check && !mate(alpha) &&
+		     		  !capture(move) && !promotion(move));
+
+		// Late Move Pruning
+		if (late_move && depth < 4 && move_count > lmp_margins[depth]) {
+			continue;
+		}
+
 		// Futility Pruning
 		// Very close to the horizon of the search, where we are in a position that looks really bad,
 		// it is wise to skip quiet moves that will likely not improve the situation.
@@ -203,14 +211,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		unsigned extension = 0;
 
 		if (gives_check && see(board, move) >= 0) extension = 1;
-
-		bool late_move = (move_count >= 4 && !extension && !in_check && !gives_check && !mate(alpha) &&
-		     		  !capture(move) && !promotion(move));
-		// Late Move Pruning
-		//if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
-		//	board.unmake_move(move);
-		//	continue;
-		//}
 
 
 		// Principle Variation Search
@@ -236,7 +236,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// moves are actually good and should thus be searched deeper than other moves.
 
 			unsigned reduction = 0;
-			if (depth >= 3 && late_move) {
+			if (depth >= 3 && late_move && !gives_check) {
 				reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
