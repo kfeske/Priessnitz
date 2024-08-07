@@ -175,7 +175,7 @@ struct Search
 
 			// Principle Variation Search
 
-			if (n == 0)
+			/*if (n == 0)
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
 				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
@@ -186,19 +186,20 @@ struct Search
 				if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search with a full window
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}
+			}*/
 
 			//evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 
-			/*if (n == 0)
+			if (n == 0) {
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
 				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+			}
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
 
 				// Late Move Reduction - assuming our move orderer is doing a good job, only the first
-				// moves are actually good and thus should be searched to the full depth
+				// moves are actually good and thus should be searched to full depth
 				unsigned reduction = 0;
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE)
 					reduction = 1;
@@ -212,7 +213,7 @@ struct Search
 				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}*/
+			}
 
 			board.unmake_move(move);
 

@@ -37,7 +37,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 			else if (m.move == heuristics.killer_move[1][ply]) m.score += 75;
 
 			// if everything else fails, score history moves
-			else m.score += 75 - (30000 - heuristics.history[board.board[move_from(m.move)]][move_to(m.move)]);
+			else m.score += 75 - (30000 - std::min(heuristics.history[board.board[move_from(m.move)]][move_to(m.move)], 30000));
 		}
 	}
 }
