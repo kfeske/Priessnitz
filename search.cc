@@ -35,9 +35,11 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 
 	int static_evaluation = eval.evaluate(board);
 
+	// Captures are usually not forced. This will give the option to stop the capture sequence.
 	if (!in_check && static_evaluation >= beta)
 		return beta;
 
+	// Again, we should at least be able to achieve the static evaluation.
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
@@ -54,6 +56,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
 			continue;
 
+		// Prune moves that lose material. In this case, a quiet move is probably better.
 		if (see(board, move) < 0) continue;*/
 
 		statistics.quiescence_nodes++;
@@ -186,32 +189,31 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		board.make_move(move);
 
-		/*bool gives_check = board.in_check();
+		bool gives_check = board.in_check();
 
 		// Futility prune if the conditions are met
-		if (futile && move_count > 0 && !gives_check && !capture(move) && !promotion(move)) {
-			board.unmake_move(move);
-			continue;
-		}
+		//if (futile && move_count > 0 && !gives_check && !capture(move) && !promotion(move)) {
+		//	board.unmake_move(move);
+		//	continue;
+		//}
 
-		if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
-			board.unmake_move(move);
-			continue;
-		}
+		//if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
+		//	board.unmake_move(move);
+		//	continue;
+		//}
 
 		bool late_move = (move_count >= 4 && !in_check && !gives_check && !mate(alpha) &&
 		     		  !capture(move) && !promotion(move) && !board.passed_push(move));
 		// Late Move Pruning
-		if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
-			board.unmake_move(move);
-			continue;
-		}
+		//if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
+		//	board.unmake_move(move);
+		//	continue;
+		//}
 
 		// Search extensions make the program spend more time in important positions
 		unsigned extension = 0;
 
-		if (gives_check && see(board, move) >= 0) extension = 1;
-		*/
+		//if (gives_check && see(board, move) >= 0) extension = 1;
 
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
@@ -228,20 +230,19 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			//      board.make_move(move);
 			///
 
-			//evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
-			evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+			evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
 		else {
 			// Late Move Reduction
 			// Assuming our move ordering is doing a good job, only the first
-			// moves are actually good and should thus be searched to full depth.
+			// moves are actually good and should thus be searched deeper than other moves.
 
-			evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
-			if (evaluation > alpha && evaluation < beta)
-				// If a move happens to be better, we need to re-search it with full window
-				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+			//evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
+			//if (evaluation > alpha && evaluation < beta)
+			//	// If a move happens to be better, we need to re-search it with full window
+			//	evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 
-			/*unsigned reduction = 0;
+			unsigned reduction = 0;
 			if (depth >= 3 && late_move) {
 				reduction = 1;
 				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
@@ -255,7 +256,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			else if (evaluation > alpha && evaluation < beta)
 				// If a move happens to be better, we need to re-search it with full window
-				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);*/
+				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
 
 		board.unmake_move(move);
