@@ -151,6 +151,13 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 		mg_bonus[friendly] += mg_king_mobility[safe_squares];
 		eg_bonus[friendly] += eg_king_mobility[safe_squares];
+
+		uint64_t shield_pawns = board.pieces[piece_of(friendly, PAWN)] & pawn_shield(friendly, square);
+		while (shield_pawns) {
+			unsigned pawn_square = pop_lsb(shield_pawns);
+			unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
+			mg_bonus[friendly] += mg_pawn_shield[shield_square];
+		}
 		return;
 	}
 }

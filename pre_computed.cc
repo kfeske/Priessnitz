@@ -140,7 +140,7 @@ void Pre_computed::cast_magics(Piece_type type)
 Pre_computed generate_lookup()
 {
 	Pre_computed p;
-	for (unsigned square = 0; square <= 63; square++) {
+	for (unsigned square = 0; square < 64; square++) {
 		p.pawn_attacks[WHITE][square] = generate_pawn_attacks<WHITE>(square);
 		p.pawn_attacks[BLACK][square] = generate_pawn_attacks<BLACK>(square);
 		p.knight_attacks[square]      = generate_knight_attacks(square);
@@ -158,8 +158,13 @@ Pre_computed generate_lookup()
 								 (1ULL << square) | (1ULL << square2);
 				}
 				p.ray_between[square][square2] |= 1ULL << square2;
+
+				p.rank_distance[square][square2] = abs(rank_num(square) - rank_num(square2));
+				p.file_distance[square][square2] = abs(file_num(square) - file_num(square2));
 			}
 		}
+	}
+	for (unsigned square = 0; square < 64; square++) {
 		// Evaluation tables
 
 		// The file of the square, and the two adjacent files
@@ -188,6 +193,10 @@ Pre_computed generate_lookup()
 		// The king zone squares are the squares, the king can reach plus three squares in the enemy direction
 		if (square >= 24) p.king_zone[WHITE][square] = p.king_attacks[square - 24] | 1ULL << (square - 24);
 		if (square <= 39) p.king_zone[BLACK][square] = p.king_attacks[square + 24] | 1ULL << (square + 24);
+
+		// Pawn Shelter consists of pawns in front of the king
+		if (square >= 8)  p.pawn_shield[WHITE][square] = p.king_attacks[square - 8] | 1ULL << (square - 8);
+		if (square <= 55) p.pawn_shield[BLACK][square] = p.king_attacks[square + 8] | 1ULL << (square + 8);
 	}
 	return p;
 }

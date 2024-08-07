@@ -97,12 +97,17 @@ struct Pre_computed
 	uint64_t oo_blockers[2] = { 0x6000000000000000, 0x60 };
 	uint64_t ooo_blockers[2] = { 0xE00000000000000, 0xE };
 
+	// Quick distance lookup
+	unsigned rank_distance[64][64];
+	unsigned file_distance[64][64];
+
 	// Evaluation tables
 	uint64_t passed_pawn_mask[2][64];
 	uint64_t forward_file_mask[2][64];
 	uint64_t isolated_pawn_mask[8];
 	uint64_t neighbor_mask[64];
 	uint64_t king_zone[2][64];
+	uint64_t pawn_shield[2][64];
 
 	void cast_magics(Piece_type type);
 };
@@ -153,11 +158,14 @@ static inline uint64_t piece_attacks(Piece_type type, unsigned square, uint64_t 
 static inline uint64_t pawn_attacks(Color friendly, unsigned square) { return pre_computed.pawn_attacks[friendly][square]; };
 static inline uint8_t  prohibiters(unsigned square) { return pre_computed.prohibiters[square]; };
 static inline uint64_t king_zone(Color friendly, unsigned square) { return pre_computed.king_zone[friendly][square]; };
+static inline uint64_t pawn_shield(Color friendly, unsigned square) { return pre_computed.pawn_shield[friendly][square]; };
 static inline uint64_t passed_pawn_mask(Color friendly, unsigned square) { return pre_computed.passed_pawn_mask[friendly][square]; };
 static inline uint64_t neighbor_mask(unsigned square) { return pre_computed.neighbor_mask[square]; };
 static inline uint64_t forward_file_mask(Color friendly, unsigned square) { return pre_computed.forward_file_mask[friendly][square]; };
 static inline uint64_t isolated_pawn_mask(unsigned file) { return pre_computed.isolated_pawn_mask[file]; };
 static inline uint64_t ray_between(unsigned square_1, unsigned square_2) { return pre_computed.ray_between[square_1][square_2]; };
 static inline uint64_t ray(unsigned square_1, unsigned square_2) { return pre_computed.ray[square_1][square_2]; };
+static inline unsigned rank_distance(unsigned square_1, unsigned square_2) { return pre_computed.rank_distance[square_1][square_2]; };
+static inline unsigned file_distance(unsigned square_1, unsigned square_2) { return pre_computed.file_distance[square_1][square_2]; };
 static inline uint64_t ooo_blockers(Color friendly) { return pre_computed.ooo_blockers[friendly]; };
 static inline uint64_t oo_blockers(Color friendly) { return pre_computed.oo_blockers[friendly]; };

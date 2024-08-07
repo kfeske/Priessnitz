@@ -57,8 +57,9 @@ enum Indicies {
 	ZONE_POTENCY = RING_POTENCY + 6,
 	RING_PRESSURE = ZONE_POTENCY + 6,
 	ZONE_PRESSURE = RING_PRESSURE + 8,
+	PAWN_SHIELD = ZONE_PRESSURE + 8,
 
-	END_INDEX = ZONE_PRESSURE + 8
+	END_INDEX = PAWN_SHIELD + 6
 };
 
 enum Tuning_params {
@@ -66,7 +67,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 100000,      // number of test positions
 	NUM_TRAINING_POSITIONS = 1500000, // number of training positions
 	NUM_TEST_POSITIONS = 153653,      // number of test positions
-	NUM_TABLES = 40,		 // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 41,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -109,7 +110,7 @@ struct Tuner
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
-			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE,
+			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
 			     	      	   END_INDEX };
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
@@ -174,6 +175,7 @@ struct Tuner
 		case ZONE_POTENCY:  return eval.zone_attack_potency[pos];
 		case RING_PRESSURE: return eval.ring_pressure_weight[pos];
 		case ZONE_PRESSURE: return eval.zone_pressure_weight[pos];
+		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
 		default: return 0;
 		}
 	}
@@ -263,6 +265,10 @@ struct Tuner
 		std::cerr << "};\n";
 		std::cerr << "int zone_pressure_weight[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(ZONE_PRESSURE + i);
+		std::cerr << "};\n";
+
+		std::cerr << "int mg_pawn_shield[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(PAWN_SHIELD + i);
 		std::cerr << "};\n";
 
 		std::cerr << "\nint mg_knight_mobility[9] = { ";
@@ -479,6 +485,13 @@ struct Tuner
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 				sample.influence[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
 				sample.influence[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
+
+				uint64_t shield_pawns = board.pieces[piece_of(friendly, PAWN)] & pawn_shield(friendly, square);
+				while (shield_pawns) {
+					unsigned pawn_square = pop_lsb(shield_pawns);
+					unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
+					sample.influence[PAWN_SHIELD + shield_square] += side * mg_phase;
+				}
 				continue;
 				}
 			}
