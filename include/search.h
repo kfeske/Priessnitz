@@ -1,19 +1,9 @@
 #include <time.h>
-#include <psqt.h>
 #include <evaluation.h>
 #include <transposition_table.h>
-
-struct Heuristics// : Noncopyable
-{
-	PSQT psqt;
-	Move killer_move[2][64];
-	Move hash_move = INVALID_MOVE;
-	int32_t history[16][64];
-};
-
 #include <move_ordering.h>
 
-struct Search
+struct Search : Noncopyable
 {
 	Evaluation eval;
 	Move best_root_move = INVALID_MOVE;
@@ -51,7 +41,6 @@ struct Search
 		branching_factor = 0;
 		cutoffs = 0;
 		cutoffspv = 0;
-		//tt_cutoffs = 0;
 		heuristics = {};
 		for (TTEntry &entry : tt.entries) entry = {};
 	}
@@ -60,7 +49,7 @@ struct Search
 	{
 		bool in_check = board.in_check() && ply <= 2;
 
-		int evaluation = eval.evaluate(board, heuristics.psqt);
+		int evaluation = eval.evaluate(board);
 
 		if (!in_check && evaluation >= beta)
 			return beta;
@@ -98,7 +87,7 @@ struct Search
 
 	// function that finds the best move at a fixed depth (number of moves, it looks into the future)
 
-	int search(Board &board, unsigned depth, unsigned ply, int alpha, int beta)
+	int search(Board &board, int depth, unsigned ply, int alpha, int beta)
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
@@ -175,7 +164,7 @@ struct Search
 
 			// Principle Variation Search
 
-			/*if (n == 0)
+			if (n == 0)
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
 				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
@@ -186,11 +175,11 @@ struct Search
 				if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search with a full window
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}*/
+			}
 
 			//evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 
-			if (n == 0) {
+			/*if (n == 0) {
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
 				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
@@ -201,8 +190,11 @@ struct Search
 				// Late Move Reduction - assuming our move orderer is doing a good job, only the first
 				// moves are actually good and thus should be searched to full depth
 				unsigned reduction = 0;
-				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE)
-					reduction = 1;
+				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE) {
+					reduction = 0;
+					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
+					//std::cerr << "depth " << depth << " n " << n << " R " << reduction << "\n";
+				}
 
 				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha);
 
@@ -213,7 +205,7 @@ struct Search
 				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
 					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}
+			}*/
 
 			board.unmake_move(move);
 

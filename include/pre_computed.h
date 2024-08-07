@@ -1,25 +1,7 @@
 #include <cstring>
 
-struct PreComputed
+struct PreComputed : Noncopyable
 {
-	uint64_t rank_1 = 0xFF;
-	uint64_t rank_2 = rank_1 << (8 * 1);
-	uint64_t rank_3 = rank_1 << (8 * 2);
-	uint64_t rank_4 = rank_1 << (8 * 3);
-	uint64_t rank_5 = rank_1 << (8 * 4);
-	uint64_t rank_6 = rank_1 << (8 * 5);
-	uint64_t rank_7 = rank_1 << (8 * 6);
-	uint64_t rank_8 = rank_1 << (8 * 7);
-
-	uint64_t file_A = 0x0101010101010101ULL;
-	uint64_t file_B = file_A << 1;
-	uint64_t file_C = file_A << 2;
-	uint64_t file_D = file_A << 3;
-	uint64_t file_E = file_A << 4;
-	uint64_t file_F = file_A << 5;
-	uint64_t file_G = file_A << 6;
-	uint64_t file_H = file_A << 7;
-
 	uint64_t pawn_attacks[2][64];
 	uint64_t knight_attacks[64];
 	uint64_t king_attacks[64];
@@ -51,33 +33,35 @@ struct PreComputed
 	uint64_t ooo_blockers[2] = { 0xE00000000000000, 0xE };
 	uint64_t oooo = (1ULL << B1) | (1ULL << B8);
 
+	uint64_t passed_pawn_mask[2][64];
+	uint64_t forward_file_mask[2][64];
+	uint64_t isolated_pawn_mask[8];
 
 	uint64_t rank_bb(unsigned square)
 	{
 		unsigned index = square >> 3;
-		return rank_1 << (index * 8);
+		return RANK_1 << (index * 8);
 	}
 
 	uint64_t file_bb(unsigned square)
 	{
 		unsigned index = square & 7;
-		return file_A << index;
+		return FILE_A << index;
 	}
 
 	// precomputed attack data for the leaper pieces (Pawns, Knight, King)
-
 	template <Color color>
 	uint64_t pawn_attack_bb(unsigned square)
 	{
 		uint64_t pos = 1ULL << square;
 		uint64_t attacks = 0ULL;
 		if (color == WHITE) {
-			if ((pos >> 7) & ~file_A) attacks |= pos >> 7;
-			if ((pos >> 9) & ~file_H) attacks |= pos >> 9;
+			if ((pos >> 7) & ~FILE_A) attacks |= pos >> 7;
+			if ((pos >> 9) & ~FILE_H) attacks |= pos >> 9;
 		}
 		else {
-			if ((pos << 7) & ~file_H) attacks |= pos << 7;
-			if ((pos << 9) & ~file_A) attacks |= pos << 9;
+			if ((pos << 7) & ~FILE_H) attacks |= pos << 7;
+			if ((pos << 9) & ~FILE_A) attacks |= pos << 9;
 		}
 		return attacks;
 	}
@@ -86,14 +70,14 @@ struct PreComputed
 	{
 		uint64_t pos = 1ULL << square;
 		uint64_t attacks = 0ULL;
-		if ((pos >> 10) & ~(file_G | file_H)) attacks |= pos >> 10;
-		if ((pos << 6)  & ~(file_G | file_H)) attacks |= pos <<  6;
-		if ((pos >> 17) & ~file_H           ) attacks |= pos >> 17;
-		if ((pos << 15) & ~file_H           ) attacks |= pos << 15;
-		if ((pos >> 15) & ~file_A           ) attacks |= pos >> 15;
-		if ((pos << 17) & ~file_A           ) attacks |= pos << 17;
-		if ((pos >> 6)  & ~(file_A | file_B)) attacks |= pos >>  6;
-		if ((pos << 10) & ~(file_A | file_B)) attacks |= pos << 10;
+		if ((pos >> 10) & ~(FILE_G | FILE_H)) attacks |= pos >> 10;
+		if ((pos << 6)  & ~(FILE_G | FILE_H)) attacks |= pos <<  6;
+		if ((pos >> 17) & ~FILE_H           ) attacks |= pos >> 17;
+		if ((pos << 15) & ~FILE_H           ) attacks |= pos << 15;
+		if ((pos >> 15) & ~FILE_A           ) attacks |= pos >> 15;
+		if ((pos << 17) & ~FILE_A           ) attacks |= pos << 17;
+		if ((pos >> 6)  & ~(FILE_A | FILE_B)) attacks |= pos >>  6;
+		if ((pos << 10) & ~(FILE_A | FILE_B)) attacks |= pos << 10;
 		return attacks;
 	}
 
@@ -102,19 +86,18 @@ struct PreComputed
 		uint64_t pos = 1ULL << square;
 		uint64_t attacks = 0ULL;
 		if (pos << 8)		  attacks |= pos << 8;
-		if ((pos << 1) & ~file_A) attacks |= pos << 1;
-		if ((pos << 7) & ~file_H) attacks |= pos << 7;
-		if ((pos << 9) & ~file_A) attacks |= pos << 9;
+		if ((pos << 1) & ~FILE_A) attacks |= pos << 1;
+		if ((pos << 7) & ~FILE_H) attacks |= pos << 7;
+		if ((pos << 9) & ~FILE_A) attacks |= pos << 9;
 		if (pos >> 8)		  attacks |= pos >> 8;
-		if ((pos >> 1) & ~file_H) attacks |= pos >> 1;
-		if ((pos >> 7) & ~file_A) attacks |= pos >> 7;
-		if ((pos >> 9) & ~file_H) attacks |= pos >> 9;
+		if ((pos >> 1) & ~FILE_H) attacks |= pos >> 1;
+		if ((pos >> 7) & ~FILE_A) attacks |= pos >> 7;
+		if ((pos >> 9) & ~FILE_H) attacks |= pos >> 9;
 		return attacks;
 	}
 
 	// sliding attacks on the fly!
 	// using this function in the move generator would be too slow, hence all the magic stuff is needed
-
 	uint64_t sliding_attack_bb(PieceType p, unsigned square, uint64_t occ)
 	{
 		uint64_t attacks = 0ULL;
@@ -137,7 +120,6 @@ struct PreComputed
 	}
 
 	// populates the occupancy bitboard
-
 	uint64_t occupancy_for_index(unsigned index, unsigned bits_in_mask, uint64_t mask)
 	{
 		uint64_t occ = 0ULL;
@@ -152,7 +134,6 @@ struct PreComputed
 	}
 
 	// generates the magic numbers for sliding pieces for each square
-
 	void setup_magic_tables(PieceType p, Magic magics[])
 	{
 		for (unsigned square = 0; square <= 63; square++) {
@@ -166,7 +147,7 @@ struct PreComputed
 		uint64_t occupancies[4096];
 		uint64_t attacks[4096];
 		uint64_t used_attacks[4096];
-		uint64_t edges = ((rank_1 | rank_8) & ~rank_bb(square)) | ((file_A | file_H) & ~file_bb(square));
+		uint64_t edges = ((RANK_1 | RANK_8) & ~rank_bb(square)) | ((FILE_A | FILE_H) & ~file_bb(square));
 		uint64_t mask = sliding_attack_bb(p, square, 0ULL) & ~edges;
 		unsigned bits_in_mask = pop_count(mask);
 		m.shift = 64 - bits_in_mask;
@@ -199,10 +180,9 @@ struct PreComputed
 	}
 
 	// fills the lookup tables of the sliding moves for the corresponding magic number
-
 	void sliding_attacks(PieceType p, unsigned square, uint64_t magic_number)
 	{
-		uint64_t edges = ((rank_1 | rank_8) & ~rank_bb(square)) | ((file_A | file_H) & ~file_bb(square));
+		uint64_t edges = ((RANK_1 | RANK_8) & ~rank_bb(square)) | ((FILE_A | FILE_H) & ~file_bb(square));
 		uint64_t mask = sliding_attack_bb(p, square, 0ULL) & ~edges;
 
 		if (p == BISHOP) bishop_relevant_mask[square] = mask;
@@ -223,7 +203,6 @@ struct PreComputed
 
 	// populates the lookup tables for the attacks of each piece
 	// and the magic numbers for the sliding pieces
-
 	void generate_attacks()
 	{
 		srandom(30);
@@ -254,7 +233,6 @@ struct PreComputed
 	}
 
 	// access sliding attacks for a given square and occupancy by lookup via magic numbers
-
 	uint64_t get_bishop_attacks(unsigned square, uint64_t occ)
 	{
 		occ &= bishop_relevant_mask[square];
@@ -272,7 +250,6 @@ struct PreComputed
 	}
 
 	// returns the pre-computed moves for a piece on a square
-
 	template <PieceType p>
 	uint64_t attacks_bb(unsigned square, uint64_t occ)
 	{
@@ -285,8 +262,36 @@ struct PreComputed
 		}
 	}
 
+	void generate_evaluation_tables()
+	{
+		for (unsigned square = 0; square < 64; square++) {
+
+			// the file of the square, and the two adjacent files
+			uint64_t adjacent_mask = file_bb(square);
+			adjacent_mask |= (adjacent_mask & ~FILE_A) >> 1;
+			adjacent_mask |= (adjacent_mask & ~FILE_H) << 1;
+
+			// all rows in front of the square row
+			uint64_t all_mask = ~0ULL;
+			uint64_t white_forward_mask = (rank(square) > 0) ? all_mask >> 8 * (8 - rank(square)) : 0;
+			uint64_t black_forward_mask = (rank(square) < 7) ? all_mask << 8 * (rank(square) + 1) : 0;
+
+			// a pawn is passed if there are no enemy pawns on the same or the adjacent files in front of it
+			passed_pawn_mask[WHITE][square] = white_forward_mask & adjacent_mask;
+			passed_pawn_mask[BLACK][square] = black_forward_mask & adjacent_mask;
+
+			// forward_file_mask is used for detecting doubled or blocked pawns
+			forward_file_mask[WHITE][square] = file_bb(square) & white_forward_mask;
+			forward_file_mask[BLACK][square] = file_bb(square) & black_forward_mask;
+
+			// a pawn is isolated, if there are no neighbor pawns
+			isolated_pawn_mask[file(square)] = adjacent_mask & ~file_bb(square);
+		}
+	}
+
 	PreComputed()
 	{
 		generate_attacks();
+		generate_evaluation_tables();
 	}
 };

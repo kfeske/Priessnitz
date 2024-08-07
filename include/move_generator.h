@@ -17,12 +17,12 @@ struct MoveGenerator : Noncopyable
 		Direction up = (col == WHITE) ? NORTH : SOUTH;
 		Direction up_right = (col == WHITE) ? NORTH_EAST : SOUTH_EAST;
 		Direction up_left  = (col == WHITE) ? NORTH_WEST : SOUTH_WEST;
-		uint64_t double_push_rank = (col == WHITE) ? board.precomputed.rank_6 : board.precomputed.rank_3;
+		uint64_t double_push_rank = (col == WHITE) ? RANK_6 : RANK_3;
 
 		// pawns on the board (unpinned and pinned)
 		uint64_t pawns = board.pieces[piece_of(col, PAWN)] & ~pinned;
 		// special case if pawn is about to promote
-		pawns &= (col == WHITE) ? ~board.precomputed.rank_2 : ~board.precomputed.rank_7;
+		pawns &= (col == WHITE) ? ~RANK_2 : ~RANK_7;
 		uint64_t pinned_pawns = board.pieces[piece_of(col, PAWN)] & pinned;
 
 		uint64_t single_pushes = shift(pawns, up) & ~board.occ;
@@ -38,8 +38,8 @@ struct MoveGenerator : Noncopyable
 			move_list[size++].move = create_move<DOUBLE_PUSH>(square - up - up, square);
 		}
 
-		uint64_t right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
-		uint64_t left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
+		uint64_t right_attacks = shift(pawns & ~FILE_H, up_right) & targets;
+		uint64_t left_attacks  = shift(pawns & ~FILE_A, up_left ) & targets;
 
 		while (right_attacks) {
 			unsigned square = pop_lsb(right_attacks);
@@ -86,7 +86,7 @@ struct MoveGenerator : Noncopyable
 		// non pinned promotions
 
 		pawns = board.pieces[piece_of(col, PAWN)] & ~pinned;
-		pawns &= (col == WHITE) ? board.precomputed.rank_2 : board.precomputed.rank_7;
+		pawns &= (col == WHITE) ? RANK_2 : RANK_7;
 		if (pawns) {
 
 			// quiet promotion
@@ -100,8 +100,8 @@ struct MoveGenerator : Noncopyable
 			}
 
 			// promotion captures
-			right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
-			left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
+			right_attacks = shift(pawns & ~FILE_H, up_right) & targets;
+			left_attacks  = shift(pawns & ~FILE_A, up_left ) & targets;
 
 			while(right_attacks) {
 				unsigned square = pop_lsb(right_attacks);
@@ -196,8 +196,8 @@ struct MoveGenerator : Noncopyable
 
 		uint64_t danger = 0ULL;
 
-		danger |= shift(pawns & ~board.precomputed.file_H, up_right);
-		danger |= shift(pawns & ~board.precomputed.file_A, up_left );
+		danger |= shift(pawns & ~FILE_H, up_right);
+		danger |= shift(pawns & ~FILE_A, up_left );
 
 		danger |= board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(enemy, KING)]), 0ULL);
 
@@ -298,8 +298,8 @@ struct MoveGenerator : Noncopyable
 		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
 		Direction up_left  = (friendly == WHITE) ? NORTH_WEST : SOUTH_WEST;
 		uint64_t pawns = board.pieces[piece_of(friendly, PAWN)];
-		uint64_t right_attacks = shift(pawns & ~board.precomputed.file_H, up_right) & targets;
-		uint64_t left_attacks  = shift(pawns & ~board.precomputed.file_A, up_left ) & targets;
+		uint64_t right_attacks = shift(pawns & ~FILE_H, up_right) & targets;
+		uint64_t left_attacks  = shift(pawns & ~FILE_A, up_left ) & targets;
 
 		while (right_attacks) {
 			unsigned square = pop_lsb(right_attacks);
@@ -340,8 +340,8 @@ struct MoveGenerator : Noncopyable
 
 		uint64_t danger = 0ULL;
 
-		danger |= shift(pawns & ~board.precomputed.file_H, up_right);
-		danger |= shift(pawns & ~board.precomputed.file_A, up_left );
+		danger |= shift(pawns & ~FILE_H, up_right);
+		danger |= shift(pawns & ~FILE_A, up_left );
 
 		danger |= board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(enemy, KING)]), 0ULL);
 

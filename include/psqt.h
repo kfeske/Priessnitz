@@ -6,7 +6,7 @@
 // engine to develop its pieces and move them to active squares
 
 
-struct PSQT// : Noncopyable
+struct PSQT : Noncopyable
 {
 	Value midgame[16][64];
 	Value endgame[16][64];

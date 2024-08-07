@@ -74,7 +74,7 @@ struct UCI
 				return;
 			}
 			else if (parsed == "eval") {
-				search.eval.evaluate(board, search.heuristics.psqt);
+				search.eval.evaluate(board);
 				return;
 			}
 		}

@@ -1,5 +1,12 @@
 #include <algorithm>
 
+struct Heuristics
+{
+	Move killer_move[2][64];
+	Move hash_move = INVALID_MOVE;
+	int32_t history[16][64];
+};
+
 int value(Piece p)
 {
 	switch(p) {
