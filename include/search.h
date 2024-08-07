@@ -11,7 +11,7 @@ struct Search : Noncopyable
 	int16_t root_evaluation = 0;
 
 	unsigned max_depth = 63;
-	double max_time = 99999;
+	double max_time = 999999;
 	unsigned current_depth;
 	int const mate_score = 31000;
 	int const infinity = 32000;
@@ -35,10 +35,14 @@ struct Search : Noncopyable
 		0, 100, 200, 300, 400
 	};
 
+	unsigned lmp_margins[4] = {
+		0, 8, 12, 16
+	};
+
 	void reset()
 	{
 		max_depth = 63;
-		max_time = 99999;
+		max_time = 999999;
 		search_nodes = 0;
 		quiescence_nodes = 0;
 		branching_factor = 0;
@@ -113,7 +117,7 @@ struct Search : Noncopyable
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
-			// Time's up! Use the best move from the previous iteration
+			// Time's up!
 			abort_search = true;
 			return 0;
 		}
@@ -138,8 +142,8 @@ struct Search : Noncopyable
 		tt.pv_move = INVALID_MOVE;
 
 		// check for any transpositions at higher or equal depths
-		bool higher_depth = tt.probe(board.zobrist.key, depth, alpha, beta);
-		if (higher_depth && ply > 0)
+		bool usable = tt.probe(board.zobrist.key, depth, alpha, beta);
+		if (usable && ply > 0)
 			return tt.current_evaluation;
 
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
@@ -151,14 +155,20 @@ struct Search : Noncopyable
 		int static_eval = eval.evaluate(board);
 
 		// Razoring
-		// prune bad looking positions close to the horizon by dropping to Quiescence immediately
+		// Prune bad looking positions close to the horizon by dropping to Quiescence immediately.
+		// Seems to have a negligible effect.
+		/*if (!pv_node && depth <= 2 && !in_check && !mate(alpha) && static_eval + 200 * depth <= alpha) {
+			if (qsearch(board, alpha, alpha + 1, 0) <= alpha)
+				return alpha;
+		}*/
 
 		// Reverse Futility Pruning
+		// the position is really bad for the opponent by a big margin, pruning this node is probably safe
 		if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 80 * depth >= beta)
 			return beta;
 
 		// Null Move Pruning
-		// if there is a beta cutoff even if we skip our turn (permitting the opponent to play two moves in a row),
+		// if there is a beta cutoff, even if we skip our turn (permitting the opponent to play two moves in a row),
 		// the position is so terrible for the opponent that we can just prune the whole branch
 		// may cause search instability, but it is worth the risk. If we want the speed, we have to live in fear
 
@@ -180,11 +190,18 @@ struct Search : Noncopyable
 		}
 
 		// Futility Pruning
-		// very close to the horizon of the search, where we are in a position that is much worse than alpha,
-		// it is wise to prune this node completely and not waste our time on futile positions
+		// Very close to the horizon of the search, where we are in a position that is much worse than alpha,
+		// it is wise to skip moves that do not improve the situation.
 		bool futile = false;
 		if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
 			futile = static_eval + futility_margin[depth] <= alpha;
+
+		// Internal Iterative Deepening
+		/*if (pv_node && depth >= 6 && tt.pv_move == INVALID_MOVE) {
+			search(board, depth - 2, ply, alpha, beta, true);
+			tt.probe(board.zobrist.key, depth, alpha, beta);
+			heuristics.hash_move = tt.pv_move;
+		}*/
 
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
@@ -204,16 +221,26 @@ struct Search : Noncopyable
 
 			board.make_move(move);
 
+			bool gives_check = board.in_check();
+
 			// Futility prune if the conditions are met
-			if (futile && n > 0 && !board.in_check() && flags_of(move) != CAPTURE && !promotion(move)) {
+			if (futile && n > 0 && !gives_check && flags_of(move) != CAPTURE && !promotion(move)) {
 				board.unmake_move(move);
 				continue;
 			}
 
+			// Late Move Pruning
+			if (!pv_node && depth <= 3 && !gives_check && !mate(alpha) && n >= lmp_margins[depth]
+			    && flags_of(move) != CAPTURE && !promotion(move)) {
+				board.unmake_move(move);
+				continue;
+			}
+
+
 			// search extensions make the program spend more time in important positions
 			unsigned extension = 0;
 
-			if (board.in_check() && see(board, move) >= 0) extension = 1;
+			if (gives_check && see(board, move) >= 0) extension = 1;
 
 			// Principle Variation Search
 
