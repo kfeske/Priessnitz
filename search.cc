@@ -41,9 +41,8 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
-	Move_orderer move_orderer;
-	if (in_check) move_orderer.stage = GENERATE_IN_CHECKS;
-	else 	      move_orderer.stage = GENERATE_QUIESCENCES;
+	Move_orderer move_orderer { INVALID_MOVE, heuristics, 0 };
+	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
 
 	Move move;
 	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
@@ -176,9 +175,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		heuristics.hash_move = tt.pv_move;
 	}*/
 
-	Move_orderer move_orderer;
+	Move_orderer move_orderer { tt.pv_move, heuristics, ply };
 	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
-	move_orderer.tt_move = tt.pv_move;
 	Move move;
 	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
 		if (!board.legal(move) || move == skip) continue;
@@ -282,8 +280,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 				if (!capture(move)) {
 					// this is a killer move - Store it!
-					heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
-					heuristics.killer_move[0][ply] = move;
+					if (move != heuristics.killer_move[0][ply]) {
+						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
+						heuristics.killer_move[0][ply] = move;
+					}
 
 					// increment history score
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;

@@ -17,6 +17,8 @@ enum Stage
 	TRANSPOSITION,
 	GENERATE_CAPTURES,
 	CAPTURES,
+	FIRST_KILLER,
+	SECOND_KILLER,
 	GENERATE_QUIETS,
 	QUIETS,
 	// Ordering in check
@@ -33,8 +35,11 @@ struct Move_orderer
 {
 	Move_list move_list {}; // careful, the array is uninitialized!
 	Stage stage = TRANSPOSITION;
-	Move tt_move = INVALID_MOVE;
 	unsigned position = 0;
+	Move hash_move;
+	Move first_killer;
+	Move second_killer;
+	unsigned ply;
 
 	// Picks the next move from the movelist that has the highest score.
 	Move next_best_move()
@@ -52,9 +57,6 @@ struct Move_orderer
 		Move move = move_list.moves[position].move;
 		position++;
 
-		// The hash move is searched earlier and is therefore skipped here.
-		//if (move == tt_move) return (position < move_list.size) ? next_best_move() : INVALID_MOVE;
-
 		return move;
 	}
 
@@ -67,23 +69,40 @@ struct Move_orderer
 				scored_move.score = 10 * piece_value[board.board[move_to(move)]] - piece_value[board.board[move_from(move)]];
 			}
 		}
+		if (sort_type == QUIETS) {
+			for (unsigned n = position; n < move_list.size; n++) {
+				Scored_move &scored_move = move_list.moves[n];
+				scored_move.score = 0;
+				//if (scored_move.move == heuristics.killer_move[0][ply]) scored_move.score += 100;
+				//if (scored_move.move == heuristics.killer_move[1][ply]) scored_move.score += 70;
+			}
+		}
+		if (sort_type == IN_CHECKS) {
+			for (unsigned n = position; n < move_list.size; n++) {
+				Scored_move &scored_move = move_list.moves[n];
+				scored_move.score = 0;
+			}
+		}
 	}
 
 	// For each call, the next most promising pseudo legal move is returned.
 	Move next_move(Board &board)
 	{
+		// The hash move is probably the best move, because we retrieved it by searching this position earlier.
 		if (stage == TRANSPOSITION) {
 			stage = GENERATE_CAPTURES;
-			if (board.pseudo_legal(tt_move)) return tt_move;
+			if (board.pseudo_legal(hash_move)) return hash_move;
 		}
 		//if (stage == QUIESCENCE_TRANSPOSITION) {
 		//	stage = GENERATE_QUIESCENCES;
-		//	if (board.pseudo_legal(tt_move)) return tt_move;
+		//	if (board.pseudo_legal(hash_move)) return hash_move;
 		//}
 		if (stage == IN_CHECK_TRANSPOSITION) {
 			stage = GENERATE_IN_CHECKS;
-			if (board.pseudo_legal(tt_move)) return tt_move;
+			if (board.pseudo_legal(hash_move)) return hash_move;
 		}
+
+		// Generate captures and queen promotions
 		if (stage == GENERATE_CAPTURES) {
 			generate(board, move_list, CAPTURE_GEN);
 			score(board, CAPTURES);
@@ -92,12 +111,16 @@ struct Move_orderer
 		if (stage == CAPTURES) {
 			while (position < move_list.size) {
 				Move move = next_best_move();
-				if (move == tt_move) continue;
+				if (move == hash_move) continue;
+				// Queen promotions can be killer moves.
+				if (move == first_killer)  first_killer  = INVALID_MOVE;
+				if (move == second_killer) second_killer = INVALID_MOVE;
 				return move;
 			}
-			stage = QUIETS;
-			generate(board, move_list, QUIET_GEN);
+			stage = FIRST_KILLER;
 		}
+
+		// Generate captures and queen promotions
 		if (stage == GENERATE_QUIESCENCES) {
 			generate(board, move_list, CAPTURE_GEN);
 			score(board, CAPTURES);
@@ -107,26 +130,56 @@ struct Move_orderer
 			if (position < move_list.size)
 				return next_best_move();
 		}
+
+		// We can still try the killer moves before generating the quiet moves.
+		if (stage == FIRST_KILLER) {
+			stage = SECOND_KILLER;
+			if (first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
+		}
+		if (stage == SECOND_KILLER) {
+			stage = GENERATE_QUIETS;
+			if (second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
+		}
+
+		// Generate check evasions.
 		if (stage == GENERATE_IN_CHECKS) {
 			generate(board, move_list, IN_CHECK_GEN);
+			score(board, IN_CHECKS);
 			stage = IN_CHECKS;
 		}
 		if (stage == IN_CHECKS) {
 			while (position < move_list.size) {
 				Move move = next_best_move();
-				if (move == tt_move) continue;
+				if (move == hash_move) continue;
 				return move;
 			}
+		}
+
+		// Now, all quiet moves are generated.
+		if (stage == GENERATE_QUIETS) {
+			generate(board, move_list, QUIET_GEN);
+			score(board, QUIETS);
+			stage = QUIETS;
 		}
 		if (stage == QUIETS) {
 			while (position < move_list.size) {
 				Move move = next_best_move();
-				if (move == tt_move) continue;
+				if (move == hash_move || move == first_killer || move == second_killer) continue;
 				return move;
 			}
 		}
 		return INVALID_MOVE;
 	}
+
+	Move_orderer(Move hash_move, Heuristics &heuristics, int ply)
+	:
+		hash_move(hash_move),
+		first_killer( heuristics.killer_move[0][ply]),
+		second_killer(heuristics.killer_move[1][ply]),
+		//first_killer(INVALID_MOVE),
+		//second_killer(INVALID_MOVE),
+		ply(ply)
+	{}
 };
 
 /*static inline void rate_moves(Board &board, Heuristics &heuristics, Move_generator &move_generator, bool quiescence, unsigned ply)
