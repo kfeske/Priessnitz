@@ -48,9 +48,9 @@ enum Indicies {
 	MG_BACKWARD = EG_DOUBLED + 1,
 	EG_BACKWARD = MG_BACKWARD + 1,
 	MG_CHAINED = EG_BACKWARD  + 1,
-	EG_CHAINED = MG_CHAINED + 1,
+	EG_CHAINED = MG_CHAINED + 8,
 
-	MG_DOUBLE_BISHOP = EG_CHAINED + 1,
+	MG_DOUBLE_BISHOP = EG_CHAINED + 8,
 	EG_DOUBLE_BISHOP = MG_DOUBLE_BISHOP + 1,
 
 	MG_ROOK_OPEN_FILE      = EG_DOUBLE_BISHOP + 1,
@@ -142,10 +142,12 @@ struct Sample
 	double outcome;
 
 	// Stores, how much a weight influences the evaluation of a position
-	std::vector<double> mg_influence {};
-	std::vector<double> eg_influence {};
-	std::vector<Indicies> mg_influence_index {};
-	std::vector<Indicies> eg_influence_index {};
+	unsigned mg_influence_length = 0;
+	unsigned eg_influence_length = 0;
+	double *mg_influence {};
+	double *eg_influence {};
+	Indicies *mg_influence_index {};
+	Indicies *eg_influence_index {};
 
 	// Useful for king evaluation
 	uint8_t ring_attackers[2] {};
@@ -242,8 +244,8 @@ struct Tuner
 		case EG_DOUBLED:     return eval.eg_doubled_penalty;
 		case MG_BACKWARD:    return eval.mg_backward_penalty;
 		case EG_BACKWARD:    return eval.eg_backward_penalty;
-		case MG_CHAINED:     return eval.mg_chained_bonus;
-		case EG_CHAINED:     return eval.eg_chained_bonus;
+		case MG_CHAINED:     return eval.mg_chained_bonus[pos];
+		case EG_CHAINED:     return eval.eg_chained_bonus[pos];
 
 		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
 		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
@@ -521,8 +523,12 @@ struct Tuner
 		std::cerr << "\nint mg_backward_penalty = " << int_weight(MG_BACKWARD) << ";\n";
 		std::cerr <<   "int eg_backward_penalty = " << int_weight(EG_BACKWARD) << ";\n";
 
-		std::cerr << "\nint mg_chained_bonus = " << int_weight(MG_CHAINED) << ";\n";
-		std::cerr <<   "int eg_chained_bonus = " << int_weight(EG_CHAINED) << ";\n";
+		std::cerr << "\nint mg_chained_bonus[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_CHAINED + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_chained_bonus[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_CHAINED + i);
+		std::cerr << "};\n";
 
 		std::cerr << "\nint mg_double_bishop = " << int_weight(MG_DOUBLE_BISHOP) << ";\n";
 		std::cerr <<   "int eg_double_bishop = " << int_weight(EG_DOUBLE_BISHOP) << ";\n";
@@ -605,6 +611,7 @@ struct Tuner
 			Color friendly = color_of(piece);
 			Color enemy = swap(friendly);
 			unsigned relative_square = normalize_square[friendly][square];
+			unsigned relative_rank = rank_num(relative_square);
 			int side = (friendly == WHITE) ? 1 : -1;
 
 			// material
@@ -651,8 +658,8 @@ struct Tuner
 
 				// reward chained pawns
 				else if (chained || neighbored) {
-					mg_influences[MG_CHAINED] += side * mg_phase;
-					eg_influences[EG_CHAINED] += side * eg_phase;
+					mg_influences[MG_CHAINED + relative_rank] += side * mg_phase;
+					eg_influences[EG_CHAINED + relative_rank] += side * eg_phase;
 				}
 
 				// passed pawns
@@ -723,7 +730,7 @@ struct Tuner
 						eg_influences[EG_ROOK_HALF_OPEN_FILE] += side * eg_phase;
 					}
 				}
-				if (rank_num(relative_square) == 1 && rank_num(normalize_square[friendly][board.square(enemy, KING)]) <= 1) {
+				if (relative_rank == 1 && rank_num(normalize_square[friendly][board.square(enemy, KING)]) <= 1) {
 					mg_influences[MG_ROOK_ON_SEVENTH] += side * mg_phase;
 					eg_influences[EG_ROOK_ON_SEVENTH] += side * eg_phase;
 				}
@@ -904,13 +911,25 @@ struct Tuner
 
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
+			if (mg_influences[i] != 0) sample.mg_influence_length++;
+			if (eg_influences[i] != 0) sample.eg_influence_length++;
+		}
+		sample.mg_influence = new double[sample.mg_influence_length];
+		sample.mg_influence_index = new Indicies[sample.mg_influence_length];
+		sample.eg_influence = new double[sample.eg_influence_length];
+		sample.eg_influence_index = new Indicies[sample.eg_influence_length];
+		unsigned mg_count = 0;
+		unsigned eg_count = 0;
+		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
 			if (mg_influences[i] != 0) {
-				sample.mg_influence.emplace_back(mg_influences[i]);
-				sample.mg_influence_index.emplace_back(Indicies(i));
+				sample.mg_influence[mg_count] = mg_influences[i];
+				sample.mg_influence_index[mg_count] = Indicies(i);
+				mg_count++;
 			}
 			if (eg_influences[i] != 0) {
-				sample.eg_influence.emplace_back(eg_influences[i]);
-				sample.eg_influence_index.emplace_back(Indicies(i));
+				sample.eg_influence[eg_count] = eg_influences[i];
+				sample.eg_influence_index[eg_count] = Indicies(i);
+				eg_count++;
 			}
 		}
 		sample.pawn_count[WHITE] = pop_count(board.pieces(WHITE, PAWN));
@@ -1010,11 +1029,11 @@ struct Tuner
 		// all 'normal' evaluation parts can easily be computed
 
 		double mg_evaluation = 0;
-		for (unsigned i = 0; i < sample.mg_influence.size(); i++)
+		for (unsigned i = 0; i < sample.mg_influence_length; i++)
 			mg_evaluation += sample.mg_influence[i] * weights[sample.mg_influence_index[i]];
 
 		sample.eg_evaluation = 0;
-		for (unsigned i = 0; i < sample.eg_influence.size(); i++)
+		for (unsigned i = 0; i < sample.eg_influence_length; i++)
 			sample.eg_evaluation += sample.eg_influence[i] * weights[sample.eg_influence_index[i]];
 
 		// king safety is a bit tricky, because two different weights affect each other
@@ -1109,9 +1128,9 @@ struct Tuner
 			// Most gradients can easily be computed
 			// The influence array holds the derivatives of each parameter in respect to the evaluation function
 			// (in this case, it is the game phase multiplied by how often it is used in the position)
-			for (unsigned i = 0; i < sample.mg_influence.size(); i++)
+			for (unsigned i = 0; i < sample.mg_influence_length; i++)
 				gradients[sample.mg_influence_index[i]] += sample.mg_influence[i] * partial_derivative;
-			for (unsigned i = 0; i < sample.eg_influence.size(); i++)
+			for (unsigned i = 0; i < sample.eg_influence_length; i++)
 				gradients[sample.eg_influence_index[i]] += sample.eg_influence[i] * sample.scale / 128 * partial_derivative;
 
 			// King safety always needs extra work, because two parameters affect each other

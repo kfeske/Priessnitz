@@ -25,6 +25,7 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 	while (temp) {
 		unsigned square = pop_lsb(temp);
 		unsigned relative_square = normalize_square[friendly][square];
+		unsigned relative_rank = rank_num(relative_square);
 
 		// Material + PSQT
 		info.mg_bonus[friendly] += mg_pawn_psqt[relative_square] + mg_piece_value[PAWN];
@@ -33,9 +34,9 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		uint64_t adjacent_files = isolated_pawn_mask(file_num(square));
 		bool passed = !(passed_pawn_mask(friendly, square) & enemy_pawns);
 		bool doubled = forward_file_mask(friendly, square) & friendly_pawns;
-		bool neighbored = neighbor_mask(square) & friendly_pawns;
-		bool supported = passed_pawn_mask(enemy, square) & adjacent_files & friendly_pawns;
-		bool chained = pawn_attacks(enemy, square) & friendly_pawns;
+		bool phalanx = neighbor_mask(square) & friendly_pawns;
+		bool potential_support = passed_pawn_mask(enemy, square) & adjacent_files & friendly_pawns;
+		bool supported = pawn_attacks(enemy, square) & friendly_pawns;
 
 		// Isolated pawns
 		if (!(adjacent_files & friendly_pawns)) {
@@ -50,15 +51,15 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		}
 
 		// Backward pawns
-		if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
+		if (!(potential_support || phalanx) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
 			info.mg_bonus[friendly] += mg_backward_penalty;
 			info.eg_bonus[friendly] += eg_backward_penalty;
 		}
 
 		// Pawn chain
-		else if (chained || neighbored) {
-			info.mg_bonus[friendly] += mg_chained_bonus;
-			info.eg_bonus[friendly] += eg_chained_bonus;
+		else if (supported || phalanx) {
+			info.mg_bonus[friendly] += mg_chained_bonus[relative_rank];
+			info.eg_bonus[friendly] += eg_chained_bonus[relative_rank];
 		}
 
 		// Passed pawns
