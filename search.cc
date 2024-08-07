@@ -418,8 +418,6 @@ void Search::start_search(Board &board)
 
 		plot_info(board, nodes_previous_iteration);
 
-		if (time_management && mate(root_evaluation)) break;
-
 		if (abort_search) break;
 	}
 
