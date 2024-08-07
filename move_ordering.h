@@ -99,23 +99,21 @@ struct Main_move_orderer
 	// For each call, the next most promising pseudo legal move is returned.
 	Move next_move(Board &board, bool skip_quiets)
 	{
+		switch (stage) {
 		// The hash move is probably the best move, because we retrieved it by searching this position earlier.
-		if (stage == Main_stage::TRANSPOSITION) {
+		case Main_stage::TRANSPOSITION:
 			stage = Main_stage::GENERATE_CAPTURES;
 			if (board.pseudo_legal(hash_move)) return hash_move;
-		}
-		if (stage == Main_stage::IN_CHECK_TRANSPOSITION) {
-			stage = Main_stage::GENERATE_IN_CHECKS;
-			if (board.pseudo_legal(hash_move)) return hash_move;
-		}
+			[[fallthrough]];
 
 		// Generate captures and queen promotions
-		if (stage == Main_stage::GENERATE_CAPTURES) {
+		case Main_stage::GENERATE_CAPTURES:
 			generate(board, move_list, CAPTURE_GEN);
 			score(board, CAPTURE_GEN);
 			stage = Main_stage::GOOD_CAPTURES;
-		}
-		if (stage == Main_stage::GOOD_CAPTURES) {
+			[[fallthrough]];
+
+		case Main_stage::GOOD_CAPTURES:
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
@@ -132,47 +130,35 @@ struct Main_move_orderer
 				return move;
 			}
 			stage = Main_stage::FIRST_KILLER;
-		}
-
+			[[fallthrough]];
 
 		// We can still try the killer and counter moves before generating the quiet moves.
-		if (stage == Main_stage::FIRST_KILLER) {
+		case Main_stage::FIRST_KILLER:
 			stage = Main_stage::SECOND_KILLER;
 			if (!skip_quiets && first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
-		}
-		if (stage == Main_stage::SECOND_KILLER) {
+			[[fallthrough]];
+
+		case Main_stage::SECOND_KILLER:
 			stage = Main_stage::COUNTER_MOVE;
 			if (!skip_quiets && second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
-		}
-		if (stage == Main_stage::COUNTER_MOVE) {
+			[[fallthrough]];
+
+		case Main_stage::COUNTER_MOVE:
 			stage = Main_stage::GENERATE_QUIETS;
 			if (!skip_quiets && counter_move != hash_move && counter_move != first_killer && counter_move != second_killer &&
 			    board.pseudo_legal(counter_move)) return counter_move;
-		}
-
-		// Generate check evasions.
-		if (stage == Main_stage::GENERATE_IN_CHECKS) {
-			generate(board, move_list, IN_CHECK_GEN);
-			score(board, IN_CHECK_GEN);
-			stage = Main_stage::IN_CHECKS;
-		}
-		if (stage == Main_stage::IN_CHECKS) {
-			while (position < move_list.size) {
-				Move move = next_best_move(move_list);
-				if (move == hash_move) continue;
-				return move;
-			}
-		}
+			[[fallthrough]];
 
 		// Now, all quiet moves are generated.
-		if (stage == Main_stage::GENERATE_QUIETS) {
+		case Main_stage::GENERATE_QUIETS:
 			if (!skip_quiets) {
 				generate(board, move_list, QUIET_GEN);
 				score(board, QUIET_GEN);
 			}
 			stage = Main_stage::QUIETS;
-		}
-		if (stage == Main_stage::QUIETS) {
+			[[fallthrough]];
+
+		case Main_stage::QUIETS:
 			while (!skip_quiets && position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
@@ -180,16 +166,37 @@ struct Main_move_orderer
 			}
 			stage = Main_stage::BAD_CAPTURES;
 			position = 0; // We have a seperate list for bad captures.
-		}
+			[[fallthrough]];
 
 		// Finally, loop over the losing captures, they might still be some kind of sacrifice.
-		if (stage == Main_stage::BAD_CAPTURES) {
+		case Main_stage::BAD_CAPTURES:
 			while (position < bad_captures.size) {
 				Move move = next_best_move(bad_captures);
 				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
 				return move;
 			}
+			return INVALID_MOVE;
+
+		// Generate check evasions.
+		case Main_stage::IN_CHECK_TRANSPOSITION:
+			stage = Main_stage::GENERATE_IN_CHECKS;
+			if (board.pseudo_legal(hash_move)) return hash_move;
+			[[fallthrough]];
+
+		case Main_stage::GENERATE_IN_CHECKS:
+			generate(board, move_list, IN_CHECK_GEN);
+			score(board, IN_CHECK_GEN);
+			stage = Main_stage::IN_CHECKS;
+			[[fallthrough]];
+
+		case Main_stage::IN_CHECKS:
+			while (position < move_list.size) {
+				Move move = next_best_move(move_list);
+				if (move == hash_move) continue;
+				return move;
+			}
 		}
+
 		return INVALID_MOVE;
 	}
 
@@ -258,25 +265,29 @@ struct Quiescence_move_orderer
 	}
 	Move next_move(Board &board)
 	{
+		switch (stage) {
 		// Generate captures and queen promotions
-		if (stage == Quiescence_stage::GENERATE_CAPTURES) {
+		case Quiescence_stage::GENERATE_CAPTURES:
 			generate(board, move_list, CAPTURE_GEN);
 			score(board, CAPTURE_GEN);
 			stage = Quiescence_stage::GOOD_CAPTURES;
-		}
-		if (stage == Quiescence_stage::GOOD_CAPTURES) {
+			[[fallthrough]];
+
+		case Quiescence_stage::GOOD_CAPTURES:
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (see(board, move) > 0 || promotion(move)) return move;
 			}
-		}
+			return INVALID_MOVE;
+
 		// Generate check evasions.
-		if (stage == Quiescence_stage::GENERATE_IN_CHECKS) {
+		case Quiescence_stage::GENERATE_IN_CHECKS:
 			generate(board, move_list, IN_CHECK_GEN);
 			score(board, IN_CHECK_GEN);
 			stage = Quiescence_stage::IN_CHECKS;
-		}
-		if (stage == Quiescence_stage::IN_CHECKS) {
+			[[fallthrough]];
+
+		case Quiescence_stage::IN_CHECKS:
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				return move;
