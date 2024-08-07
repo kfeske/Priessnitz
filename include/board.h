@@ -249,7 +249,8 @@ struct Board : Board_state
 				if (position_history[i] == zobrist.key)
 					cycles++;
 			}
-			if (cycles >= 2) repetition = true;
+			if (cycles >= 1) repetition = true; // notice how it says (cycles >= 1), two- and three-fold repetitions
+							    // are both treated as a draw in the search
 		}
 
 		position_history[game_ply] = zobrist.key;
@@ -344,7 +345,6 @@ struct Board : Board_state
 		}
 	}
 
-
 	bool in_check()
 	{
 		if (pieces[piece_of(side_to_move, KING)] == 0ULL) std::cerr << "no king\n";
@@ -359,6 +359,11 @@ struct Board : Board_state
 		checkers |= precomputed.attacks_bb<ROOK  >(ksq, occ) & enemy_orth_sliders;
 
 		return (checkers != 0);
+	}
+
+	bool immediate_draw(unsigned ply_from_root)
+	{
+		return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);
 	}
 
 	void set_fenpos(std::string fen)

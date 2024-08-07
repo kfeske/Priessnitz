@@ -108,18 +108,20 @@ struct Search
 			return 0;
 		}
 
-		Move best_move_this_node = INVALID_MOVE;
-		int evaluation;
-		bool in_check = board.in_check();
-
 		// ply describes how far we are from the root of the search tree
 		unsigned ply_from_root = current_depth - depth;
 
-		if (depth == 0) {
+		// check for draws by repetition or by 50 Move Rule
+		if (board.immediate_draw(ply_from_root))
+			return 0;
+
+		if (depth == 0)
 			// we reached a leaf node, start the Quiescence Search
 			return qsearch(board, alpha, beta, 0);
-		}
 
+		Move best_move_this_node = INVALID_MOVE;
+		int evaluation;
+		bool in_check = board.in_check();
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
 		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
@@ -160,16 +162,14 @@ struct Search
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
 
-		// game over
 		if (move_generator.size == 0) {
-			if (in_check) return -mate_score - depth;
-			else return 0;
+			if (in_check) return -mate_score - depth; // Checkmate
+			else return 0; // Stalemate
 		}
-		if (board.repetition || board.history[board.game_ply].rule_50 >= 100)
-			return 0;
 
 		// score each move depending on how good it looks
 		rate_moves(board, heuristics, move_generator, false, ply_from_root);
+
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
 			search_nodes++;
