@@ -101,7 +101,7 @@ struct Move_orderer
 	}
 
 	// For each call, the next most promising pseudo legal move is returned.
-	Move next_move(Board &board)
+	Move next_move(Board &board, bool skip_quiets)
 	{
 		// The hash move is probably the best move, because we retrieved it by searching this position earlier.
 		if (stage == TRANSPOSITION) {
@@ -152,15 +152,15 @@ struct Move_orderer
 		// We can still try the killer and counter moves before generating the quiet moves.
 		if (stage == FIRST_KILLER) {
 			stage = SECOND_KILLER;
-			if (first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
+			if (!skip_quiets && first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
 		}
 		if (stage == SECOND_KILLER) {
 			stage = COUNTER_MOVE;
-			if (second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
+			if (!skip_quiets && second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
 		}
 		if (stage == COUNTER_MOVE) {
 			stage = GENERATE_QUIETS;
-			if (counter_move != hash_move && counter_move != first_killer && counter_move != second_killer &&
+			if (!skip_quiets && counter_move != hash_move && counter_move != first_killer && counter_move != second_killer &&
 			    board.pseudo_legal(counter_move)) return counter_move;
 		}
 
@@ -180,12 +180,14 @@ struct Move_orderer
 
 		// Now, all quiet moves are generated.
 		if (stage == GENERATE_QUIETS) {
-			generate(board, move_list, QUIET_GEN);
-			score(board, QUIET_GEN);
+			if (!skip_quiets) {
+				generate(board, move_list, QUIET_GEN);
+				score(board, QUIET_GEN);
+			}
 			stage = QUIETS;
 		}
 		if (stage == QUIETS) {
-			while (position < move_list.size) {
+			while (!skip_quiets && position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
 				return move;

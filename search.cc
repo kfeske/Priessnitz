@@ -47,9 +47,9 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		if (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha) return alpha;
 	}
 
-	bool in_check = board.in_check();
-
 	int static_evaluation = eval.evaluate(board);
+
+	bool in_check = board.in_check();
 
 	// Captures are usually not forced. This will give the option to stop the capture sequence.
 	if (!in_check && static_evaluation >= beta)
@@ -66,7 +66,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
 
 	Move move;
-	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
+	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
 
 		// Prune moves that lose material. In this case, another quiet move is probably better.
@@ -153,6 +153,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	Move best_move = INVALID_MOVE;
 	int evaluation;
 	bool in_check = board.in_check();
+	bool skip_quiets = false;
 
 	// If no move exceeds alpha, we do not have an exact evaluation,
 	// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
@@ -210,7 +211,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	Move_orderer move_orderer { board, hash_move, heuristics, ply };
 	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
 	Move move;
-	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
+	while ((move = move_orderer.next_move(board, skip_quiets)) != INVALID_MOVE) {
 		if (!board.legal(move) || move == skip) continue;
 
 		move_count++;
@@ -223,8 +224,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			// Late Move Pruning
 			// Due to our move ordering, late moves are likely bad and not worth searching.
-			if (depth < 4 && quiet_move && move_count > search_constants.LMP_MARGIN[depth])
-				continue;
+			if (depth < 4 && move_count >= search_constants.LMP_MARGIN[depth])
+				skip_quiets = true;
 
 			// Futility Pruning
 			// Very close to the horizon of the search, where we are in a position that looks really bad,

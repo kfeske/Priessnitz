@@ -52,6 +52,9 @@ void mirror_test(Board &board, Search &search)
 	Board mirrored_board {};
 	mirrored_board.side_to_move = swap(board.side_to_move);
 
+	for (unsigned square = 0; square < 64; square++)
+		mirrored_board.remove_piece(square);
+
 	for (unsigned p = W_PAWN; p <= B_KING; p++) {
 		Piece_type pt = type_of(Piece(p));
 		Color color = color_of(Piece(p));
