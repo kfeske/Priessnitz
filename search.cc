@@ -171,6 +171,9 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		heuristics.hash_move = tt.best_move;
 	}*/
 
+	// In the end, we decrement the history counters for bad quiet moves.
+	Move_list bad_quiets_searched;
+
 	Move_orderer move_orderer { board, tt.best_move, heuristics, ply };
 	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
 	Move move;
@@ -252,44 +255,24 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		if (abort_search) return 0;
 
+		// Improve alpha, if we have found a better move
 		if (evaluation > alpha) {
-			// Found a better move
 			best_move = move;
 			alpha = evaluation;
 
+			// Beta cutoff.
+			// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+			// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+			// where he can get at least beta.
 			if (evaluation >= beta) {
-				// Beta cutoff. There is a better line for the opponent.
-				// We know the opponent can get at least beta, so a branch that evaluates to more than beta
-				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-				// where he can get at least beta.
 
 				// We have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
 				tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND, age);
 
-				if (!capture(move)) {
-					// this is a killer move - Store it!
-					if (move != heuristics.killer_move[0][ply]) {
-						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
-						heuristics.killer_move[0][ply] = move;
-					}
-					// The move can also be stored as a counter, because it refuted the previous move.
-					if (board.game_ply > 0) {
-						unsigned to = move_to(board.history[board.game_ply - 1].move);
-						heuristics.counter_move[board.board[to]][to] = move;
-					}
+				// Update Killers, Counters, History
+				update_heuristics(board, move, depth, ply, bad_quiets_searched);
 
-					// increment history score
-					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
-					/*if (heuristics.history[board.board[move_from(move)]][move_to(move)] > 100000) {
-						std::cerr << "decay history\n";
-						for (unsigned piece = 0; piece < 16; piece++) {
-							for (unsigned square = 0; square < 64; square++) {
-								heuristics.history[piece][square] >>= 6;
-							}
-						}
-					}*/
-				}
 				if (move_count == 1) statistics.cutoffspv++;
 				statistics.cutoffs++;
 
@@ -306,13 +289,14 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 				root_evaluation = evaluation;
 			}
 		}
+		else if (!capture(move)) bad_quiets_searched.add(move);
 	}
 
 	if (move_count == 0) {
 		if (in_check) return -MATE_SCORE + ply; // Checkmate
 		else return 0; // Stalemate
 	}
-	
+
 	// Store position in the hash table
 	tt.store(board.zobrist.key, depth, alpha, best_move, flag, age);
 
@@ -433,6 +417,36 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 		hard_time_cap = move_time;
 
 	start_search(board);
+}
+
+void Search::update_heuristics(Board &board, Move best_move, int depth, int ply, Move_list &bad_quiets_searched)
+{
+	if (!capture(best_move)) {
+		// This is a killer move - Store it!
+		if (best_move != heuristics.killer_move[0][ply]) {
+			heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
+			heuristics.killer_move[0][ply] = best_move;
+		}
+		// The move can also be stored as a counter, because it refuted the previous move.
+		if (board.game_ply > 0) {
+			unsigned to = move_to(board.history[board.game_ply - 1].move);
+			heuristics.counter_move[board.board[to]][to] = best_move;
+		}
+
+		// Increment history score. Moves closer to the root have a bigger impact (depth * depth).
+		increment_history(board, best_move, depth * depth);
+
+	}
+	// Decrement history score for all previously searched quiet moves that did not improve alpha.
+	for (unsigned n = 0; n < bad_quiets_searched.size; n++)
+		increment_history(board, bad_quiets_searched.moves[n].move, -(depth * depth));
+}
+
+void Search::increment_history(Board &board, Move move, int bonus)
+{
+	int32_t &history_score = heuristics.history[board.board[move_from(move)]][move_to(move)];
+	// Saturate the counter, so that 16000 is not exceeded.
+	history_score += bonus - history_score * bonus / 16000;
 }
 
 unsigned Statistics::hash_full(Transposition_table &tt)

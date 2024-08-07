@@ -51,13 +51,17 @@ struct Search : Noncopyable
 
 	int search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move);
 
+	void start_search(Board &board);
+
+	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc);
+
+	void update_heuristics(Board &board, Move move, int depth, int ply, Move_list &bad_quiets_searched);
+
+	void increment_history(Board &board, Move move, int bonus);
+
 	void extract_pv_line(Board &board);
 
 	void plot_info(Board &board, unsigned nodes_previous_iteration);
 
 	void plot_final_info(unsigned total_nodes);
-
-	void start_search(Board &board);
-
-	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc);
 };
