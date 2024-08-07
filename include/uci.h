@@ -73,6 +73,10 @@ struct UCI
 				run_test_suite(board, search);
 				return;
 			}
+			else if (parsed == "eval") {
+				search.eval.evaluate(board, search.heuristics.psqt);
+				return;
+			}
 		}
 		search.start_search(board);
 	}

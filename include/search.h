@@ -154,7 +154,7 @@ struct Search
 				return beta;
 		}
 		
-		if (in_check) depth++;
+		//if (in_check) depth++;
 
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);

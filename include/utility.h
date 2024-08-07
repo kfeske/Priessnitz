@@ -62,10 +62,6 @@ PieceType type_of(Piece p)
 	return PieceType(p & 0b111);
 }
 
-enum Phase {
-	MIDGAME, ENDGAME
-};
-
 /*enum Value : int {
 	PAWN_MG   = 126,   PAWN_EG   = 208,
 	KNIGHT_MG = 781,   KNIGHT_EG = 854,
@@ -75,14 +71,21 @@ enum Phase {
 };*/
 
 enum Value : int {
-	PAWN_MG = 100,  PAWN_EG = 100,
-	KNIGHT_MG = 300, KNIGHT_EG = 300,
-	BISHOP_MG = 320, BISHOP_EG = 320,
-	ROOK_MG = 500,  ROOK_EG = 500,
-	QUEEN_MG = 950, QUEEN_EG = 950
+	PAWN_MG = 82,  PAWN_EG = 94,
+	KNIGHT_MG = 337, KNIGHT_EG = 281,
+	BISHOP_MG = 365, BISHOP_EG = 297,
+	ROOK_MG = 477,  ROOK_EG = 512,
+	QUEEN_MG = 1025, QUEEN_EG = 936
 };
 
-Value get_piece_value(Piece pc, Phase ph)
+enum Phase {
+	MIDGAME, ENDGAME,
+	// the bounds in which midgame and endgame are interpolated
+	MAX_MATERIAL = 2 * (KNIGHT_MG + 2 * BISHOP_MG + 2 * ROOK_MG + QUEEN_MG),
+	MIN_MATERIAL = ROOK_EG + QUEEN_EG
+};
+
+Value piece_value(Piece pc, Phase ph)
 {
 	switch(pc) {
 	case W_PAWN:   return (ph == MIDGAME) ? Value( PAWN_MG)   : Value( PAWN_EG);
