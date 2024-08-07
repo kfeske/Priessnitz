@@ -30,8 +30,9 @@ struct Search : Noncopyable
 	double time_start;
 	bool abort_search;
 
-	// Quiescence Search is a shallower search, generating only
-	// captures and check evasions to avoid the horizon effect
+	int futility_margin[5] = {
+		0, 100, 200, 300, 400
+	};
 
 	void reset()
 	{
@@ -47,6 +48,8 @@ struct Search : Noncopyable
 		for (TTEntry &entry : tt.entries) entry = {};
 	}
 
+	// Quiescence Search is a shallower search, generating only
+	// captures and check evasions to avoid the horizon effect
 	int qsearch(Board &board, int alpha, int beta, unsigned ply)
 	{
 		bool in_check = board.in_check() && ply <= 2;
@@ -55,6 +58,7 @@ struct Search : Noncopyable
 
 		if (!in_check && evaluation >= beta)
 			return beta;
+
 
 		if (evaluation > alpha)
 			alpha = evaluation;
@@ -68,9 +72,16 @@ struct Search : Noncopyable
 		rate_moves(board, heuristics, move_generator, true, ply);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
+			Move move = next_move(move_generator, n);
+
+			// Delta Pruning
+			// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
+			int gain = piece_value(board.board[move_to(move)], MG);
+			if (evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
+				return alpha;
+
 			quiescence_nodes++;
 
-			Move move = next_move(move_generator, n);
 
 			board.make_move(move);
 	
@@ -88,7 +99,8 @@ struct Search : Noncopyable
 	}
 
 	// function that finds the best move at a fixed depth (number of moves, it looks into the future)
-
+	// alpha is the best score, the side to move can guarantee in a sequence of moves
+	// beta is the best score, the opponent can guarantee in the sequence
 	int search(Board &board, int depth, unsigned ply, int alpha, int beta, bool allow_null_move)
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
@@ -155,7 +167,7 @@ struct Search : Noncopyable
 		bool futile = false;
 		if (!pv_node && depth <= 4 && !in_check && alpha < mate_score - 100 && beta < mate_score - 100) {
 			int static_evaluation = eval.evaluate(board);
-			futile = static_evaluation + 100 * depth <= alpha;
+			futile = static_evaluation + futility_margin[depth] <= alpha;
 		}
 		
 		//if (in_check) depth++;
@@ -215,7 +227,6 @@ struct Search : Noncopyable
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE) {
 					reduction = 1;
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
-					//std::cerr << "depth " << depth << " n " << n << " R " << reduction << "\n";
 				}
 
 				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha, true);

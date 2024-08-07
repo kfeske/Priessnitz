@@ -45,6 +45,8 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 
 			// if everything else fails, score history moves
 			else m.score += std::min(-30000 + heuristics.history[board.board[move_from(m.move)]][move_to(m.move)], 74);
+			//if (std::min(-30000 + heuristics.history[board.board[move_from(m.move)]][move_to(m.move)], 74) == 74)
+			//	std::cerr << "history overflow\n";
 		}
 	}
 }
