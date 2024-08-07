@@ -131,7 +131,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// If a forced mate was found, we do not need to search deeper than to where it was found,
 	// because we only care about the shortest mate.
 	alpha = std::max(alpha, -MATE_SCORE + ply);
-	beta  = std::min(beta,   MATE_SCORE - ply);
+	beta  = std::min(beta,   MATE_SCORE - (ply + 1));
 	if (alpha >= beta) return alpha;
 	
 	bool pv_node = beta - alpha != 1;
@@ -283,13 +283,9 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			if (evaluation <= singular_beta)
 				extension = 1;
 		}
+		if (in_check) extension = 1;
 			
-
 		board.make_move(move);
-
-		bool gives_check = board.in_check();
-
-		if (gives_check && see(board, move) >= 0) extension = 1;
 
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
@@ -304,7 +300,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// moves are actually good and should thus be searched deeper than other moves.
 
 			int reduction = 0;
-			if (quiet_move && depth > 1 && move_count > 3 && !in_check) {
+			if (quiet_move && depth > 1 && move_count > 3) {
 				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63, move_count)];
 				if (!pv_node) reduction++;
 				reduction -= heuristics.history[board.board[move_from(move)]][move_to(move)] / 5000;
