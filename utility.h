@@ -1,4 +1,10 @@
 #pragma once
+#include <iostream>
+
+enum Constants {
+	BOARD_SIZE = 8,
+	MAX_MOVES = 218,
+};
 
 enum Square {
 	A8, B8, C8, D8, E8, F8, G8, H8,
@@ -74,12 +80,12 @@ enum Color {
 };
 
 // switches the color from WHITE to BLACK and back
-Color swap(Color color)
+static inline Color swap(Color color)
 {
 	return Color(!color);
 }
 
-Color color_of(Piece piece)
+static inline Color color_of(Piece piece)
 {
 	return Color(piece >> 3);
 }
@@ -93,23 +99,23 @@ enum Piece_type {
 	KING
 };
 
-Piece_type type_of(Piece piece)
+static inline Piece_type type_of(Piece piece)
 {
 	return Piece_type(piece & 0b111);
 }
 
-Piece piece_of(Color color, Piece_type type)
+static inline Piece piece_of(Color color, Piece_type type)
 {
 	return Piece((color << 3) + type);
 }
 
-uint64_t rank(unsigned square)
+static inline uint64_t rank(unsigned square)
 {
 	unsigned index = square >> 3;
 	return RANK_1 << (index * 8);
 }
 
-uint64_t file(unsigned square)
+static inline uint64_t file(unsigned square)
 {
 	unsigned index = square & 7;
 	return FILE_A << index;
@@ -136,7 +142,7 @@ enum Direction {
 };
 
 // shifts every bit in a bitboard in a direction
-uint64_t shift(uint64_t bitboard, Direction direction)
+static inline uint64_t shift(uint64_t bitboard, Direction direction)
 {
 	switch(direction) {
 	case UP: return bitboard >> 8;
@@ -178,57 +184,57 @@ enum Move_flags {
 };
 
 // source square
-unsigned move_from(Move move)
+static inline unsigned move_from(Move move)
 {
 	return (move >> 6) & 0x3F;
 }
 
 // target square
-unsigned move_to(Move move)
+static inline unsigned move_to(Move move)
 {
 	return move & 0x3F;
 }
 
 // special flag
-Move_flags flags_of(Move move)
+static inline Move_flags flags_of(Move move)
 {
 	return Move_flags((move >> 12) & 0xF);
 }
 
-Move create_move(unsigned from, unsigned to)
+static inline Move create_move(unsigned from, unsigned to)
 {
 	return Move((from << 6) + to);
 }
 
 template <Move_flags flag>
-Move create_move(unsigned from, unsigned to)
+static inline Move create_move(unsigned from, unsigned to)
 {
 	return Move((flag << 12) | (from << 6) | to);
 }
 
-bool promotion(Move move)
+static inline bool promotion(Move move)
 {
 	return (flags_of(move) & 0b1000);
 }
 
-bool capture(Move move)
+static inline bool capture(Move move)
 {
 	return (flags_of(move) & 0b0100);
 }
 
-unsigned rank_num(unsigned square)
+static inline unsigned rank_num(unsigned square)
 {
 	// equivalent to "square / 8".
 	return square >> 3;
 }
 
-unsigned file_num(unsigned square)
+static inline unsigned file_num(unsigned square)
 {
 	// thanks to the 8 * 8 chess board, the last three bits denote the file.
 	return square & 7;
 }
 
-bool edge(unsigned square, Direction d)
+static inline bool edge(unsigned square, Direction d)
 {
 	switch(d) {
 	case UP: return (rank_num(square) == 0);
@@ -260,7 +266,7 @@ enum TT_flag {
 	EXACT
 };
 
-uint64_t random_64()
+static inline uint64_t random_64()
 {
 	uint64_t ran = rand();
 	return ran << 32 | rand();
@@ -268,32 +274,32 @@ uint64_t random_64()
 
 // bit stuff
 
-bool get_bit(uint64_t bitboard, unsigned square)
+static inline bool get_bit(uint64_t bitboard, unsigned square)
 {
 	return (bitboard & (1ULL << square));
 }
 
-void set_bit(uint64_t &bitboard, unsigned square)
+static inline void set_bit(uint64_t &bitboard, unsigned square)
 {
 	bitboard |= (1ULL << square);
 }
 
-void pop_bit(uint64_t &bitboard, unsigned square)
+static inline void pop_bit(uint64_t &bitboard, unsigned square)
 {
 	bitboard &= ~(1ULL << square);
 }
 
-unsigned pop_count(uint64_t bitboard)
+static inline unsigned pop_count(uint64_t bitboard)
 {
 	return __builtin_popcountll(bitboard);
 }
 
-unsigned lsb(uint64_t bitboard)
+static inline unsigned lsb(uint64_t bitboard)
 {
 	return __builtin_ctzll(bitboard);
 }
 
-unsigned pop_lsb(uint64_t &bitboard)
+static inline unsigned pop_lsb(uint64_t &bitboard)
 {
 	unsigned square = lsb(bitboard);
 	bitboard &= (bitboard - 1);
@@ -302,7 +308,7 @@ unsigned pop_lsb(uint64_t &bitboard)
 
 // print
 
-void print_bitboard(uint64_t bitboard)
+static inline void print_bitboard(uint64_t bitboard)
 {
 	std::string str = "    +---+---+---+---+---+---+---+---+\n";
 
@@ -331,7 +337,7 @@ std::string const square_string[65] = {
 	"None"
 };
 
-std::string flag_string(Move_flags flag)
+static inline std::string flag_string(Move_flags flag)
 {
 	switch(flag) {
 	case PR_KNIGHT: case PC_KNIGHT: return "n";
@@ -342,14 +348,14 @@ std::string flag_string(Move_flags flag)
 	}
 }
 
-std::string move_string(Move move)
+static inline std::string move_string(Move move)
 {
 	unsigned from = move_from(move);
 	unsigned to   = move_to(move);
 	return square_string[from] + square_string[to] + flag_string(flags_of(move));
 }
 
-void print_move(Move move)
+static inline void print_move(Move move)
 {
 	std::cerr << move_string(move);
 }

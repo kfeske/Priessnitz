@@ -1,7 +1,6 @@
 #include <iostream>
-#include <sdl2.h>
 
-#include <uci.h>
+#include "uci.h"
 
 int main()
 {

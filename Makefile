@@ -1,15 +1,19 @@
+MAKEFLAGS += -j8
 test:
-#CXXFLAGS += -fsanitize=undefined -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
-#main -g -pg -Wall -Wextra -Weffc++ -Werror -MMD -Iinclude -lSDL2 -lSDL2_image
+#CXXFLAGS += -fsanitize=undefined -Wall -Wextra -Weffc++ -Werror -MMD -O3
 profile:
 	g++ main.cc -o main $(CXXFLAGS) -g -pg 
 	./main
-CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
-CXXFLAGS += -lSDL2 -lSDL2_image
+CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3
+
+OBJECTS := main.o pre_computed.o search.o board.o evaluation.o move_generator.o uci.o
 
 main:
-	g++ main.cc -o main $(CXXFLAGS)
-main: Makefile
+	g++ $(OBJECTS) -o main $(CXXFLAGS)
+main: Makefile $(OBJECTS)
+
+%.o: %.cc
+	g++ -c $< -o $@ $(CXXFLAGS)
 
 -include *.d
 

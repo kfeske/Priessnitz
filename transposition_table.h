@@ -1,3 +1,6 @@
+#pragma once
+
+unsigned const DEFAULT_TT_SIZE = 256; // MB
 
 struct TT_entry
 {
@@ -8,16 +11,16 @@ struct TT_entry
 	uint8_t flag;
 };
 
-template <unsigned int size>
 struct Transposition_table
 {
-	TT_entry entries[size];
-	int current_evaluation;
-	Move pv_move;
+	unsigned entry_count = (DEFAULT_TT_SIZE * 1024 * 1024) / sizeof(TT_entry);
+	TT_entry *entries;
+	int current_evaluation = 0;
+	Move pv_move = INVALID_MOVE;
 
 	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
 	{
-		uint64_t index = key % size;
+		uint64_t index = key % entry_count;
 		TT_entry &entry = entries[index];
 		if (entry.key == key) {
 			pv_move = Move(entry.best_move);
@@ -48,7 +51,7 @@ struct Transposition_table
 
 	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag)
 	{
-		uint64_t index = key % size;
+		uint64_t index = key % entry_count;
 		TT_entry &entry = entries[index];
 		if (entry.depth > depth) return; // do not overwrite a more accurate entry
 		entry.key = key;
@@ -57,4 +60,14 @@ struct Transposition_table
 		entry.flag = flag;
 		entry.evaluation = int16_t(evaluation);
 	}
+
+	void resize(unsigned size)
+	{
+		entries = new TT_entry[size];
+	}
+
+	Transposition_table()
+	:
+		 entries(new TT_entry[entry_count])
+	{}
 };

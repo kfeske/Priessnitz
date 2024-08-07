@@ -1,3 +1,8 @@
+#pragma once
+
+#include "utility.h"
+#include "board.h"
+#include "pre_computed.h"
 
 // The so called Static Exchange Evaluation (SEE) is used to estimate the gain of
 // a capture (or a check) by looking at the series of exchanges on a single square.
@@ -14,19 +19,19 @@ struct Attacker
 	uint64_t square;
 };
 
-uint64_t attacks_to(Board &board, unsigned square, uint64_t occupied)
+static inline uint64_t attacks_to(Board &board, unsigned square, uint64_t occupied)
 {
-	return 	(board.precomputed.pawn_attacks[WHITE][square] & board.pieces[B_PAWN]) |
-		(board.precomputed.pawn_attacks[BLACK][square] & board.pieces[W_PAWN]) |
-		(board.precomputed.attacks_bb<KNIGHT>(square, 0ULL) & (board.pieces[W_KNIGHT] | board.pieces[B_KNIGHT])) |
-		(board.precomputed.attacks_bb<BISHOP>(square, occupied) &
+	return 	(pawn_attacks(WHITE, square) & board.pieces[B_PAWN]) |
+		(pawn_attacks(BLACK, square) & board.pieces[W_PAWN]) |
+		(piece_attacks<KNIGHT>(square, 0ULL) & (board.pieces[W_KNIGHT] | board.pieces[B_KNIGHT])) |
+		(piece_attacks<BISHOP>(square, occupied) &
 		(board.pieces[W_BISHOP] | board.pieces[B_BISHOP] | board.pieces[W_QUEEN] | board.pieces[B_QUEEN])) |
-		(board.precomputed.attacks_bb<ROOK>(square, occupied) &
+		(piece_attacks<ROOK>(square, occupied) &
 		(board.pieces[W_ROOK] | board.pieces[B_ROOK] | board.pieces[W_QUEEN] | board.pieces[B_QUEEN])) |
-		(board.precomputed.attacks_bb<KING>(square, 0ULL) & (board.pieces[W_KING] | board.pieces[B_KING]));
+		(piece_attacks<KING>(square, 0ULL) & (board.pieces[W_KING] | board.pieces[B_KING]));
 }
 
-Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
+static inline Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
 {
 	for (Piece pc : ALL_PIECES[side]) {
 		uint64_t mask = board.pieces[pc] & attackers;
@@ -40,34 +45,23 @@ Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
 	return {};
 }
 
-/*uint64_t lowest_piece(Board &board, uint64_t attackers, Color side, Piece &p)
-{
-	for (Piece pc : ALL_PIECES[side]) {
-		p = pc;
-		uint64_t mask = board.pieces[p] & attackers;
-		// abuse the two's complement, so only one bit is returned
-		if (mask != 0ULL) return mask & -mask;
-	}
-	return 0ULL;
-}*/
-
-uint64_t revealed_attacks(Board &board, unsigned square, Piece_type pt, uint64_t occupied)
+static inline uint64_t revealed_attacks(Board &board, unsigned square, Piece_type pt, uint64_t occupied)
 {
 	uint64_t bishops = board.pieces[W_BISHOP] | board.pieces[B_BISHOP];
 	uint64_t rooks   = board.pieces[W_ROOK]   | board.pieces[B_ROOK];
 	uint64_t queens  = board.pieces[W_QUEEN]  | board.pieces[B_QUEEN];
 
 	if (pt == BISHOP || pt == PAWN)
-		return board.precomputed.attacks_bb<BISHOP>(square, occupied) & (bishops | queens);
+		return piece_attacks<BISHOP>(square, occupied) & (bishops | queens);
 	else if (pt == ROOK)
-		return board.precomputed.attacks_bb<ROOK>(square, occupied) & (rooks | queens);
+		return piece_attacks<ROOK>(square, occupied) & (rooks | queens);
 	else if (pt == QUEEN)
-		return (board.precomputed.attacks_bb<BISHOP>(square, occupied) & (bishops | queens)) |
-		       (board.precomputed.attacks_bb<ROOK>(square, occupied) & (rooks | queens));
+		return (piece_attacks<BISHOP>(square, occupied) & (bishops | queens)) |
+		       (piece_attacks<ROOK>(square, occupied) & (rooks | queens));
 	return 0ULL;
 }
 
-int see(Board &board, Move move)
+static inline int see(Board &board, Move move)
 {
 	unsigned target_square = move_to(move);
 	uint64_t occupied = board.occ;
