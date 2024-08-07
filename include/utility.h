@@ -66,7 +66,7 @@ enum Phase {
 	MIDGAME, ENDGAME
 };
 
-enum Value {
+enum Value : int {
 	PAWN_MG   = 126,   PAWN_EG   = 208,
 	KNIGHT_MG = 781,   KNIGHT_EG = 854,
 	BISHOP_MG = 825,   BISHOP_EG = 915,
@@ -129,7 +129,7 @@ uint64_t shift(uint64_t b, Direction d)
 	}
 }
 
-enum Move {
+enum Move : uint16_t {
 	INVALID_MOVE
 };
 

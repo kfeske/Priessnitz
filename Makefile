@@ -1,6 +1,7 @@
 test:
 # todo: debug undefined behaviour with -fsanitize=undefined
-CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
+CXXFLAGS += -fsanitize=undefined -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
+#CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
 CXXFLAGS += -lSDL2 -lSDL2_image
 
 main:

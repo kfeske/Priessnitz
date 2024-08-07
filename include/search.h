@@ -103,7 +103,7 @@ struct Search
 			tt_cutoffs++;*/
 
 		Move best_move_this_node = INVALID_MOVE;
-		int evaluation = 0;
+		int evaluation;
 		bool in_check = board.in_check();
 		//unsigned ply = current_depth - depth;
 		//heuristics.pv_lenght[ply] = ply;
@@ -195,22 +195,22 @@ struct Search
 
 			if (abort_search) return 0;
 
-			/*f (evaluation >= beta) {
+			if (evaluation >= beta) {
 				// Beta cutoff. There is a better line for the opponent
 				// we know the opponent can get at least beta, so a branch that evaluates to more than beta
 				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
 				// where he can get at least beta
 
-				flag = LOWERBOUND;
+				//flag = LOWERBOUND;
 
-				if (flags_of(move) != CAPTURE) {
+				/*if (flags_of(move) != CAPTURE) {
 					// this is a killer move - Store it!
 					heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
 					heuristics.killer_move[0][ply] = move;
-				}
+				}*/
 				// *snip*
-				break;
-			}*/
+				return beta;
+			}
 
 			if (evaluation > alpha) {
 				// found a better move
@@ -251,6 +251,7 @@ struct Search
 
 		time_start = SDL_GetTicks();
 		int nodes_previous_iteration;
+		long total_nodes = 0;
 
 		//std::cerr << ".";
 		for (current_depth = 1; current_depth <= max_depth; current_depth++) {
@@ -259,12 +260,13 @@ struct Search
 			nodes_searched = 0;
 
 			evaluation = search(board, current_depth, -infinity, infinity);
+			total_nodes += nodes_searched;
 
 			if (abort_search) break;
 
 			best_move = best_move_this_iteration;
 			final_evaluation = evaluation;
-			if (current_depth > 1) branching_factor = nodes_searched / (nodes_previous_iteration + 1);
+			if (current_depth > 1) branching_factor = nodes_searched / double(nodes_previous_iteration) + 0.0001;
 			//std::cerr << ".";
 			/*for (unsigned j = 0; j < heuristics.pv_lenght[0]; j++) {
 				heuristics.previous_pv_line[j] = heuristics.pv_table[0][j];
@@ -274,6 +276,7 @@ struct Search
 			std::cerr << "...\n";*/
 
 			std::cerr << "info depth " << current_depth << " score " << evaluation << " time " << SDL_GetTicks() - time_start;
+			std::cerr << " nodes " << total_nodes << " branching " << branching_factor;
 			std::cerr << " pv " << move_string(best_move) << "\n";
 		}
 		return final_evaluation;

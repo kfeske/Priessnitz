@@ -313,6 +313,7 @@ struct Board : Board_state
 		if (history[game_ply].ep_sq != SQ_NONE)
 			zobrist.key ^= zobrist.ep_rand[file(history[game_ply].ep_sq)];
 
+		repetition = false;
 		side_to_move = Color(!side_to_move);
 	}
 	
@@ -362,7 +363,6 @@ struct Board : Board_state
 
 	void set_fenpos(std::string fen)
 	{
-		reset();
 		history[0] = UndoInfo();
 		
 		bool rights = false;

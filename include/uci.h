@@ -24,10 +24,7 @@ struct UCI
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board, false);
 		for (Move m : move_generator.movelist) {
-			unsigned from_square = move_from(m);
-			unsigned to_square = move_to(m);
-			std::string string_move = square_string[from_square] + square_string[to_square];
-			if (string_move == move)
+			if (move_string(m) == move)
 				return m;
 		}
 		return INVALID_MOVE;

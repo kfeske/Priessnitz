@@ -102,7 +102,7 @@ struct PSQT : Noncopyable
 			for (Piece pc : { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING }) {
 				Value value = get_piece_value(pc, MIDGAME);
 				
-				for (unsigned square = 0; square <= 63; square++) {
+				for (unsigned square = 0; square < 64; square++) {
 					psqt[pc][square] = Value(value + bonus[MIDGAME][type_of(pc)][square]);
 					psqt[pc + 8][mirrored(square)] = Value(-psqt[pc][square]);
 				}
