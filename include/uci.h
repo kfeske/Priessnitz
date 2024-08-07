@@ -75,17 +75,10 @@ struct UCI
 				return;
 			}
 			else if (parsed == "eval") {
-				std::cerr << "side to move " << search.eval.evaluate(board) << "\n";
-				board.side_to_move = Color(!board.side_to_move);
-				std::cerr << "other side " << search.eval.evaluate(board) << "\n";
+				mirror_test(board, search);
 				return;
 			}
 		}
-		int eval = search.eval.evaluate(board);
-		board.side_to_move = Color (!board.side_to_move);
-		if (eval != -search.eval.evaluate(board)) std::cerr << "unmirrored evaluation";
-		board.side_to_move = Color (!board.side_to_move);
-
 		search.start_search(board);
 	}
 

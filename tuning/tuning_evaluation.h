@@ -207,10 +207,12 @@ struct Evaluation : Noncopyable
 
 		bool blocked = board.precomputed.forward_file_mask[color][square] & friendly_pawns;
 
+		unsigned index = normalize[color][square];
+
 		// reward passed pawns
 		if (!(board.precomputed.passed_pawn_mask[color][square] & enemy_pawns) && !blocked) {
-			mg_bonus[color] += mg_passed_bonus[square];
-			eg_bonus[color] += eg_passed_bonus[square];
+			mg_bonus[color] += mg_passed_bonus[index];
+			eg_bonus[color] += eg_passed_bonus[index];
 		}
 
 		// punish isolated pawns

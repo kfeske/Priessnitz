@@ -37,3 +37,25 @@ void run_test_suite(Board &board, Search &search)
 	std::cerr << "\npos6 ";
 	test_position(board, search, pos6);
 }
+
+// exchange the colors of the pieces on the board. The evaluation should still be the same
+void mirror_test(Board &board, Search &search)
+{
+	print_board(board);
+	std::cerr << "side to move " << search.eval.evaluate(board) << "\n";
+
+	Board mirrored_board {};
+	mirrored_board.side_to_move = Color(!board.side_to_move);
+
+	for (unsigned p = W_PAWN; p <= B_KING; p++) {
+		PieceType pt = type_of(Piece(p));
+		Color color = color_of(Piece(p));
+		uint64_t bb = board.pieces[p];
+		while (bb) {
+			unsigned square = pop_lsb(bb);
+			mirrored_board.add_piece(mirrored(square), piece_of(!color, pt));
+		}
+	}
+	print_board(mirrored_board);
+	std::cerr << "other side " << search.eval.evaluate(mirrored_board) << "\n";
+}
