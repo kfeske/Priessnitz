@@ -72,7 +72,16 @@ enum Indicies {
 	MG_KING_MOBILITY   = EG_QUEEN_MOBILITY + 28,
 	EG_KING_MOBILITY   = MG_KING_MOBILITY + 9,
 
-	RING_POTENCY = EG_KING_MOBILITY + 9,
+	MG_MINOR_THREATENED_BY_PAWN   = EG_KING_MOBILITY + 9,
+	EG_MINOR_THREATENED_BY_PAWN   = MG_MINOR_THREATENED_BY_PAWN + 1,
+	MG_MINOR_THREATENED_BY_MINOR  = EG_MINOR_THREATENED_BY_PAWN + 1,
+	EG_MINOR_THREATENED_BY_MINOR  = MG_MINOR_THREATENED_BY_MINOR + 1,
+	MG_ROOK_THREATENED_BY_LESSER  = EG_MINOR_THREATENED_BY_MINOR + 1,
+	EG_ROOK_THREATENED_BY_LESSER  = MG_ROOK_THREATENED_BY_LESSER + 1,
+	MG_QUEEN_THREATENED_BY_LESSER = EG_ROOK_THREATENED_BY_LESSER + 1,
+	EG_QUEEN_THREATENED_BY_LESSER = MG_QUEEN_THREATENED_BY_LESSER + 1,
+
+	RING_POTENCY = EG_QUEEN_THREATENED_BY_LESSER + 1,
 	ZONE_POTENCY = RING_POTENCY + 6,
 	RING_PRESSURE = ZONE_POTENCY + 6,
 	ZONE_PRESSURE = RING_PRESSURE + 8,
@@ -94,7 +103,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 61,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 69,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -151,6 +160,8 @@ struct Tuner
 					   MG_KNIGHT_OUTPOST, EG_KNIGHT_OUTPOST, MG_KNIGHT_OUTPOST_SUPPORTED, EG_KNIGHT_OUTPOST_SUPPORTED,
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
+					   MG_MINOR_THREATENED_BY_PAWN, EG_MINOR_THREATENED_BY_PAWN, MG_MINOR_THREATENED_BY_MINOR, EG_MINOR_THREATENED_BY_MINOR,
+					   MG_ROOK_THREATENED_BY_LESSER, EG_ROOK_THREATENED_BY_LESSER, MG_QUEEN_THREATENED_BY_LESSER, EG_QUEEN_THREATENED_BY_LESSER,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
 					   CENTER_CONTROL,
 					   PAWN_COUNT_SCALE_OFFSET,
@@ -233,6 +244,15 @@ struct Tuner
 		case EG_QUEEN_MOBILITY:  return eval.eg_queen_mobility[pos];
 		case MG_KING_MOBILITY:   return eval.mg_king_mobility[pos];
 		case EG_KING_MOBILITY:   return eval.eg_king_mobility[pos];
+
+		case MG_MINOR_THREATENED_BY_PAWN: return eval.mg_minor_threatened_by_pawn;
+		case EG_MINOR_THREATENED_BY_PAWN: return eval.eg_minor_threatened_by_pawn;
+		case MG_MINOR_THREATENED_BY_MINOR: return eval.mg_minor_threatened_by_minor;
+		case EG_MINOR_THREATENED_BY_MINOR: return eval.eg_minor_threatened_by_minor;
+		case MG_ROOK_THREATENED_BY_LESSER: return eval.mg_rook_threatened_by_lesser;
+		case EG_ROOK_THREATENED_BY_LESSER: return eval.eg_rook_threatened_by_lesser;
+		case MG_QUEEN_THREATENED_BY_LESSER: return eval.mg_queen_threatened_by_lesser;
+		case EG_QUEEN_THREATENED_BY_LESSER: return eval.eg_queen_threatened_by_lesser;
 
 		case RING_POTENCY:  return eval.ring_attack_potency[pos];
 		case ZONE_POTENCY:  return eval.zone_attack_potency[pos];
@@ -371,6 +391,15 @@ struct Tuner
 		for (unsigned i = 0; i < 9; i++) print_int_weight(EG_KING_MOBILITY + i);
 		std::cerr << "};\n";
 
+		std::cerr << "\nint mg_minor_threatened_by_pawn = "   << int_weight(MG_MINOR_THREATENED_BY_PAWN) << ";\n";
+		std::cerr <<   "int eg_minor_threatened_by_pawn = "   << int_weight(EG_MINOR_THREATENED_BY_PAWN) << ";\n";
+		std::cerr << "\nint mg_minor_threatened_by_minor = "  << int_weight(MG_MINOR_THREATENED_BY_MINOR) << ";\n";
+		std::cerr <<   "int eg_minor_threatened_by_minor = "  << int_weight(EG_MINOR_THREATENED_BY_MINOR) << ";\n";
+		std::cerr << "\nint mg_rook_threatened_by_lesser = "  << int_weight(MG_ROOK_THREATENED_BY_LESSER) << ";\n";
+		std::cerr <<   "int eg_rook_threatened_by_lesser = "  << int_weight(EG_ROOK_THREATENED_BY_LESSER) << ";\n";
+		std::cerr << "\nint mg_queen_threatened_by_lesser = " << int_weight(MG_QUEEN_THREATENED_BY_LESSER) << ";\n";
+		std::cerr <<   "int eg_queen_threatened_by_lesser = " << int_weight(EG_QUEEN_THREATENED_BY_LESSER) << ";\n";
+
 		std::cerr << "\nint mg_passed_bonus[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_PAWN + i);
 		std::cerr << "};\n";
@@ -477,8 +506,14 @@ struct Tuner
 		double eg_phase = (1 - sample.phase);
 
 		uint64_t attacked[2] {};
-		attacked[WHITE] |= board.all_pawn_attacks(WHITE);
-		attacked[BLACK] |= board.all_pawn_attacks(BLACK);
+		uint64_t attacked_by_piece[2][6] {};
+		uint64_t white_pawn_attacks = board.all_pawn_attacks(WHITE);
+		uint64_t black_pawn_attacks = board.all_pawn_attacks(BLACK);
+		attacked[WHITE] |= white_pawn_attacks;
+		attacked[BLACK] |= black_pawn_attacks;
+		attacked_by_piece[WHITE][PAWN] = white_pawn_attacks;
+		attacked_by_piece[BLACK][PAWN] = black_pawn_attacks;
+
 
 		uint64_t all_pieces = board.occ;
 		while (all_pieces) {
@@ -568,6 +603,7 @@ struct Tuner
 				{
 				uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
 				attacked[friendly] |= attacks;
+				attacked_by_piece[friendly][KNIGHT] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -593,6 +629,7 @@ struct Tuner
 				uint64_t ray_blockers = board.occ & ~board.pieces(friendly, QUEEN);
 				uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
 				attacked[friendly] |= attacks;
+				attacked_by_piece[friendly][BISHOP] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -605,6 +642,7 @@ struct Tuner
 				uint64_t ray_blockers = board.occ & ~(board.pieces(friendly, QUEEN) | board.pieces(friendly, ROOK));
 				uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
 				attacked[friendly] |= attacks;
+				attacked_by_piece[friendly][ROOK] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -632,6 +670,7 @@ struct Tuner
 				{
 				uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
 				attacked[friendly] |= attacks;
+				attacked_by_piece[friendly][QUEEN] |= attacks;
 				extract_king_safety(sample, piece, attacks, enemy);
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
@@ -643,6 +682,7 @@ struct Tuner
 				{
 				uint64_t attacks = piece_attacks(KING, square, 0ULL);
 				attacked[friendly] |= attacks;
+				attacked_by_piece[friendly][KING] |= attacks;
 
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 				mg_influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
@@ -668,10 +708,49 @@ struct Tuner
 			eg_influences[EG_DOUBLE_BISHOP] -= eg_phase;
 		}
 
+		// Threats
+		uint64_t white_knights = board.pieces(WHITE, KNIGHT);
+		uint64_t white_bishops = board.pieces(WHITE, BISHOP);
+		uint64_t white_rooks   = board.pieces(WHITE, ROOK);
+		uint64_t white_queens  = board.pieces(WHITE, QUEEN);
+		uint64_t black_knights = board.pieces(BLACK, KNIGHT);
+		uint64_t black_bishops = board.pieces(BLACK, BISHOP);
+		uint64_t black_rooks   = board.pieces(BLACK, ROOK);
+		uint64_t black_queens  = board.pieces(BLACK, QUEEN);
+
+		uint64_t attacked_by_white_pawn  = attacked_by_piece[WHITE][PAWN];
+		uint64_t attacked_by_white_minor = attacked_by_piece[WHITE][KNIGHT] | attacked_by_piece[WHITE][BISHOP];
+		uint64_t attacked_by_black_pawn  = attacked_by_piece[BLACK][PAWN];
+		uint64_t attacked_by_black_minor = attacked_by_piece[BLACK][KNIGHT] | attacked_by_piece[BLACK][BISHOP];
+
+		// Our minors attacked by enemy pawns
+		int white_minors_threatened_by_pawn = pop_count((white_knights | white_bishops) & attacked_by_black_pawn);
+		int black_minors_threatened_by_pawn = pop_count((black_knights | black_bishops) & attacked_by_white_pawn);
+		mg_influences[MG_MINOR_THREATENED_BY_PAWN] = (white_minors_threatened_by_pawn - black_minors_threatened_by_pawn) * mg_phase;
+		eg_influences[EG_MINOR_THREATENED_BY_PAWN] = (white_minors_threatened_by_pawn - black_minors_threatened_by_pawn) * eg_phase;
+
+		// Our minors attacked by enemy minors
+		int white_minors_threatened_by_minors = pop_count((white_knights | white_bishops) & attacked_by_black_minor);
+		int black_minors_threatened_by_minors = pop_count((black_knights | black_bishops) & attacked_by_white_minor);
+		mg_influences[MG_MINOR_THREATENED_BY_MINOR] = (white_minors_threatened_by_minors - black_minors_threatened_by_minors) * mg_phase;
+		eg_influences[EG_MINOR_THREATENED_BY_MINOR] = (white_minors_threatened_by_minors - black_minors_threatened_by_minors) * eg_phase;
+
+		// Our rooks attacked by enemy minors or pawns
+		int white_rooks_threatened_by_lesser = pop_count(white_rooks & (attacked_by_black_pawn | attacked_by_black_minor));
+		int black_rooks_threatened_by_lesser = pop_count(black_rooks & (attacked_by_white_pawn | attacked_by_white_minor));
+		mg_influences[MG_ROOK_THREATENED_BY_LESSER] = (white_rooks_threatened_by_lesser - black_rooks_threatened_by_lesser) * mg_phase;
+		eg_influences[EG_ROOK_THREATENED_BY_LESSER] = (white_rooks_threatened_by_lesser - black_rooks_threatened_by_lesser) * eg_phase;
+
+		// Our queens attacked by lesser pieces
+		int white_queens_threatened_by_lesser = pop_count(white_queens & (attacked[BLACK] & !attacked_by_piece[BLACK][QUEEN]));
+		int black_queens_threatened_by_lesser = pop_count(black_queens & (attacked[WHITE] & !attacked_by_piece[WHITE][QUEEN]));
+		mg_influences[MG_QUEEN_THREATENED_BY_LESSER] = (white_queens_threatened_by_lesser - black_queens_threatened_by_lesser) * mg_phase;
+		eg_influences[EG_QUEEN_THREATENED_BY_LESSER] = (white_queens_threatened_by_lesser - black_queens_threatened_by_lesser) * eg_phase;
+
 		// Center control
 		uint64_t white_center_attacks = ~attacked[BLACK] & attacked[WHITE] & CENTER;
 		uint64_t black_center_attacks = ~attacked[WHITE] & attacked[BLACK] & CENTER;
-		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) / 128;
+		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) / 128 * mg_phase;
 
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {

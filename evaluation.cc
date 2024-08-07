@@ -282,6 +282,39 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	info.mg_bonus[friendly] -= info.zone_pressure[friendly] * zone_pressure_weight[std::min(info.zone_attackers[friendly], 7)] / 100;
 }
 
+void Evaluation::evaluate_threats(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+
+	uint64_t friendly_knights = board.pieces(friendly, KNIGHT);
+	uint64_t friendly_bishops = board.pieces(friendly, BISHOP);
+	uint64_t friendly_rooks   = board.pieces(friendly, ROOK);
+	uint64_t friendly_queens  = board.pieces(friendly, QUEEN);
+
+	uint64_t attacked_by_pawn  = info.attacked_by_piece[enemy][PAWN];
+	uint64_t attacked_by_minor = info.attacked_by_piece[enemy][KNIGHT] | info.attacked_by_piece[enemy][BISHOP];
+
+	// Our minors attacked by enemy pawns
+	uint64_t minors_threatened_by_pawn   = pop_count((friendly_knights | friendly_bishops) & attacked_by_pawn);
+	info.mg_bonus[friendly] += mg_minor_threatened_by_pawn * minors_threatened_by_pawn;
+	info.eg_bonus[friendly] += eg_minor_threatened_by_pawn * minors_threatened_by_pawn;
+
+	// Our minors attacked by enemy minors
+	uint64_t minors_threatened_by_minors = pop_count((friendly_knights | friendly_bishops) & attacked_by_minor);
+	info.mg_bonus[friendly] += mg_minor_threatened_by_minor * minors_threatened_by_minors;
+	info.eg_bonus[friendly] += eg_minor_threatened_by_minor * minors_threatened_by_minors;
+
+	// Our rooks attacked by enemy minors or pawns
+	uint64_t rooks_threatened_by_lesser = pop_count(friendly_rooks & (attacked_by_pawn | attacked_by_minor));
+	info.mg_bonus[friendly] += mg_rook_threatened_by_lesser * rooks_threatened_by_lesser;
+	info.eg_bonus[friendly] += eg_rook_threatened_by_lesser * rooks_threatened_by_lesser;
+
+	// Our queens attacked by lesser pieces
+	uint64_t queens_threatened_by_lesser = pop_count(friendly_queens & (info.attacked[enemy] & !info.attacked_by_piece[enemy][QUEEN]));
+	info.mg_bonus[friendly] += mg_queen_threatened_by_lesser * queens_threatened_by_lesser;
+	info.eg_bonus[friendly] += eg_queen_threatened_by_lesser * queens_threatened_by_lesser;
+}
+
 void Evaluation::evaluate_center_control(Color friendly)
 {
 	Color enemy = swap(friendly);
@@ -317,6 +350,9 @@ int Evaluation::evaluate(Board &board)
 	evaluate_queens( board, BLACK);
 	evaluate_kings(  board, WHITE);
 	evaluate_kings(  board, BLACK);
+
+	evaluate_threats(board, WHITE);
+	evaluate_threats(board, BLACK);
 
 	evaluate_center_control(WHITE);
 	evaluate_center_control(BLACK);
