@@ -73,6 +73,7 @@ enum Color {
 	WHITE, BLACK
 };
 
+// switches the color from WHITE to BLACK and back
 Color swap(Color color)
 {
 	return Color(!color);
@@ -102,6 +103,18 @@ Piece piece_of(Color color, Piece_type type)
 	return Piece((color << 3) + type);
 }
 
+uint64_t rank(unsigned square)
+{
+	unsigned index = square >> 3;
+	return RANK_1 << (index * 8);
+}
+
+uint64_t file(unsigned square)
+{
+	unsigned index = square & 7;
+	return FILE_A << index;
+}
+
 // used in search and move ordering, but not in the evaluation
 int const piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
 			100, 300, 320, 500, 900, 1000 };
@@ -109,29 +122,31 @@ int const piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
 int const non_pawn_value[14] = { 0, 300, 320, 500, 900, 0, 0, 0,
 			   0, 300, 320, 500, 900, 0 };
 
+// directions are relative to whites' point of view
 enum Direction {
-	NORTH = -8,
-	SOUTH = -NORTH,
-	EAST = 1,
-	WEST = -1,
+	UP    = -8,
+	DOWN  =  8,
+	LEFT  = -1,
+	RIGHT =  1,
 
-	NORTH_EAST = NORTH + EAST,
-	NORTH_WEST = NORTH + WEST,
-	SOUTH_EAST = SOUTH + EAST,
-	SOUTH_WEST = SOUTH + WEST
+	UP_LEFT    = UP + LEFT,
+	UP_RIGHT   = UP + RIGHT,
+	DOWN_LEFT  = DOWN + LEFT,
+	DOWN_RIGHT = DOWN + RIGHT
 };
 
-uint64_t shift(uint64_t b, Direction d)
+// shifts every bit in a bitboard in a direction
+uint64_t shift(uint64_t bitboard, Direction direction)
 {
-	switch(d) {
-	case NORTH: return b >> 8;
-	case SOUTH: return b << 8;
-	case EAST:  return b << 1;
-	case WEST:  return b >> 1;
-	case NORTH_EAST: return b >> 7;
-	case NORTH_WEST: return b >> 9;
-	case SOUTH_EAST: return b << 9;
-	case SOUTH_WEST: return b << 7;
+	switch(direction) {
+	case UP: return bitboard >> 8;
+	case DOWN: return bitboard << 8;
+	case LEFT:  return (bitboard & ~FILE_A) >> 1;
+	case RIGHT:  return (bitboard & ~FILE_H) << 1;
+	case UP_LEFT: return (bitboard & ~FILE_A) >> 9;
+	case UP_RIGHT: return (bitboard & ~FILE_H) >> 7;
+	case DOWN_LEFT: return (bitboard & ~FILE_A) << 7;
+	case DOWN_RIGHT: return (bitboard & ~FILE_H) << 9;
 	default: return 0ULL;
 	}
 }
@@ -201,29 +216,29 @@ bool capture(Move move)
 	return (flags_of(move) & 0b0100);
 }
 
-unsigned rank(unsigned square)
+unsigned rank_num(unsigned square)
 {
 	// equivalent to "square / 8".
 	return square >> 3;
 }
 
-unsigned file(unsigned square)
+unsigned file_num(unsigned square)
 {
 	// thanks to the 8 * 8 chess board, the last three bits denote the file.
 	return square & 7;
 }
 
-bool is_edge(unsigned square, Direction d)
+bool edge(unsigned square, Direction d)
 {
 	switch(d) {
-	case NORTH: return (rank(square) == 0);
-	case SOUTH: return (rank(square) == 7);
-	case EAST:  return (file(square) == 7);
-	case WEST:  return (file(square) == 0);
-	case NORTH_EAST: return (rank(square) == 0 || file(square) == 7);
-	case SOUTH_EAST: return (rank(square) == 7 || file(square) == 7);
-	case SOUTH_WEST: return (rank(square) == 7 || file(square) == 0);
-	case NORTH_WEST: return (rank(square) == 0 || file(square) == 0);
+	case UP: return (rank_num(square) == 0);
+	case DOWN: return (rank_num(square) == 7);
+	case RIGHT:  return (file_num(square) == 7);
+	case LEFT:  return (file_num(square) == 0);
+	case UP_RIGHT: return (rank_num(square) == 0 || file_num(square) == 7);
+	case DOWN_RIGHT: return (rank_num(square) == 7 || file_num(square) == 7);
+	case DOWN_LEFT: return (rank_num(square) == 7 || file_num(square) == 0);
+	case UP_LEFT: return (rank_num(square) == 0 || file_num(square) == 0);
 	default: return false;
 	}
 }
@@ -253,41 +268,41 @@ uint64_t random_64()
 
 // bit stuff
 
-bool get_bit(uint64_t b, unsigned square)
+bool get_bit(uint64_t bitboard, unsigned square)
 {
-	return (b & (1ULL << square));
+	return (bitboard & (1ULL << square));
 }
 
-void set_bit(uint64_t &b, unsigned square)
+void set_bit(uint64_t &bitboard, unsigned square)
 {
-	b |= (1ULL << square);
+	bitboard |= (1ULL << square);
 }
 
-void pop_bit(uint64_t &b, unsigned square)
+void pop_bit(uint64_t &bitboard, unsigned square)
 {
-	b &= ~(1ULL << square);
+	bitboard &= ~(1ULL << square);
 }
 
-unsigned pop_count(uint64_t b)
+unsigned pop_count(uint64_t bitboard)
 {
-	return __builtin_popcountll(b);
+	return __builtin_popcountll(bitboard);
 }
 
-unsigned lsb(uint64_t b)
+unsigned lsb(uint64_t bitboard)
 {
-	return __builtin_ctzll(b);
+	return __builtin_ctzll(bitboard);
 }
 
-unsigned pop_lsb(uint64_t &b)
+unsigned pop_lsb(uint64_t &bitboard)
 {
-	unsigned square = lsb(b);
-	b &= (b - 1);
+	unsigned square = lsb(bitboard);
+	bitboard &= (bitboard - 1);
 	return square;
 }
 
 // print
 
-void print_bitboard(uint64_t b)
+void print_bitboard(uint64_t bitboard)
 {
 	std::string str = "    +---+---+---+---+---+---+---+---+\n";
 
@@ -295,7 +310,7 @@ void print_bitboard(uint64_t b)
 		str += "  " + std::to_string(8 - rank) + " ";
 		for (unsigned file = 0; file < 8; file++) { 
 			unsigned square = rank * 8 + file;
-			str += get_bit(b, square) ? "| X " : "|   ";
+			str += get_bit(bitboard, square) ? "| X " : "|   ";
 
 		}
 		str += "|\n    +---+---+---+---+---+---+---+---+\n";

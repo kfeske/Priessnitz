@@ -14,9 +14,9 @@ struct Move_generator : Noncopyable
 
 	void generate_pawn_moves(Board &board, Color col, uint64_t targets, uint64_t quiets, uint64_t pinned, unsigned ksq, uint64_t sliders)
 	{
-		Direction up = (col == WHITE) ? NORTH : SOUTH;
-		Direction up_right = (col == WHITE) ? NORTH_EAST : SOUTH_EAST;
-		Direction up_left  = (col == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		Direction up = (col == WHITE) ? UP : DOWN;
+		Direction up_right = (col == WHITE) ? UP_RIGHT : DOWN_RIGHT;
+		Direction up_left  = (col == WHITE) ? UP_LEFT : DOWN_LEFT;
 		uint64_t double_push_rank = (col == WHITE) ? RANK_6 : RANK_3;
 
 		// pawns on the board (unpinned and pinned)
@@ -130,7 +130,7 @@ struct Move_generator : Noncopyable
 			uint64_t attacks = board.precomputed.pawn_attacks[col][square] & targets & board.precomputed.line_bb[ksq][square];
 
 			// pinned promotion
-			if (rank(square) == promotion_rank) {
+			if (rank_num(square) == promotion_rank) {
 				append_attacks<PC_KNIGHT>(square, attacks);
 				append_attacks<PC_BISHOP>(square, attacks);
 				append_attacks<PC_ROOK>(square, attacks);
@@ -191,8 +191,8 @@ struct Move_generator : Noncopyable
 		uint64_t pawns = board.pieces[piece_of(enemy, PAWN)];
 		uint64_t enemy_diag_sliders = board.pieces[piece_of(enemy, BISHOP)] | board.pieces[piece_of(enemy, QUEEN)];
 		uint64_t enemy_orth_sliders = board.pieces[piece_of(enemy, ROOK)]   | board.pieces[piece_of(enemy, QUEEN)];
-		Direction up_right = (enemy == WHITE) ? NORTH_EAST : SOUTH_EAST;
-		Direction up_left  = (enemy == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		Direction up_right = (enemy == WHITE) ? UP_RIGHT : DOWN_RIGHT;
+		Direction up_left  = (enemy == WHITE) ? UP_LEFT : DOWN_LEFT;
 
 		uint64_t danger = 0ULL;
 
@@ -295,8 +295,8 @@ struct Move_generator : Noncopyable
 
 	void generate_pawn_attacks(Board &board, Color friendly, uint64_t targets)
 	{
-		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
-		Direction up_left  = (friendly == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		Direction up_right = (friendly == WHITE) ? UP_RIGHT : DOWN_RIGHT;
+		Direction up_left  = (friendly == WHITE) ? UP_LEFT : DOWN_LEFT;
 		uint64_t pawns = board.pieces[piece_of(friendly, PAWN)];
 		uint64_t right_attacks = shift(pawns & ~FILE_H, up_right) & targets;
 		uint64_t left_attacks  = shift(pawns & ~FILE_A, up_left ) & targets;
@@ -335,8 +335,8 @@ struct Move_generator : Noncopyable
 		uint64_t pawns = board.pieces[piece_of(enemy, PAWN)];
 		uint64_t enemy_diag_sliders = board.pieces[piece_of(enemy, BISHOP)] | board.pieces[piece_of(enemy, QUEEN)];
 		uint64_t enemy_orth_sliders = board.pieces[piece_of(enemy, ROOK)]   | board.pieces[piece_of(enemy, QUEEN)];
-		Direction up_right = (enemy == WHITE) ? NORTH_EAST : SOUTH_EAST;
-		Direction up_left  = (enemy == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		Direction up_right = (enemy == WHITE) ? UP_RIGHT : DOWN_RIGHT;
+		Direction up_left  = (enemy == WHITE) ? UP_LEFT : DOWN_LEFT;
 
 		uint64_t danger = 0ULL;
 
@@ -405,7 +405,7 @@ struct Move_generator : Noncopyable
 
 
 		// generate quiet queen promotions too
-		Direction up = (friendly == WHITE) ? NORTH : SOUTH;
+		Direction up = (friendly == WHITE) ? UP : DOWN;
 		pawns = board.pieces[piece_of(friendly, PAWN)] & ~pinned;
 		pawns &= (friendly == WHITE) ? RANK_2 : RANK_7;
 		if (pawns && !checkers) {

@@ -96,17 +96,6 @@ struct PreComputed : Noncopyable
 	uint64_t neighbor_mask[64];
 	uint64_t king_zone[2][64];
 
-	uint64_t rank_bb(unsigned square)
-	{
-		unsigned index = square >> 3;
-		return RANK_1 << (index * 8);
-	}
-
-	uint64_t file_bb(unsigned square)
-	{
-		unsigned index = square & 7;
-		return FILE_A << index;
-	}
 
 	// precomputed attack data for the leaper pieces (Pawns, Knight, King)
 	template <Color color>
@@ -160,8 +149,8 @@ struct PreComputed : Noncopyable
 	uint64_t sliding_attack_bb(Piece_type type, unsigned square, uint64_t occ)
 	{
 		uint64_t attacks = 0ULL;
-		Direction direction_rook[4]   = {NORTH, SOUTH, EAST, WEST};
-		Direction direction_bishop[4] = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
+		Direction direction_rook[4]   = {UP, DOWN, RIGHT, LEFT};
+		Direction direction_bishop[4] = {UP_RIGHT, DOWN_RIGHT, DOWN_LEFT, UP_LEFT};
 
 		for (Direction d : (type == ROOK) ? direction_rook : direction_bishop) {
 			unsigned s = square;
@@ -169,7 +158,7 @@ struct PreComputed : Noncopyable
 
 			while (true) {
 				attacks |= target_square;
-				if (is_edge(s, d)) break;
+				if (edge(s, d)) break;
 				s += d;
 				if (occ & target_square) break;
 				target_square = 1ULL << s;
@@ -196,7 +185,7 @@ struct PreComputed : Noncopyable
 	{
 		for (unsigned square = 0; square < 64; square++) {
 
-			uint64_t edges = ((RANK_1 | RANK_8) & ~rank_bb(square)) | ((FILE_A | FILE_H) & ~file_bb(square));
+			uint64_t edges = ((RANK_1 | RANK_8) & ~rank(square)) | ((FILE_A | FILE_H) & ~file(square));
 
 			// the edges of the board are not considered, a piece on the edge cannot block a sliding piece
 			uint64_t ray_mask = sliding_attack_bb(type, square, 0ULL) & ~edges;
@@ -287,27 +276,27 @@ struct PreComputed : Noncopyable
 		for (unsigned square = 0; square < 64; square++) {
 
 			// the file of the square, and the two adjacent files
-			uint64_t adjacent_mask = file_bb(square);
+			uint64_t adjacent_mask = file(square);
 			adjacent_mask |= (adjacent_mask & ~FILE_A) >> 1;
 			adjacent_mask |= (adjacent_mask & ~FILE_H) << 1;
 
 			// all rows in front of the square row
 			uint64_t all_mask = ~0ULL;
-			uint64_t white_forward_mask = (rank(square) > 0) ? all_mask >> 8 * (8 - rank(square)) : 0;
-			uint64_t black_forward_mask = (rank(square) < 7) ? all_mask << 8 * (rank(square) + 1) : 0;
+			uint64_t white_forward_mask = (rank_num(square) > 0) ? all_mask >> 8 * (8 - rank_num(square)) : 0;
+			uint64_t black_forward_mask = (rank_num(square) < 7) ? all_mask << 8 * (rank_num(square) + 1) : 0;
 
 			// a pawn is passed if there are no enemy pawns on the same or the adjacent files in front of it
 			passed_pawn_mask[WHITE][square] = white_forward_mask & adjacent_mask;
 			passed_pawn_mask[BLACK][square] = black_forward_mask & adjacent_mask;
 
 			// forward_file_mask is used for detecting doubled or blocked pawns
-			forward_file_mask[WHITE][square] = file_bb(square) & white_forward_mask;
-			forward_file_mask[BLACK][square] = file_bb(square) & black_forward_mask;
+			forward_file_mask[WHITE][square] = file(square) & white_forward_mask;
+			forward_file_mask[BLACK][square] = file(square) & black_forward_mask;
 
 			// a pawn is isolated, if there are no pawns on the neighbor files
-			isolated_pawn_mask[file(square)] = adjacent_mask & ~file_bb(square);
+			isolated_pawn_mask[file_num(square)] = adjacent_mask & ~file(square);
 
-			neighbor_mask[square] = adjacent_mask & rank_bb(square) & ~(1ULL << square);
+			neighbor_mask[square] = adjacent_mask & rank(square) & ~(1ULL << square);
 
 			// the king zone squares are the squares, the king can reach plus three squares in the enemy direction
 			if (square >= 24) king_zone[WHITE][square] = king_attacks[square - 24] | 1ULL << (square - 24);

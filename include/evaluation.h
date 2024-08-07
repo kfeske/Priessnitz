@@ -193,8 +193,8 @@ struct Evaluation : Noncopyable
 		Color enemy = swap(friendly);
 		uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
 		uint64_t enemy_pawns = board.pieces[piece_of(enemy, PAWN)];
-		unsigned forward = (friendly == WHITE) ? NORTH : SOUTH;
-		uint64_t adjacent_files = board.precomputed.isolated_pawn_mask[file(square)];
+		unsigned forward = (friendly == WHITE) ? UP : DOWN;
+		uint64_t adjacent_files = board.precomputed.isolated_pawn_mask[file_num(square)];
 
 		bool passed = !(board.precomputed.passed_pawn_mask[friendly][square] & enemy_pawns);
 		bool doubled = board.precomputed.forward_file_mask[friendly][square] & friendly_pawns;

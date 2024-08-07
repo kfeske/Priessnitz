@@ -164,9 +164,9 @@ struct Board : Board_state
 			break;
 		case DOUBLE_PUSH:
 			{
-			Direction up = (side_to_move == WHITE) ? NORTH : SOUTH;
+			Direction up = (side_to_move == WHITE) ? UP : DOWN;
 			history[game_ply].ep_sq = from + up;	// set en passant square
-			zobrist.key ^= zobrist.ep_rand[file(from)];
+			zobrist.key ^= zobrist.ep_rand[file_num(from)];
 			}
 			push_piece_quiet(from, to);
 			break;
@@ -178,7 +178,7 @@ struct Board : Board_state
 			break;
 		case EP_CAPTURE:
 			{
-			Direction up = (side_to_move == WHITE) ? SOUTH : NORTH;
+			Direction up = (side_to_move == WHITE) ? DOWN : UP;
 			push_piece_quiet(from, to);
 			remove_piece(to + up);
 			}
@@ -286,7 +286,7 @@ struct Board : Board_state
 		case EP_CAPTURE:
 			push_piece_quiet(from, to);
 			{
-			Direction up = (side_to_move == WHITE) ? NORTH : SOUTH;
+			Direction up = (side_to_move == WHITE) ? UP : DOWN;
 			add_piece(from + up, piece_of(side_to_move, PAWN));
 			}
 			break;
@@ -314,7 +314,7 @@ struct Board : Board_state
 		zobrist.key ^= zobrist.piece_side_key;
 		zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
 		if (history[game_ply].ep_sq != SQ_NONE)
-			zobrist.key ^= zobrist.ep_rand[file(history[game_ply].ep_sq)];
+			zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
 
 		repetition = false;
 		side_to_move = swap(side_to_move);
@@ -330,7 +330,7 @@ struct Board : Board_state
 		unsigned ep = history[game_ply].ep_sq;
 		if (ep != SQ_NONE) {
 			history[game_ply].ep_sq = SQ_NONE;
-			zobrist.key ^= zobrist.ep_rand[file(ep)];
+			zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 		}
 
 		// returns a square to restore the ep square when we undo the null move
@@ -345,7 +345,7 @@ struct Board : Board_state
 
 		if (ep != SQ_NONE) {
 			history[game_ply].ep_sq = ep;
-			zobrist.key ^= zobrist.ep_rand[file(ep)];
+			zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 		}
 	}
 
@@ -370,8 +370,8 @@ struct Board : Board_state
 	// used in the SEE function
 	uint64_t pawn_attacks(Color friendly)
 	{
-		Direction up_right = (friendly == WHITE) ? NORTH_EAST : SOUTH_EAST;
-		Direction up_left  = (friendly == WHITE) ? NORTH_WEST : SOUTH_WEST;
+		Direction up_right = (friendly == WHITE) ? UP_RIGHT : DOWN_RIGHT;
+		Direction up_left  = (friendly == WHITE) ? UP_LEFT : DOWN_LEFT;
 		uint64_t pawns = pieces[piece_of(friendly, PAWN)];
 		return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
 	}
@@ -381,7 +381,7 @@ struct Board : Board_state
 	bool passed_push(Move move)
 	{
 		unsigned to_square = move_to(move);
-		return (type_of(board[to_square]) == PAWN && rank(normalize[side_to_move][to_square]) > 4 &&
+		return (type_of(board[to_square]) == PAWN && rank_num(normalize[side_to_move][to_square]) > 4 &&
 			!(precomputed.passed_pawn_mask[!side_to_move][to_square] & pieces[piece_of(side_to_move, PAWN)]));
 	}
 
@@ -474,7 +474,7 @@ struct Board : Board_state
 		zobrist.key = zobrist.piece_side_key;
 		zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
 		if (history[game_ply].ep_sq != SQ_NONE)
-			zobrist.key ^= zobrist.ep_rand[file(history[game_ply].ep_sq)];
+			zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
 	}
 
 	void set_startpos()
