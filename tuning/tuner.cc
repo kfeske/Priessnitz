@@ -4,7 +4,8 @@
 #include <vector>
 
 #include "tuning_board.h"
-#include <evaluation.h>
+//#include <evaluation.h>
+#include "tuning_evaluation.h"
 
 enum INDICES {
 	MG_PAWN_PSQT = 0,
@@ -39,6 +40,16 @@ enum TUNING_PARAMETER {
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
 
+double random_double()
+{
+	return rand() / (RAND_MAX + 1.0);
+}
+
+double random_double(double min, double max)
+{
+	return min + (max-min)*random_double();
+}
+
 struct Sample
 {
 	std::string fen;
@@ -55,7 +66,8 @@ struct Tuner
 			     	      	  END_INDEX };
 
 	double const K = 1.5; // scaling constant for our evaluation function
-	double const H = 1;   // difference quotient step size
+	double const H = 0.001;   // difference quotient step size
+	double const LEARN_RATE = 100;
 
 	Board board {};
 	Evaluation eval {}; // to get the values from the original function
@@ -65,7 +77,7 @@ struct Tuner
 	double gradients[NUM_WEIGHTS];
 
 	// returns the value in a table at a position
-	int &table_value(INDICES table_index, unsigned pos)
+	double &table_value(INDICES table_index, unsigned pos)
 	{
 		switch (table_index) {
 		case MG_PAWN_PSQT: return eval.psqt.midgame[W_PAWN][pos];
@@ -105,7 +117,7 @@ struct Tuner
 	}
 
 	// returns the weight at an index from the evaluation function
-	int &load_weight(unsigned index)
+	double &load_weight(unsigned index)
 	{
 		INDICES table_index = table_of(index);
 		return table_value(table_index, index - table_index);
@@ -151,7 +163,7 @@ struct Tuner
 				print_table_name(table);
 			}
 
-			std::cerr << load_weight(i) << ", ";
+			std::cerr << int(load_weight(i)) << ", ";
 			if (table <= EG_PASSED_PAWN && (i + 1) % 8 == 0) std::cerr << "\n";
 		}
 
@@ -188,14 +200,13 @@ struct Tuner
 			}
 		}
 	}
-
-	void apply_gradients()
+	
+	void initialize_weights()
 	{
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
-			int &weight = load_weight(i);
-			// increase or decrease weight by one, based on how good it fared in the training set
-			if (gradients[i] > 0) weight--; // Note: actual gradient is (gradients[i] / BATCH_SIZE)
-			else if (gradients[i] < 0) weight++;
+			double &weight = load_weight(i);
+			//weight = random_double(0, 100);
+			if (table_of(i) != ATTACK_POTENCY) weight = 0;
 		}
 	}
 
@@ -236,20 +247,50 @@ struct Tuner
 		return average_error / BATCH_SIZE;
 	}
 
+	void apply_gradients()
+	{
+		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
+			double &weight = load_weight(i);
+			// increase or decrease weight by one, based on how good it fared in the training set
+			//if (gradients[i] > 0) weight--; // Note: actual gradient is (gradients[i] / BATCH_SIZE)
+			//else if (gradients[i] < 0) weight++;
+			weight -= gradients[i] * LEARN_RATE;
+		}
+	}
+
 	void compute_gradients(unsigned batch)
 	{
+		//double cost_before[NUM_WEIGHTS];
+		//double cost_after[NUM_WEIGHTS];
 
-		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
-			int &weight = load_weight(i);
+		for (unsigned w = 0; w < NUM_WEIGHTS; w++)
+			gradients[w] = 0;
 
-			// calculate gradient with difference quotient
-			double cost_before = average_batch_cost(batch);
-			weight += H;
-			double gradient = (average_batch_cost(batch) - cost_before) / H;
-			weight -= H;
+		for (unsigned i = 0; i < BATCH_SIZE; i++) {
+			Sample &sample = training_set.at(batch * BATCH_SIZE + i);
+			board.set_fenpos(sample.fen);
+			for (unsigned w = 0; w < NUM_WEIGHTS; w++) {
+				double &weight = load_weight(w);
 
-			gradients[i] = gradient;
+				// how does the cost function change, when we make a slight adjustment to a weight
+				weight += H;
+				//cost_before[w] += cost(sample);
+				double cost_before = cost(sample);
+				weight -= 2 * H;
+				gradients[w] += (cost_before - cost(sample)) / (2 * H);
+				//cost_after[w] += cost(sample);
+				weight += H;
+			}
 		}
+
+
+		/*
+		for (unsigned w = 0; w < NUM_WEIGHTS; w++) {
+			cost_before[w] /= BATCH_SIZE;
+			cost_after[w] /= BATCH_SIZE;
+			// calculate gradient with difference quotient
+			gradients[w] = (cost_before[w] - cost_after[w]) / (2 * H);
+		}*/
 	}
 
 	// main function of the tuner
@@ -276,6 +317,7 @@ struct Tuner
 	Tuner()
 	{
 		load_training_set();
+		initialize_weights();
 		print_weights();
 	}
 };

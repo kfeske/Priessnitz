@@ -9,80 +9,39 @@ struct Evaluation : Noncopyable
 	int king_danger[2];
 	int king_attackers[2];
 
-	int attack_potency[6] = { 0, 20, 20, 40, 80, 0 };
-	int king_danger_weight[8] = { 0, 0, 50, 75, 88, 94, 97, 99 };
+	int attack_potency[6] = { 0, 20, 38, 28, 73, 0 };
+	int king_danger_weight[8] = { 0, 13, 58, 93, 126, 59, 0, 0 };
 
-	int average_mobility[6] = { 0, 30, 40, 50, 0, 0 };
-	int mg_mobility_weight[6] = { 0, 40, 50, 20, 10, 0 };
-	int eg_mobility_weight[6] = { 0, 40, 50, 40, 20, 0 };
+	int average_mobility[6] = { 0, -26, -14, -40, -109, 0 };
+	int mg_mobility_weight[6] = { 0, 159, 88, 80, 23, 0 };
+	int eg_mobility_weight[6] = { 0, -65, 28, 26, 68, 0 };
 
-	int mg_isolated_penalty = 15;
-	int eg_isolated_penalty = 5;
+	int mg_isolated_penalty = 21;
+	int eg_isolated_penalty = 11;
 
 	int mg_passed_bonus[64] =
 	{
-	  /*0,  0,  0,  0,  0,  0,  0,  0,
-	 40, 40, 40, 40, 40, 40, 40, 40,
-	 30, 30, 30, 30, 30, 30, 30, 30,
-	 15, 15, 15, 15, 15, 15, 15, 15,
-	  5,  5,  5,  5,  5,  5,  5,  5,
-	  5,  5,  5,  5,  5,  5,  5,  5,
-	  5,  5,  5,  5,  5,  5,  5,  5,
-	  0,  0,  0,  0,  0,  0,  0,  0,*/
-
-	 0, 0, 0, 0, 0, 0, 0, 0, 
-	 1, 18, 54, 37, 50, -4, 62, 29, 
-	 20, 9, 7, -4, -1, 38, 50, 43, 
-	 16, 0, -2, -28, -8, 49, 30, 17, 
-	 39, -15, -7, -4, 14, 32, 28, 27, 
-	 30, 16, 4, -4, -30, 0, 18, 23, 
-	 22, 1, 34, 26, 26, 41, 24, 28, 
-	 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 
+	7, 19, 20, -23, 47, 26, 41, 3, 
+	6, 4, -9, -23, -6, 11, 7, 21, 
+	28, 12, 1, -12, -3, -5, -9, 21, 
+	32, -8, -7, -11, -6, 9, -7, 7, 
+	13, 3, -6, -14, -4, 35, -23, 3, 
+	8, 6, 12, -3, -47, 21, 1, 5, 
+	0, 0, 0, 0, 0, 0, 0, 0, 
 	};
-
-	/*int mg_passed_bonus[64] = 
-	{
--26, -26, -26, -26, -10, -26, -26, -26,
--36, -36, -36, -36, -36, -36, -36, -36,
--15, -25, -21, -29, -25, -45, -37, -15,
-17, -5, -1, -7, 3, 11, 11, 7,
-23, 17, 11, 3, 9, 43, 17, 17,
--3, -1, 11, 27, -11, 33, -1, 5,
-0, 0, 0, 0, 0, 0, 0, 0,
-	};*/
 
 	int eg_passed_bonus[64] =
 	{
-	  /*0,  0,  0,  0,  0,  0,  0,  0,
-	 65, 65, 65, 65, 65, 65, 65, 65,
-	 65, 65, 65, 65, 65, 65, 65, 65,
-	 45, 45, 45, 45, 45, 45, 45, 45,
-	 25, 25, 25, 25, 25, 25, 25, 25,
-	  7,  7,  7,  7,  7,  7,  7,  7,
-	  3,  3,  3,  3,  3,  3,  3,  3,
-	  0,  0,  0,  0,  0,  0,  0,  0,*/
-
-	 0, 0, 0, 0, 0, 0, 0, 0, 
-	 6, -4, -7, 7, 47, -6, -14, -5, 
-	 28, 24, 18, 28, -4, 32, 16, 24, 
-	 48, 34, 30, 26, 34, 24, 42, 50, 
-	 50, 38, 38, 24, 28, 26, 34, 52, 
-	 38, 28, 14, 14, 12, 12, 22, 22, 
-	 10, -6, 3, 17, 22, 8, 5, 10, 
-	 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 
+	8, 9, -2, 2, 5, 3, 8, 12, 
+	54, 40, 24, 24, 12, 29, 41, 36, 
+	59, 54, 41, 31, 28, 36, 59, 51, 
+	56, 58, 48, 37, 33, 30, 63, 51, 
+	48, 43, 31, 25, 15, 17, 47, 33, 
+	7, 15, -1, 2, 21, 9, 20, 18, 
+	0, 0, 0, 0, 0, 0, 0, 0, 
 	};
-
-	/*int eg_passed_bonus[64] =
-	{
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	 77, 74, 63, 53, 59, 60, 72, 77,
-	 91, 83, 66, 40, 30, 61, 67, 84,
-	 55, 52, 42, 35, 30, 34, 56, 52,
-	 29, 26, 21, 18, 17, 19, 34, 30,
-	 8, 6, 5, 1, 1, -1, 14, 7,
-	 2, 3, -4, 0, -2, -1, 7, 6,
-	 0, 0, 0, 0, 0, 0, 0, 0,
-	};*/
 
 	// pawn structure evaluation
 	void evaluate_pawn(Board &board, unsigned square, Color color)
@@ -201,15 +160,15 @@ struct Evaluation : Noncopyable
 			Piece p = board.board[square];
 
 			// material and positional evaluation via Piece Square Tables
-			if (color_of(p) == WHITE) {
+			//if (color_of(p) == WHITE) {
 				mg_value += psqt.midgame[p][square] + piece_value(p, MIDGAME);
 				eg_value += psqt.endgame[p][square] + piece_value(p, ENDGAME);
-			}
-			else
-			{
-				mg_value += -psqt.midgame[p - 8][mirrored(square)] + piece_value(p, MIDGAME);
-				eg_value += -psqt.endgame[p - 8][mirrored(square)] + piece_value(p, ENDGAME);
-			}
+			//}
+			//else
+			//{
+			//	mg_value += -psqt.midgame[p - 8][mirrored(square)] + piece_value(p, MIDGAME);
+			//	eg_value += -psqt.endgame[p - 8][mirrored(square)] + piece_value(p, ENDGAME);
+			//}
 
 			evaluate_piece(board, p, square);
 		}
