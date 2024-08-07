@@ -41,7 +41,6 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
-	if (in_check && ply > 2) return alpha;
 	Move_orderer move_orderer;
 	if (in_check) move_orderer.stage = GENERATE_IN_CHECKS;
 	else 	      move_orderer.stage = GENERATE_QUIESCENCES;
@@ -215,11 +214,12 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		unsigned extension = 0;
 
 		if (gives_check && see(board, move) >= 0) extension = 1;
+		*/
 
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 		// by searching them with a zero-width window centered around alpha, which is a lot faster.
-		if (move_count == 0) {
+		if (move_count == 1) {
 			//if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
 			//      board.unmake_move(move);
 			//      int singular_score = tt.current_evaluation - 130;
@@ -231,14 +231,20 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			//      board.make_move(move);
 			///
 
-			evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+			//evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+			evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
 		else {
 			// Late Move Reduction
 			// Assuming our move ordering is doing a good job, only the first
 			// moves are actually good and should thus be searched to full depth.
 
-			unsigned reduction = 0;
+			evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
+			if (evaluation > alpha && evaluation < beta)
+				// If a move happens to be better, we need to re-search it with full window
+				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+
+			/*unsigned reduction = 0;
 			if (depth >= 3 && late_move) {
 				reduction = 1;
 				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
@@ -252,9 +258,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			else if (evaluation > alpha && evaluation < beta)
 				// If a move happens to be better, we need to re-search it with full window
-				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
-		}*/
-		evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
+				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);*/
+		}
 
 		board.unmake_move(move);
 
@@ -283,7 +288,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 					// increment history score
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
 				}
-				if (move_count == 0) statistics.cutoffspv++;
+				if (move_count == 1) statistics.cutoffspv++;
 				statistics.cutoffs++;
 
 				// *snip* *snip*
