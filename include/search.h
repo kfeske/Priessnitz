@@ -75,7 +75,7 @@ struct Search
 		else
 			move_generator.generate_quiescence(board); // only captures
 
-		rate_moves(board, heuristics, move_generator, best_move, true, ply);
+		rate_moves(board, heuristics, move_generator, true, ply);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
 			Move move = next_move(move_generator, n);
@@ -113,7 +113,6 @@ struct Search
 
 		// ply describes how far we are from the root of the search tree
 		unsigned ply_from_root = current_depth - depth;
-		//heuristics.pv_lenght[ply] = ply;
 
 		if (depth == 0) {
 			nodes_searched++;
@@ -125,10 +124,12 @@ struct Search
 		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
 		TTEntryFlag flag = UPPERBOUND;
 
+		// updated in the tt.probe() function
 		tt.pv_move = INVALID_MOVE;
 
 		// check for any transpositions at higher or equal depths
-		if (ply_from_root > 0 && tt.probe(board.zobrist.key, depth, alpha, beta))
+		bool higher_depth = tt.probe(board.zobrist.key, depth, alpha, beta);
+		if (higher_depth && ply_from_root > 0)
 			return tt.current_evaluation;
 
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
@@ -165,7 +166,7 @@ struct Search
 			return 0;
 
 		// score each move depending on how good it looks
-		rate_moves(board, heuristics, move_generator, best_move, false, ply_from_root);
+		rate_moves(board, heuristics, move_generator, false, ply_from_root);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
 
@@ -206,9 +207,6 @@ struct Search
 					evaluation = -search(board, depth - 1, -beta, -alpha);
 			}*/
 
-			// temp search - delete later
-			//evaluation = -search(board, depth - 1, -beta, -alpha);
-	
 			board.unmake_move(move);
 
 			if (abort_search) return 0;
@@ -241,19 +239,6 @@ struct Search
 				alpha = evaluation;
 				best_move_this_node = move;
 				flag = EXACT;
-
-				// remember principle variation (sequence of best moves)
-				//heuristics.pv_table[ply][ply] = move;
-
-				/*for (unsigned next_ply = ply + 1; next_ply < heuristics.pv_lenght[ply + 1]; next_ply++)
-					heuristics.pv_table[ply][next_ply] = heuristics.pv_table[ply + 1][next_ply];
-				heuristics.pv_lenght[ply] = heuristics.pv_lenght[ply + 1];
-				*/
-
-				//if (flags_of(move) != CAPTURE)
-					// store history move
-					// (similar to the killer move heuristic - keeps track of the history of best moves for move ordering purposes)
-					//heuristics.history_move[board.board[move_from(move)]][move_to(move)] += depth;
 			}
 		}
 
@@ -287,13 +272,6 @@ struct Search
 			best_move = best_move_this_iteration;
 			final_evaluation = evaluation;
 			if (current_depth > 1) branching_factor = nodes_searched / double(nodes_previous_iteration) + 0.0001;
-			//std::cerr << ".";
-			/*for (unsigned j = 0; j < heuristics.pv_lenght[0]; j++) {
-				heuristics.previous_pv_line[j] = heuristics.pv_table[0][j];
-				print_move(heuristics.previous_pv_line[j]);
-				std::cerr << "-> ";
-			}
-			std::cerr << "...\n";*/
 
 			std::cout << "info depth " << current_depth << " score cp " << evaluation << " time " << SDL_GetTicks() - time_start;
 			std::cout << " nodes " << nodes_searched << " branching " << branching_factor;

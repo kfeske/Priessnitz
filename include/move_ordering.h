@@ -12,44 +12,21 @@ int value(Piece p)
 	}
 }
 
-void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, Move pv_move, bool quiescence, unsigned ply_from_root)
+void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, bool quiescence, unsigned ply_from_root)
 {
 	for (unsigned n = 0; n < move_generator.size; n++) {
 		Scored_move &m = move_generator.move_list[n];
 		MoveFlags flags = flags_of(m.move);
-		//PieceType pt = type_of(board.board[move_from(m.move)]);
-
-		// same move as principle variation move of previous iteration (iterative deepening)
-		if (m.move == pv_move) {
-			m.score += 30000;
-			continue;
-		}
 
 		// transposition table move
-		else if (m.move == heuristics.hash_move) {
-			m.score += 10000;
+		if (m.move == heuristics.hash_move) {
+			m.score += 30000;
 			continue;
 		}
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
 		else if (flags == CAPTURE)
 			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
-
-		// a promotion is likely to be a good idea
-		/*if (pt == PAWN) {
-			switch(flags) {
-			case PR_KNIGHT: case PC_KNIGHT: case PR_BISHOP: case PC_BISHOP:
-				m.score += 300;
-				break;
-			case PR_ROOK: case PC_ROOK:
-				m.score += 500;
-				break;
-			case PR_QUEEN: case PC_QUEEN:
-				m.score += 900;
-				break;
-			default: break;
-			}
-		}*/
 
 		if (!quiescence) {
 
