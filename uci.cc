@@ -156,26 +156,6 @@ void UCI::setoption_command(std::istringstream &iss)
 		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN;
 		iss >> value;
 	}
-	if (parsed == "LmpMargin1") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.LMP_MARGIN[1];
-		iss >> value;
-	}
-	if (parsed == "LmpMargin2") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.LMP_MARGIN[2];
-		iss >> value;
-	}
-	if (parsed == "LmpMargin3") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.LMP_MARGIN[3];
-		iss >> value;
-	}
-	if (parsed == "LmpMargin4") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.LMP_MARGIN[4];
-		iss >> value;
-	}
 	if (parsed == "Tempo") {
 		iss >> parsed; // value token
 		int &value = search.eval.tempo_bonus;

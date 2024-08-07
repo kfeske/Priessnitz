@@ -81,7 +81,7 @@ struct Main_move_orderer
 			for (unsigned n = position; n < move_list.size; n++) {
 				Scored_move &scored_move = move_list.moves[n];
 				Move move = scored_move.move;
-				scored_move.score = std::min(30000000, heuristics.history[board.board[move_from(move)]][move_to(move)]) >> 3;
+				scored_move.score = heuristics.history[board.board[move_from(move)]][move_to(move)];
 			}
 		}
 		if (sort_type == IN_CHECK_GEN) {
