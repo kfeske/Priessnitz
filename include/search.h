@@ -98,7 +98,7 @@ struct Search
 
 	// function that finds the best move at a fixed depth (number of moves, it looks into the future)
 
-	int search(Board &board, unsigned depth, int alpha, int beta)
+	int search(Board &board, unsigned depth, unsigned ply, int alpha, int beta)
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
@@ -107,11 +107,8 @@ struct Search
 			return 0;
 		}
 
-		// ply describes how far we are from the root of the search tree
-		unsigned ply_from_root = current_depth - depth;
-
 		// check for draws by repetition or by 50 Move Rule
-		if (board.immediate_draw(ply_from_root))
+		if (board.immediate_draw(ply))
 			return 0;
 
 		if (depth == 0)
@@ -120,6 +117,7 @@ struct Search
 
 		Move best_move = INVALID_MOVE;
 		int evaluation;
+		int best_evaluation = -infinity;
 		bool in_check = board.in_check();
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
@@ -131,7 +129,7 @@ struct Search
 
 		// check for any transpositions at higher or equal depths
 		bool higher_depth = tt.probe(board.zobrist.key, depth, alpha, beta);
-		if (higher_depth && ply_from_root > 0)
+		if (higher_depth && ply > 0)
 			return tt.current_evaluation;
 
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
@@ -143,12 +141,12 @@ struct Search
 		// may cause search instability, but it is worth the risk. If we want the speed, we have to live in fear
 
 		// (should not be used in complicated endgames and zugzwang positions!!!)
-		if (!in_check && ply_from_root > 0 && depth >= 3 &&
+		if (!in_check && ply > 0 && depth >= 3 &&
 		    board.non_pawn_material[board.side_to_move]) {
 
 			unsigned ep_square = board.make_null_move();
 
-			evaluation = -search(board, depth - 3, -beta, -beta + 1);
+			evaluation = -search(board, depth - 3, ply + 1, -beta, -beta + 1);
 
 			board.unmake_null_move(ep_square);
 
@@ -156,7 +154,7 @@ struct Search
 				return beta;
 		}
 		
-		//if (in_check) depth++;
+		if (in_check) depth++;
 
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
@@ -167,7 +165,7 @@ struct Search
 		}
 
 		// score each move depending on how good it looks
-		rate_moves(board, heuristics, move_generator, false, ply_from_root);
+		rate_moves(board, heuristics, move_generator, false, ply);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
 			search_nodes++;
@@ -178,86 +176,92 @@ struct Search
 
 			// Principle Variation Search
 
+			if (n == 0)
+				// search pv move with full alpha-beta window
+				// it is very likely the best move
+				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+			else {
+				// search remaining moves with null window to prove that they are worse than the pv move
+				evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha);
+
+				if (evaluation > alpha && evaluation < beta)
+					// if a move happens to be better, we need to re-search with a full window
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+			}
+
+			//evaluation = -search(board, depth - 1, -beta, -alpha);
+
 			/*if (n == 0)
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
 				evaluation = -search(board, depth - 1, -beta, -alpha);
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
-				evaluation = -search(board, depth - 1, -alpha - 1, -alpha);
 
-				if (evaluation > alpha && evaluation < beta)
-					// if a move happens to be better, we need to re-search with a full window
-					evaluation = -search(board, depth - 1, -beta, -alpha);
-			}*/
-
-			//evaluation = -search(board, depth - 1, -beta, -alpha);
-
-			if (n == 0)
-				// search pv move with full alpha-beta window
-				// it is very likely the best move
-				evaluation = -search(board, depth - 1, -beta, -alpha);
-			else {
-				// search remaining moves with null window to prove that they are worse than the pv move
+				// Late Move Reduction - assuming our move orderer is doing a good job, only the first
+				// moves are actually good and thus should be searched to the full depth
+				unsigned reduction = 0;
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE)
-					// Late Move Reduction (assuming our move orderer is doing a good job, only the first
-					// moves are actually good and thus should be searched to the full depth
-					evaluation = -search(board, depth - 2, -alpha - 1, -alpha);
-				else
-					evaluation = -search(board, depth - 1, -alpha - 1, -alpha);
+					reduction = 1;
+
+				evaluation = -search(board, depth - reduction - 1, -alpha - 1, -alpha);
 
 				if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
 					evaluation = -search(board, depth - 1, -beta, -alpha);
-			}
+			}*/
 
 			board.unmake_move(move);
 
 			if (abort_search) return 0;
 
-			if (evaluation >= beta) {
-
-				// Beta cutoff. There is a better line for the opponent.
-				// We know the opponent can get at least beta, so a branch that evaluates to more than beta
-				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-				// where he can get at least beta.
-
-
-				// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
-				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-				tt.store(board.zobrist.key, depth, alpha, best_move, LOWERBOUND);
-
-				if (flags_of(move) != CAPTURE) {
-					// this is a killer move - Store it!
-					heuristics.killer_move[1][ply_from_root] = heuristics.killer_move[0][ply_from_root];
-					heuristics.killer_move[0][ply_from_root] = move;
-
-					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
-				}
-
-				// *snip*
-				if (n == 0) cutoffspv++;
-				cutoffs++;
-				return beta;
-			}
-
-			if (evaluation > alpha) {
-				// found a better move
-				alpha = evaluation;
+			if (evaluation > best_evaluation) {
+				best_evaluation = evaluation;
 				best_move = move;
-				flag = EXACT;
-
-				if (ply_from_root == 0) {
+				if (ply == 0) {
 					best_root_move = best_move;
 					root_evaluation = evaluation;
+				}
+
+				if (evaluation >= beta) {
+
+					// Beta cutoff. There is a better line for the opponent.
+					// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+					// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+					// where he can get at least beta.
+
+					// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
+					// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
+					flag = LOWERBOUND;
+
+					if (flags_of(move) != CAPTURE) {
+						// this is a killer move - Store it!
+						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
+						heuristics.killer_move[0][ply] = move;
+
+						// increment history score
+						heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
+					}
+
+					// *snip*
+					if (n == 0) cutoffspv++;
+					cutoffs++;
+					break;
+				}
+
+				if (evaluation > alpha) {
+					// found a better move
+					alpha = evaluation;
+					flag = EXACT;
+
 				}
 			}
 		}
 		
+		// store position in the hash table
+		tt.store(board.zobrist.key, depth, best_evaluation, best_move, flag);
 
-		tt.store(board.zobrist.key, depth, alpha, best_move, flag);
-
-		return alpha;
+		return best_evaluation;
 	}
 
 	void start_search(Board &board)
@@ -274,7 +278,7 @@ struct Search
 			search_nodes = 0;
 			quiescence_nodes = 0;
 
-			search(board, current_depth, -infinity, infinity);
+			search(board, current_depth, 0, -infinity, infinity);
 			total_nodes += search_nodes + quiescence_nodes;
 
 
