@@ -243,30 +243,15 @@ struct Search : Noncopyable
 			if (gives_check && see(board, move) >= 0) extension = 1;
 
 			// Principle Variation Search
-
-			/*if (n == 0)
-				// search pv move with full alpha-beta window
-				// it is very likely the best move
-				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
-			else {
-				// search remaining moves with null window to prove that they are worse than the pv move
-				evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, true);
-
-				if (evaluation > alpha && evaluation < beta)
-					// if a move happens to be better, we need to re-search with a full window
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
-			}*/
-
+			// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
+			// by searching them with a zero-width window centered around alpha, which is a lot faster.
 			if (n == 0) {
-				// search pv move with full alpha-beta window
-				// it is very likely the best move
 				evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, true);
 			}
 			else {
-				// search remaining moves with null window to prove that they are worse than the pv move
-
-				// Late Move Reduction - assuming our move orderer is doing a good job, only the first
-				// moves are actually good and thus should be searched to full depth
+				// Late Move Reduction
+				// Assuming our move ordering is doing a good job, only the first
+				// moves are actually good and should thus be searched to full depth.
 				unsigned reduction = 0;
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE) {
 					reduction = 1;

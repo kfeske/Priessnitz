@@ -39,6 +39,8 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 				m.score += std::min(10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]), 29999);
 		}
 
+		else if (promotion(m.move)) m.score += 100;
+
 		else if (!quiescence) {
 
 			// primary killer move (non capture move that caused a beta cutoff)
