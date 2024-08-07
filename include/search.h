@@ -150,6 +150,9 @@ struct Search : Noncopyable
 		// static evaluation of the position
 		int static_eval = eval.evaluate(board);
 
+		// Razoring
+		// prune bad looking positions close to the horizon by dropping to Quiescence immediately
+
 		// Reverse Futility Pruning
 		if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 80 * depth >= beta)
 			return beta;
@@ -312,14 +315,51 @@ struct Search : Noncopyable
 		long nodes_previous_iteration;
 		long total_nodes = 0;
 
+		int alpha = -infinity;
+		int beta = infinity;
+		int window_size = 0;
+
+		// Iterative Deepening
+		// We want to be able to stop the search at any moment, so we start with a one depth search and
+		// then increment the depth by one and search again for each iteration. We can stop the search
+		// at any time and will be able to use the best move from the last fully searched iteration.
+		// This process is unintuitively faster than a simple search to a fixed depth, because of dynamic
+		// move ordering techniques.
+
 		for (current_depth = 1; current_depth <= max_depth; current_depth++) {
 
 			nodes_previous_iteration = search_nodes + quiescence_nodes;
 			search_nodes = 0;
 			quiescence_nodes = 0;
 
-			search(board, current_depth, 0, -infinity, infinity, true);
-			total_nodes += search_nodes + quiescence_nodes;
+			// Aspiration Windows
+			// inside Iterative Deepening, the evaluation of the previous iteration is often close
+			// to the next evaluation. We can narrow the window around this guess to reduce the
+			// tree size. However, if we are wrong, we need to re-search with a broader window.
+
+			// set the alpha-beta-window close to where we expect the next evaluation
+			if (current_depth >= 4) {
+				window_size = 14;
+				alpha = root_evaluation - window_size;
+				beta = root_evaluation + window_size;
+			}
+
+			while (true) {
+				int evaluation = search(board, current_depth, 0, alpha, beta, true);
+				total_nodes += search_nodes + quiescence_nodes;
+
+				// The returned evaluation was not inside the windows :/
+				// A costly re-search has to be done with a wider window.
+				if (evaluation <= alpha) {
+					window_size += window_size;
+					alpha -= window_size / 2;
+				}
+				else if (evaluation >= beta) {
+					window_size += window_size;
+					beta += window_size / 2;
+				}
+				else break;
+			}
 
 
 			if (current_depth > 1) branching_factor = (search_nodes + quiescence_nodes) / double(nodes_previous_iteration) + 0.0001;
