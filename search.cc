@@ -166,9 +166,9 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Futility Pruning
 	// Very close to the horizon of the search, where we are in a position that is much worse than alpha,
 	// it is wise to skip moves that do not improve the situation.
-	//bool futile = false;
-	//if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
-	//	futile = static_eval + futility_margin[depth] <= alpha;
+	bool futile = false;
+	if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
+		futile = static_eval + futility_margin[depth] <= alpha;
 
 	// Internal Iterative Deepening
 	/*if (pv_node && depth >= 6 && tt.best_move == INVALID_MOVE) {
@@ -192,10 +192,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		bool gives_check = board.in_check();
 
 		// Futility prune if the conditions are met
-		//if (futile && move_count > 0 && !gives_check && !capture(move) && !promotion(move)) {
-		//	board.unmake_move(move);
-		//	continue;
-		//}
+		if (futile && move_count > 1 && !gives_check && !capture(move) && !promotion(move)) {
+			board.unmake_move(move);
+			continue;
+		}
 
 		//if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
 		//	board.unmake_move(move);
