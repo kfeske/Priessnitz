@@ -29,13 +29,14 @@ enum INDICES {
 	EG_MOBILITY = MG_MOBILITY + 6,
 	ATTACK_POTENCY = EG_MOBILITY + 6,
 	KING_DANGER = ATTACK_POTENCY + 6,
-	END_INDEX = KING_DANGER + 8
+	TEMPO = KING_DANGER + 8,
+	END_INDEX = TEMPO + 1
 };
 
 enum TUNING_PARAMETER {
 	NUM_TRAINING_POSITIONS = 700000, // number of training positions
 	NUM_TEST_POSITIONS = 25000,      // number of test positions
-	NUM_TABLES = 21,		 // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 22,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -63,6 +64,7 @@ struct Tuner
 			     	      	  MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED,
 			     	      	  AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
 			     	      	  ATTACK_POTENCY, KING_DANGER,
+					  TEMPO,
 			     	      	  END_INDEX };
 
 	double const K = 1.5; // scaling constant for our evaluation function
@@ -101,6 +103,7 @@ struct Tuner
 		case EG_MOBILITY: return eval.eg_mobility_weight[pos];
 		case ATTACK_POTENCY: return eval.attack_potency[pos];
 		case KING_DANGER: return eval.king_danger_weight[pos];
+		case TEMPO: return eval.tempo_bonus;
 		default: return eval.eg_passed_bonus[pos];
 		}
 	}
@@ -147,6 +150,7 @@ struct Tuner
 		case EG_MOBILITY: std::cerr << "\neg mobility\n"; break;
 		case ATTACK_POTENCY: std::cerr << "\nattack potency\n"; break;
 		case KING_DANGER: std::cerr << "\nking danger\n"; break;
+		case TEMPO: std::cerr << "\ntempo\n"; break;
 		default: return;
 		}
 	}
@@ -317,7 +321,7 @@ struct Tuner
 	Tuner()
 	{
 		load_training_set();
-		initialize_weights();
+		//initialize_weights();
 		print_weights();
 	}
 };

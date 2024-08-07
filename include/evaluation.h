@@ -19,6 +19,8 @@ struct Evaluation : Noncopyable
 	int mg_isolated_penalty = 21;
 	int eg_isolated_penalty = 11;
 
+	int tempo_bonus = 0;
+
 	int mg_passed_bonus[64] =
 	{
 	0, 0, 0, 0, 0, 0, 0, 0, 
@@ -174,6 +176,8 @@ struct Evaluation : Noncopyable
 		}
 
 		evaluate_kings();
+
+		//mg_bonus[board.side_to_move] += tempo_bonus;
 
 		mg_value += mg_bonus[WHITE] - mg_bonus[BLACK];
 		eg_value += eg_bonus[WHITE] - eg_bonus[BLACK];

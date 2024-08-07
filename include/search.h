@@ -20,6 +20,7 @@ struct Search : Noncopyable
 	double branching_factor = 0;
 	long cutoffs = 0;
 	long cutoffspv = 0;
+	long null_cuts = 0;
 	//long tt_cutoffs = 0;
 
 	Heuristics heuristics;
@@ -41,6 +42,7 @@ struct Search : Noncopyable
 		branching_factor = 0;
 		cutoffs = 0;
 		cutoffspv = 0;
+		null_cuts = 0;
 		heuristics = {};
 		for (TTEntry &entry : tt.entries) entry = {};
 	}
@@ -87,7 +89,7 @@ struct Search : Noncopyable
 
 	// function that finds the best move at a fixed depth (number of moves, it looks into the future)
 
-	int search(Board &board, int depth, unsigned ply, int alpha, int beta)
+	int search(Board &board, int depth, unsigned ply, int alpha, int beta, bool allow_null_move)
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
@@ -123,23 +125,28 @@ struct Search : Noncopyable
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
 		heuristics.hash_move = tt.pv_move;
 
+		bool pv_node = beta - alpha != 1;
+
 		// Null Move Pruning
 		// if there is a beta cutoff even if we skip our turn (permitting the opponent to play two moves in a row),
 		// the position is so terrible for the opponent that we can just prune the whole branch
 		// may cause search instability, but it is worth the risk. If we want the speed, we have to live in fear
 
 		// (should not be used in complicated endgames and zugzwang positions!!!)
-		if (!in_check && ply > 0 && depth >= 3 &&
+		if (!pv_node && allow_null_move && !in_check && ply > 0 && depth >= 3 &&
 		    board.non_pawn_material[board.side_to_move]) {
 
 			unsigned ep_square = board.make_null_move();
 
-			evaluation = -search(board, depth - 3, ply + 1, -beta, -beta + 1);
+			unsigned reduction = 3;
+			evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, false);
 
 			board.unmake_null_move(ep_square);
 
-			if (evaluation >= beta && fabs(evaluation) < mate_score)
+			if (evaluation >= beta && fabs(evaluation) < mate_score - 100) {
+				null_cuts++;
 				return beta;
+			}
 		}
 		
 		//if (in_check) depth++;
@@ -148,7 +155,7 @@ struct Search : Noncopyable
 		move_generator.generate_all_moves(board);
 
 		if (move_generator.size == 0) {
-			if (in_check) return -mate_score - depth; // Checkmate
+			if (in_check) return -mate_score + ply; // Checkmate
 			else return 0; // Stalemate
 		}
 
@@ -164,25 +171,25 @@ struct Search : Noncopyable
 
 			// Principle Variation Search
 
-			if (n == 0)
+			/*if (n == 0)
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
-				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
-				evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha);
+				evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, true);
 
 				if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search with a full window
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
+			}*/
 
 			//evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
 
-			/*if (n == 0) {
+			if (n == 0) {
 				// search pv move with full alpha-beta window
 				// it is very likely the best move
-				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+				evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
 			}
 			else {
 				// search remaining moves with null window to prove that they are worse than the pv move
@@ -191,21 +198,21 @@ struct Search : Noncopyable
 				// moves are actually good and thus should be searched to full depth
 				unsigned reduction = 0;
 				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE) {
-					reduction = 0;
+					reduction = 1;
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
 					//std::cerr << "depth " << depth << " n " << n << " R " << reduction << "\n";
 				}
 
-				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha);
+				evaluation = -search(board, depth - reduction - 1, ply + 1, -alpha - 1, -alpha, true);
 
 				if (reduction && evaluation > alpha)
 					// if the reduced search does not fail low, it needs a re-search to the full depth
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
 
 				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
-					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha);
-			}*/
+					evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, true);
+			}
 
 			board.unmake_move(move);
 
@@ -271,7 +278,7 @@ struct Search : Noncopyable
 			search_nodes = 0;
 			quiescence_nodes = 0;
 
-			search(board, current_depth, 0, -infinity, infinity);
+			search(board, current_depth, 0, -infinity, infinity, true);
 			total_nodes += search_nodes + quiescence_nodes;
 
 
@@ -286,6 +293,7 @@ struct Search : Noncopyable
 		}
 
 		std::cerr << "cut offs " << cutoffs << " pv " << double(cutoffspv) / double(cutoffs) << "\n";
+		std::cerr << "null cuts " << null_cuts << "\n";
 		std::cerr << "info total nodes " << total_nodes << "\n";
 		std::cout << "bestmove " << move_string(best_root_move) << "\n";
 		reset(); // make sure to clear all search data to avoid them affecting the next search
