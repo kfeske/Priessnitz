@@ -142,6 +142,11 @@ struct Scored_move
 	:
 		move(move), score(0)
 	{}
+
+	Scored_move()
+	:
+		move(INVALID_MOVE), score(0)
+	{}
 };
 
 enum MoveFlags {

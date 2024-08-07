@@ -14,10 +14,12 @@ int value(Piece p)
 
 void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, Move pv_move, bool quiescence, unsigned ply_from_root)
 {
-	for (Scored_move &m : move_generator.movelist) {
+	for (unsigned n = 0; n < move_generator.size; n++) {
+		Scored_move &m = move_generator.move_list[n];
 		MoveFlags flags = flags_of(m.move);
 		//PieceType pt = type_of(board.board[move_from(m.move)]);
 		// same move as principle variation move of previous iteration (iterative deepening)
+
 		if (m.move == pv_move) {
 			m.score += 30000;
 			continue;
@@ -64,14 +66,14 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 Move next_move(MoveGenerator &move_generator, unsigned index)
 {
 	unsigned best_index = index;
-	uint16_t best_score = move_generator.movelist.at(index).score;
-	for (unsigned n = index + 1; n < move_generator.movelist.size(); n++) {
-		Scored_move &m = move_generator.movelist.at(n);
+	uint16_t best_score = move_generator.move_list[index].score;
+	for (unsigned n = index + 1; n < move_generator.size; n++) {
+		Scored_move &m = move_generator.move_list[n];
 		if (m.score > best_score) {
 			best_score = m.score;
 			best_index = n;
 		}
 	}
-	std::swap(move_generator.movelist.at(index), move_generator.movelist.at(best_index));
-	return move_generator.movelist.at(index).move;
+	std::swap(move_generator.move_list[index], move_generator.move_list[best_index]);
+	return move_generator.move_list[index].move;
 }

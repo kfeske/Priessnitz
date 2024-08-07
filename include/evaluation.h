@@ -6,6 +6,8 @@ struct Evaluation
 	{
 		int value = 0;
 		int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
+
+		// Tapered Eval
 		material = std::max(3915, std::min(material, 15258)); // endgame and midgame limit clamp
 		phase = Phase(((material - 3915) * 128) / (15258 - 3915)); // 0(Endgame) - 128(Midgame) linear interpolation
 	

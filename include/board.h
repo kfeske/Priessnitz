@@ -72,8 +72,8 @@ struct Board_state
 
 	unsigned game_ply;
 
-	UndoInfo history[5900];
-	uint64_t position_history[5900];
+	UndoInfo history[1024];
+	uint64_t position_history[1024];
 	bool repetition;
 
 	int non_pawn_material[2];

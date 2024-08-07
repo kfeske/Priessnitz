@@ -15,12 +15,12 @@ struct Perft {
 
 		MoveGenerator move_generator {};
 		move_generator.generate_quiescence(board);
-		if (depth == 1) cap += move_generator.movelist.size();
+		if (depth == 1) cap += move_generator.size;
 		MoveGenerator movegenerator {};
 		movegenerator.generate_all_moves(board);
 
-		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
-			Move move = movegenerator.movelist.at(n).move;
+		for (unsigned n = 0; n < movegenerator.size; n++) {
+			Move move = movegenerator.move_list[n].move;
 
 			if (depth == 1) {
 				switch(flags_of(move)) {
@@ -53,8 +53,8 @@ struct Perft {
 		MoveGenerator movegenerator {};
 		movegenerator.generate_all_moves(board);
 
-		for (unsigned n = 0; n < movegenerator.movelist.size(); n++) {
-			Move move = movegenerator.movelist.at(n).move;
+		for (unsigned n = 0; n < movegenerator.size; n++) {
+			Move move = movegenerator.move_list[n].move;
 
 			board.make_move(move);
 

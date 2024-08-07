@@ -24,7 +24,7 @@ struct UCI
 	{
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
-		for (Scored_move m : move_generator.movelist) {
+		for (Scored_move m : move_generator.move_list) {
 			if (move_string(m.move) == move)
 				return m.move;
 		}
@@ -57,8 +57,6 @@ struct UCI
 	void go_command(std::istringstream &iss)
 	{
 		search.reset();
-		search.max_depth = 63;
-		search.max_time = 99999;
 		std::string parsed {};
 		while(iss >> parsed) {
 

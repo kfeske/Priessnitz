@@ -11,7 +11,7 @@ struct PSQT// : Noncopyable
 	// Phase (Endgame/Midgame), Piece, Square
 	Value psqt[16][64] {};
 
-	int bonus[2][6][64] =
+	/*int bonus[2][6][64] =
 	{
 	 { //Midgame
 	  { // Pawn
@@ -79,9 +79,9 @@ struct PSQT// : Noncopyable
 	  {
 	  }
 	 }
-	};
+	};*/
 
-	/*int bonus[2][6][64] = 
+	int bonus[2][6][64] = 
 	 { 
 	  { // Midgame
 	   { // Pawn
@@ -156,7 +156,7 @@ struct PSQT// : Noncopyable
              -1, -14,  13,  22,  24,  17,   7,   7
 	   }
 	  }
-	 };*/
+	 };
 
 	void prepare()
 	{

@@ -76,7 +76,7 @@ struct Search
 
 		rate_moves(board, heuristics, move_generator, best_move, true, ply);
 
-		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
+		for (unsigned n = 0; n < move_generator.size; n++) {
 			Move move = next_move(move_generator, n);
 
 			board.make_move(move);
@@ -161,7 +161,7 @@ struct Search
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
 
-		if (move_generator.movelist.size() == 0) {
+		if (move_generator.size == 0) {
 			if (in_check) return -mate_score - depth;
 			else return 0;
 		}
@@ -171,13 +171,8 @@ struct Search
 
 		rate_moves(board, heuristics, move_generator, best_move, false, ply_from_root);
 
-		for (unsigned n = 0; n < move_generator.movelist.size(); n++) {
+		for (unsigned n = 0; n < move_generator.size; n++) {
 			Move move = next_move(move_generator, n);
-
-			//std::cerr << "depth: " << depth;
-			//std::cerr << " move: ";
-			//print_move(move);
-			//std::cerr << "\n";
 
 			board.make_move(move);
 
