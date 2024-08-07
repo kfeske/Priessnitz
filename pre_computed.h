@@ -104,6 +104,7 @@ struct Pre_computed
 
 	// Evaluation tables
 	uint64_t passed_pawn_mask[2][64];
+	uint64_t forward_mask[2][64];
 	uint64_t forward_file_mask[2][64];
 	uint64_t isolated_pawn_mask[8];
 	uint64_t neighbor_mask[64];
@@ -167,6 +168,7 @@ static inline uint64_t king_ring_mask(unsigned square) { return pre_computed.kin
 static inline uint64_t pawn_shield(Color friendly, unsigned square) { return pre_computed.pawn_shield[friendly][square]; };
 static inline uint64_t passed_pawn_mask(Color friendly, unsigned square) { return pre_computed.passed_pawn_mask[friendly][square]; };
 static inline uint64_t neighbor_mask(unsigned square) { return pre_computed.neighbor_mask[square]; };
+static inline uint64_t forward_mask(Color friendly, unsigned square) { return pre_computed.forward_mask[friendly][square]; };
 static inline uint64_t forward_file_mask(Color friendly, unsigned square) { return pre_computed.forward_file_mask[friendly][square]; };
 static inline uint64_t isolated_pawn_mask(unsigned file) { return pre_computed.isolated_pawn_mask[file]; };
 static inline uint64_t outpost_mask(Color friendly) { return pre_computed.outpost_mask[friendly]; };

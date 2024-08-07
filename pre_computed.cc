@@ -175,16 +175,16 @@ Pre_computed generate_lookup()
 
 		// All rows in front of the square row
 		uint64_t all_mask = ~0ULL;
-		uint64_t white_forward_mask = (rank_num(square) > 0) ? all_mask >> 8 * (8 - rank_num(square)) : 0;
-		uint64_t black_forward_mask = (rank_num(square) < 7) ? all_mask << 8 * (rank_num(square) + 1) : 0;
+		p.forward_mask[WHITE][square] = (rank_num(square) > 0) ? all_mask >> 8 * (8 - rank_num(square)) : 0;
+		p.forward_mask[BLACK][square] = (rank_num(square) < 7) ? all_mask << 8 * (rank_num(square) + 1) : 0;
 
 		// A pawn is passed if there are no enemy pawns on the same or the adjacent files in front of it
-		p.passed_pawn_mask[WHITE][square] = white_forward_mask & adjacent_mask;
-		p.passed_pawn_mask[BLACK][square] = black_forward_mask & adjacent_mask;
+		p.passed_pawn_mask[WHITE][square] = p.forward_mask[WHITE][square] & adjacent_mask;
+		p.passed_pawn_mask[BLACK][square] = p.forward_mask[BLACK][square] & adjacent_mask;
 
 		// Forward_file_mask is used for detecting doubled or blocked pawns
-		p.forward_file_mask[WHITE][square] = file(square) & white_forward_mask;
-		p.forward_file_mask[BLACK][square] = file(square) & black_forward_mask;
+		p.forward_file_mask[WHITE][square] = file(square) & p.forward_mask[WHITE][square];
+		p.forward_file_mask[BLACK][square] = file(square) & p.forward_mask[BLACK][square];
 
 		// A pawn is isolated, if there are no pawns on the neighbor files
 		p.isolated_pawn_mask[file_num(square)] = adjacent_mask & ~file(square);
@@ -193,15 +193,11 @@ Pre_computed generate_lookup()
 		p.neighbor_mask[square] = adjacent_mask & rank(square) & ~(1ULL << square);
 
 		// Used to check if an opponent pawn might easily attack the square
-		p.pawn_threat_mask[WHITE][square] = white_forward_mask & adjacent_mask & ~file(square);
-		p.pawn_threat_mask[BLACK][square] = black_forward_mask & adjacent_mask & ~file(square);
+		p.pawn_threat_mask[WHITE][square] = p.forward_mask[WHITE][square] & adjacent_mask & ~file(square);
+		p.pawn_threat_mask[BLACK][square] = p.forward_mask[BLACK][square] & adjacent_mask & ~file(square);
 
 		// The king ring consists of the squares, the king attacks. If the king is on the edge, the ring is extended a bit.
 		p.king_ring_mask[square] = p.king_attacks[square] | (1ULL << square);
-
-		// Pawn Shelter consists of pawns in front of the king
-		if (square >= 8)  p.pawn_shield[WHITE][square] = p.king_attacks[square - 8] | 1ULL << (square - 8);
-		if (square <= 55) p.pawn_shield[BLACK][square] = p.king_attacks[square + 8] | 1ULL << (square + 8);
 	}
 	p.outpost_mask[WHITE] = RANK_5 | RANK_6 | RANK_7;
 	p.outpost_mask[BLACK] = RANK_4 | RANK_3 | RANK_2;

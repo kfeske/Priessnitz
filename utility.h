@@ -299,6 +299,11 @@ static inline unsigned lsb(uint64_t bitboard)
 	return __builtin_ctzll(bitboard);
 }
 
+static inline unsigned msb(uint64_t bitboard)
+{
+	return 63 ^ __builtin_clzll(bitboard);
+}
+
 static inline unsigned pop_lsb(uint64_t &bitboard)
 {
 	unsigned square = lsb(bitboard);

@@ -100,9 +100,10 @@ enum Indicies {
 	MG_SAFE_QUEEN_CHECK  = EG_SAFE_ROOK_CHECK + 1,
 	EG_SAFE_QUEEN_CHECK  = MG_SAFE_QUEEN_CHECK + 1,
 
-	PAWN_SHIELD = EG_SAFE_QUEEN_CHECK + 1,
+	MG_PAWN_SHELTER = EG_SAFE_QUEEN_CHECK + 1,
+	EG_PAWN_SHELTER = MG_PAWN_SHELTER + 64,
 
-	CENTER_CONTROL = PAWN_SHIELD + 6,
+	CENTER_CONTROL = EG_PAWN_SHELTER + 64,
 
 	PAWN_COUNT_SCALE_OFFSET = CENTER_CONTROL + 1,
 	PAWN_COUNT_SCALE_WEIGHT = PAWN_COUNT_SCALE_OFFSET + 1,
@@ -118,7 +119,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 81,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 82,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -181,7 +182,7 @@ struct Tuner
 			     	      	   MG_KING_RING_POTENCY, EG_KING_RING_POTENCY, MG_KING_RING_PRESSURE, EG_KING_RING_PRESSURE,
 					   MG_SAFE_KNIGHT_CHECK, EG_SAFE_KNIGHT_CHECK, MG_SAFE_BISHOP_CHECK, EG_SAFE_BISHOP_CHECK,
 					   MG_SAFE_ROOK_CHECK, EG_SAFE_ROOK_CHECK, MG_SAFE_QUEEN_CHECK, EG_SAFE_QUEEN_CHECK,
-					   PAWN_SHIELD,
+					   MG_PAWN_SHELTER, EG_PAWN_SHELTER,
 					   CENTER_CONTROL,
 					   PAWN_COUNT_SCALE_OFFSET,
 					   PAWN_COUNT_SCALE_WEIGHT,
@@ -291,7 +292,14 @@ struct Tuner
 		case MG_SAFE_QUEEN_CHECK:  return eval.mg_safe_queen_check;
 		case EG_SAFE_QUEEN_CHECK:  return eval.eg_safe_queen_check;
 
-		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
+		case MG_PAWN_SHELTER: {
+				int *pawn_shelter = &eval.mg_pawn_shelter[0][0][0];
+				return pawn_shelter[pos];
+			}
+		case EG_PAWN_SHELTER: {
+				int *pawn_shelter = &eval.eg_pawn_shelter[0][0][0];
+				return pawn_shelter[pos];
+			}
 
 		case CENTER_CONTROL: return eval.mg_center_control;
 
@@ -397,8 +405,32 @@ struct Tuner
 		std::cerr << "\nint mg_safe_queen_check = "  << int_weight(MG_SAFE_QUEEN_CHECK)  << ";\n";
 		std::cerr <<   "int eg_safe_queen_check = "  << int_weight(EG_SAFE_QUEEN_CHECK)  << ";\n";
 
-		std::cerr << "\nint mg_pawn_shield[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(PAWN_SHIELD + i);
+		std::cerr << "\nint mg_pawn_shelter[2][4][8] = {\n";
+		for (unsigned i = 0; i < 2; i++) {
+			std::cerr << "{\n";
+			for (unsigned j = 0; j < 4; j++) {
+				std::cerr << "        { ";
+				for (unsigned k = 0; k < 8; k++) {
+					print_int_weight(MG_PAWN_SHELTER + i * 32 + j * 8 + k);
+				}
+				std::cerr << "},\n";
+			}
+			std::cerr << "},\n";
+		}
+		std::cerr << "};\n";
+
+		std::cerr << "\nint eg_pawn_shelter[2][4][8] = {\n";
+		for (unsigned i = 0; i < 2; i++) {
+			std::cerr << "{\n";
+			for (unsigned j = 0; j < 4; j++) {
+				std::cerr << "        { ";
+				for (unsigned k = 0; k < 8; k++) {
+					print_int_weight(EG_PAWN_SHELTER + i * 32 + j * 8 + k);
+				}
+				std::cerr << "},\n";
+			}
+			std::cerr << "},\n";
+		}
 		std::cerr << "};\n";
 
 		std::cerr << "\nint mg_knight_mobility[9] = { ";
@@ -736,12 +768,25 @@ struct Tuner
 			mg_influences[MG_SAFE_QUEEN_CHECK] += side * queen_checks * mg_phase;
 			eg_influences[EG_SAFE_QUEEN_CHECK] += side * queen_checks * eg_phase;
 
-			uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
+			// Pawn Shelter
+			unsigned shelter_center = std::max(1U, std::min(6U, file_num(square)));
+			for (unsigned shelter_file = shelter_center - 1; shelter_file <= shelter_center + 1; shelter_file++) {
+				uint64_t shelter_pawns = board.pieces(friendly, PAWN) & file(shelter_file) & (forward_mask(friendly, square) | rank(square));
+				if (shelter_pawns) {
+					unsigned pawn_square = (friendly == WHITE) ? msb(shelter_pawns) : lsb(shelter_pawns);
+					unsigned king_distance = rank_distance(pawn_square, square);
+					unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
+					bool king_file_pawn = shelter_file == file_num(square);
+					mg_influences[MG_PAWN_SHELTER + king_file_pawn * 32 + edge_distance * 8 + king_distance] += side * mg_phase;
+					eg_influences[EG_PAWN_SHELTER + king_file_pawn * 32 + edge_distance * 8 + king_distance] += side * eg_phase;
+				}
+			}
+			/*uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
 			while (shield_pawns) {
 				unsigned pawn_square = pop_lsb(shield_pawns);
 				unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
 				mg_influences[PAWN_SHIELD + shield_square] += side * mg_phase;
-			}
+			}*/
 		}
 
 		for (Color friendly : { WHITE, BLACK }) {
