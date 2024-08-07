@@ -36,9 +36,9 @@ struct Undo_info {
 struct Board_state
 {
 	Piece board[64] {};
-	uint64_t pieces[15] {};
+	uint64_t pieces_by_type[6] {};
 
-	uint64_t color[2] {};
+	uint64_t pieces_by_color[2] {};
 	uint64_t occ = 0ULL;
 
 	Color side_to_move = WHITE;
@@ -56,62 +56,73 @@ struct Board : Board_state
 {
 	Zobrist zobrist {};
 
-	uint64_t enemy(Color friendly) { return color[swap(friendly)]; }
-	uint64_t enemy_or_empty(Color friendly) { return ~color[friendly]; }
-
 	unsigned square(Color friendly, Piece_type type)
 	{
-		return lsb(pieces[piece_of(friendly, type)]);
+		return lsb(pieces(friendly, type));
 	}
 
 	// resets information neccessary to start a new game
 	void reset()
 	{
 		static_cast<Board_state&>(*this) = {};
+		for (unsigned square = 0; square < 64; square++)
+			board[square] = NO_PIECE;
 	}
 
-
-	void add_piece(unsigned square, Piece p)
+	uint64_t pieces(Color friendly, Piece_type type)
 	{
-		Color c = color_of(p);
+		return pieces_by_color[friendly] & pieces_by_type[type];
+	}
+
+	uint64_t pieces(Piece_type type)
+	{
+		return pieces_by_type[type];
+	}
+
+	uint64_t pieces(Color friendly)
+	{
+		return pieces_by_color[friendly];
+	}
+
+	void add_piece(unsigned square, Piece piece)
+	{
+		Color friendly = color_of(piece);
 	
-		set_bit(pieces[p], square);
-		set_bit(color[c], square);
-		occ = color[WHITE] | color[BLACK];
-		board[square] = p;
-		non_pawn_material[c] += non_pawn_value[p];
-		zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
+		set_bit(pieces_by_type[type_of(piece)], square);
+		set_bit(pieces_by_color[friendly], square);
+		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
+		board[square] = piece;
+		non_pawn_material[friendly] += non_pawn_value[piece];
+		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void remove_piece(unsigned square)
 	{
-		Piece p = board[square];
-		Color c = color_of(p);
+		Piece piece = board[square];
+		Color friendly = color_of(piece);
 	
-		pop_bit(pieces[p], square);
-		pop_bit(color[c], square);
-		occ = color[WHITE] | color[BLACK];
+		pop_bit(pieces_by_type[type_of(piece)], square);
+		pop_bit(pieces_by_color[friendly], square);
+		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
 		board[square] = NO_PIECE;
-		non_pawn_material[c] -= non_pawn_value[p];
-		zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
+		non_pawn_material[friendly] -= non_pawn_value[piece];
+		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void push_piece_quiet(unsigned from, unsigned to)
 	{
-		Piece p = board[from];
-		Color c = color_of(p);
+		Piece piece = board[from];
 	
 		uint64_t mask = 1ULL << from | 1ULL << to;
-		pieces[p] ^= mask;
-		color[c] ^= mask;
-		occ = color[WHITE] | color[BLACK];
+		pieces_by_type[type_of(piece)] ^= mask;
+		pieces_by_color[color_of(piece)] ^= mask;
+		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
 	
-		board[to]   = p;
+		board[to]   = piece;
 		board[from] = NO_PIECE;
-		zobrist.piece_side_key ^= zobrist.piece_rand[p][from];
-		zobrist.piece_side_key ^= zobrist.piece_rand[p][to];
+		zobrist.piece_side_key ^= zobrist.piece_rand[piece][from];
+		zobrist.piece_side_key ^= zobrist.piece_rand[piece][to];
 	}
-
 
 	void make_move(Move move);
 
@@ -130,16 +141,13 @@ struct Board : Board_state
 
 	uint64_t square_attackers(unsigned square, uint64_t occupied)
 	{
-		return 	(pawn_attacks(WHITE, square) & pieces[B_PAWN]) |
-			(pawn_attacks(BLACK, square) & pieces[W_PAWN]) |
-			(piece_attacks(KNIGHT, square, 0ULL) & (pieces[W_KNIGHT] | pieces[B_KNIGHT])) |
-			(piece_attacks(BISHOP, square, occupied) &
-			(pieces[W_BISHOP] | pieces[B_BISHOP] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
-			(piece_attacks(ROOK, square, occupied) &
-			(pieces[W_ROOK] | pieces[B_ROOK] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
-			(piece_attacks(KING, square, 0ULL) & (pieces[W_KING] | pieces[B_KING]));
+		return 	(pawn_attacks(WHITE, square) & pieces(BLACK, PAWN)) |
+			(pawn_attacks(BLACK, square) & pieces(WHITE, PAWN)) |
+			(piece_attacks(KNIGHT, square, 0ULL) & pieces(KNIGHT)) |
+			(piece_attacks(BISHOP, square, occupied) & (pieces(BISHOP) | pieces(QUEEN))) |
+			(piece_attacks(ROOK, square, occupied)   & (pieces(ROOK)   | pieces(QUEEN))) |
+			(piece_attacks(KING, square, 0ULL) & pieces(KING));
 	}
-
 
 	bool legal(Move move);
 
@@ -151,7 +159,7 @@ struct Board : Board_state
 
 	bool immediate_draw(unsigned ply)
 	{
-		return ply > 1 && (repetition || history[game_ply].rule_50 >= 100 || insufficient_material());
+		return history[game_ply].rule_50 >= 100 || (ply > 1 && (repetition || insufficient_material()));
 	}
 
 	void set_fenpos(std::string fen);

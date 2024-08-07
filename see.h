@@ -15,17 +15,17 @@
 
 struct Attacker
 {
-	Piece piece;
+	Piece_type type;
 	uint64_t square;
 };
 
 static inline Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
 {
-	for (Piece pc : ALL_PIECES[side]) {
-		uint64_t mask = board.pieces[pc] & attackers;
+	for (Piece_type type : { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING }) {
+		uint64_t mask = board.pieces(side, type) & attackers;
 		if (mask != 0ULL) return
 		{
-			.piece	  = pc,
+			.type	  = type,
 			// abuse the two's complement, so only one bit is returned
 		       	.square = mask & -mask
 		};
@@ -35,9 +35,9 @@ static inline Attacker lowest_piece(Board &board, uint64_t attackers, Color side
 
 static inline uint64_t revealed_attacks(Board &board, unsigned square, Piece_type pt, uint64_t occupied)
 {
-	uint64_t bishops = board.pieces[W_BISHOP] | board.pieces[B_BISHOP];
-	uint64_t rooks   = board.pieces[W_ROOK]   | board.pieces[B_ROOK];
-	uint64_t queens  = board.pieces[W_QUEEN]  | board.pieces[B_QUEEN];
+	uint64_t bishops = board.pieces(BISHOP);
+	uint64_t rooks   = board.pieces(ROOK);
+	uint64_t queens  = board.pieces(QUEEN);
 
 	if (pt == BISHOP || pt == PAWN)
 		return piece_attacks(BISHOP, square, occupied) & (bishops | queens);
@@ -59,7 +59,7 @@ static inline int see(Board &board, Move move)
 	unsigned depth = 0;
 
 	// the first exchange is obviously the move
-	Attacker attacker { .piece = board.board[move_from(move)], .square = 1ULL << move_from(move) };
+	Attacker attacker { .type = type_of(board.board[move_from(move)]), .square = 1ULL << move_from(move) };
 	gain[0] = piece_value[board.board[target_square]];
 	//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
 
@@ -72,13 +72,13 @@ static inline int see(Board &board, Move move)
 		side = Color(!side);
 		attackers &= ~attacker.square;
 		occupied &= ~attacker.square;
-		attackers |= revealed_attacks(board, target_square, type_of(attacker.piece), occupied) & occupied;
+		attackers |= revealed_attacks(board, target_square, attacker.type, occupied) & occupied;
 
 		// no attackers left, we are done here
-		if (!(attackers & board.color[side])) break;
+		if (!(attackers & board.pieces(side))) break;
 
 		// ouch, the piece is defended, continue
-		gain[depth] = piece_value[attacker.piece] - gain[depth - 1];
+		gain[depth] = piece_value[attacker.type] - gain[depth - 1];
 		//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
 
 		// if the opponent were to stop the exchange and you still lose it,

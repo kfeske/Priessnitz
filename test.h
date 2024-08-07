@@ -56,14 +56,11 @@ void mirror_test(Board &board, Search &search)
 	for (unsigned square = 0; square < 64; square++)
 		mirrored_board.remove_piece(square);
 
-	for (unsigned p = W_PAWN; p <= B_KING; p++) {
-		Piece_type pt = type_of(Piece(p));
-		Color color = color_of(Piece(p));
-		uint64_t bb = board.pieces[p];
-		while (bb) {
-			unsigned square = pop_lsb(bb);
-			mirrored_board.add_piece(normalize[BLACK][square], piece_of(swap(color), pt));
-		}
+	uint64_t occupied = board.occ;
+	while (occupied) {
+		unsigned square = pop_lsb(occupied);
+		Piece piece = board.board[square];
+		mirrored_board.add_piece(normalize[BLACK][square], piece_of(swap(color_of(piece)), type_of(piece)));
 	}
 	print_board(mirrored_board);
 	std::cerr << "other side " << search.eval.evaluate(mirrored_board) << "\n";

@@ -220,7 +220,7 @@ void UCI::await_input()
 	std::getline(std::cin, line);
 	std::istringstream iss { line };
 
-	while(iss >> parsed) {
+	while (iss >> parsed) {
 		if (parsed == "uci") {
 			std::cout << "id name Priessnitz\n";
 			std::cout << "id author Kevin Feske\n\n";
