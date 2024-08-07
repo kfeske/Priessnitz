@@ -74,7 +74,9 @@ struct UCI
 				return;
 			}
 			else if (parsed == "eval") {
-				search.eval.evaluate(board);
+				std::cerr << "side to move " << search.eval.evaluate(board) << "\n";
+				board.side_to_move = Color(!board.side_to_move);
+				std::cerr << "other side " << search.eval.evaluate(board) << "\n";
 				return;
 			}
 		}

@@ -324,7 +324,7 @@ struct MoveGenerator : Noncopyable
 	void generate_quiescence(Board &board)
 	{
 		Color friendly = Color(board.side_to_move);
-		
+
 		Color enemy = Color(!friendly);
 		uint64_t us_bb = board.color[friendly];
 		uint64_t them_bb = board.color[enemy];

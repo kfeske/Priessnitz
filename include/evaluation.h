@@ -3,8 +3,14 @@
 struct Evaluation : Noncopyable
 {
 	PSQT psqt;
-	int mg_value;
-	int eg_value;
+	int mg_bonus[2];
+	int eg_bonus[2];
+	uint64_t king_zone[2];
+	int king_danger[2];
+	int king_attackers[2];
+
+	int attack_potency[6] = { 0, 20, 20, 40, 80, 0 };
+	int king_danger_weight[8] = { 0, 0, 50, 75, 88, 94, 97 };
 
 	int mg_passed_bonus[64] =
 	{
@@ -54,12 +60,9 @@ struct Evaluation : Noncopyable
 	 0, 0, 0, 0, 0, 0, 0, 0,
 	};*/
 
-
-
+	// pawn structure evaluation
 	void evaluate_pawn(Board &board, unsigned square, Color color)
 	{
-		int mg_pawn_value = 0;
-		int eg_pawn_value = 0;
 		uint64_t friendly_pawns = board.pieces[piece_of(color, PAWN)];
 		uint64_t enemy_pawns = board.pieces[piece_of(!color, PAWN)];
 
@@ -67,43 +70,110 @@ struct Evaluation : Noncopyable
 
 		// reward passed pawns
 		if (!(board.precomputed.passed_pawn_mask[color][square] & enemy_pawns) && !blocked) {
-			mg_pawn_value += mg_passed_bonus[square];
-			eg_pawn_value += eg_passed_bonus[square];
+			mg_bonus[color] += mg_passed_bonus[square];
+			eg_bonus[color] += eg_passed_bonus[square];
 		}
 
 		// punish isolated pawns
 		if (!(board.precomputed.isolated_pawn_mask[file(square)] & friendly_pawns)) {
-			mg_pawn_value -= 15;
-			eg_pawn_value -= 5;
+			mg_bonus[color] -= 15;
+			eg_bonus[color] -= 5;
 		}
-
-		mg_value += (color == WHITE) ? mg_pawn_value : -mg_pawn_value;
-		eg_value += (color == WHITE) ? eg_pawn_value : -eg_pawn_value;
 	}
 
+	void evaluate_kings()
+	{
+		mg_bonus[WHITE] -= king_danger[WHITE] * king_danger_weight[std::min(king_attackers[WHITE], 7)] / 100;
+		mg_bonus[BLACK] -= king_danger[BLACK] * king_danger_weight[std::min(king_attackers[BLACK], 7)] / 100;
+	}
+
+	template <PieceType pt>
+	void note_king_attacks(uint64_t attacks, Color friendly)
+	{
+		if (attacks & king_zone[!friendly]) {
+			king_danger[!friendly] += attack_potency[pt] * pop_count(attacks & king_zone[!friendly]);
+			king_attackers[!friendly]++;
+		}
+	}
+
+	void evaluate_piece(Board &board, Piece p, unsigned square)
+	{
+		Color friendly = color_of(p);
+
+		switch (type_of(p)) {
+		case PAWN:
+			//evaluate_pawn(board, square, color_of(p));
+			return;
+
+		case KNIGHT:
+			{
+			uint64_t attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL) & king_zone[!friendly];
+			note_king_attacks<KNIGHT>(attacks, friendly);
+			return;
+			}
+		case BISHOP:
+			{
+			// queen is not counted as a blocker, because a bishop behind a queen makes the attack more potent
+			uint64_t ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
+			uint64_t attacks = board.precomputed.attacks_bb<BISHOP>(square, ray_blockers);
+			note_king_attacks<BISHOP>(attacks, friendly);
+			return;
+			}
+		case ROOK:
+			{
+			// queen and rooks are not counted as a blockers, because they increase the pressure on a king square when cooperating
+			uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
+			uint64_t attacks = board.precomputed.attacks_bb<ROOK>(square, ray_blockers);
+			note_king_attacks<ROOK>(attacks, friendly);
+			return;
+			}
+		case QUEEN:
+			{
+			uint64_t attacks = board.precomputed.attacks_bb<QUEEN>(square, board.occ);
+			note_king_attacks<QUEEN>(attacks, friendly);
+			return;
+			}
+		case KING: return;
+		}
+	}
+
+	// main evaluation function
 	int evaluate(Board &board)
 	{
-		mg_value = 0;
-		eg_value = 0;
-		int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
+		int mg_value = 0;
+		int eg_value = 0;
+		mg_bonus[WHITE] = 0;
+		mg_bonus[BLACK] = 0;
+		eg_bonus[WHITE] = 0;
+		eg_bonus[BLACK] = 0;
+		king_danger[WHITE] = 0;
+		king_danger[BLACK] = 0;
+		king_attackers[WHITE] = 0;
+		king_attackers[BLACK] = 0;
+		king_zone[WHITE] = board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(WHITE, KING)]), 0ULL);
+		king_zone[BLACK] = board.precomputed.attacks_bb<KING>(lsb(board.pieces[piece_of(BLACK, KING)]), 0ULL);
 
+		int material = board.non_pawn_material[WHITE] + board.non_pawn_material[BLACK];
 		material = std::max(int(MIN_MATERIAL), std::min(material, int(MAX_MATERIAL))); // endgame and midgame limit clamp
 		int phase = ((material - MIN_MATERIAL) * 256) / (MAX_MATERIAL - MIN_MATERIAL); // 0(Endgame) - 256(Midgame) linear interpolation
-	
-		for (Piece p : { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING, B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING }) {
-			uint64_t pieces = board.pieces[p];
-			while (pieces) {
-				unsigned square = pop_lsb(pieces);
 
-				// material and positional evaluation via Piece Square Tables
-				mg_value += psqt.midgame[p][square];
-				eg_value += psqt.endgame[p][square];
+		uint64_t pieces = board.occ;
 
-				// pawn structure evaluation
-				//if (type_of(p) == PAWN)
-				//	evaluate_pawn(board, square, color_of(p));
-			}
+		while (pieces) {
+			unsigned square = pop_lsb(pieces);
+			Piece p = board.board[square];
+
+			// material and positional evaluation via Piece Square Tables
+			mg_value += psqt.midgame[p][square];
+			eg_value += psqt.endgame[p][square];
+
+			evaluate_piece(board, p, square);
 		}
+
+		evaluate_kings();
+
+		mg_value += mg_bonus[WHITE] - mg_bonus[BLACK];
+		eg_value += eg_bonus[WHITE] - eg_bonus[BLACK];
 
 		// Tapered Eval
 		// interpolation between midgame and endgame to create a smooth transition
