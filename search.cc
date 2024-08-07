@@ -52,12 +52,12 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 
 		// Delta Pruning
 		// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
-		/*int gain = abs(piece_value[board.board[move_to(move)]]);
-		if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
-			continue;
+		//int gain = abs(piece_value[board.board[move_to(move)]]);
+		//if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
+		//	continue;
 
 		// Prune moves that lose material. In this case, a quiet move is probably better.
-		if (see(board, move) < 0) continue;*/
+		if (see(board, move) < 0) continue;
 
 		statistics.quiescence_nodes++;
 
