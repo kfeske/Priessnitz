@@ -195,7 +195,7 @@ struct Search
 
 			if (abort_search) return 0;
 
-			if (evaluation >= beta) {
+			//if (evaluation >= beta) {
 				// Beta cutoff. There is a better line for the opponent
 				// we know the opponent can get at least beta, so a branch that evaluates to more than beta
 				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
@@ -209,8 +209,8 @@ struct Search
 					heuristics.killer_move[0][ply] = move;
 				}*/
 				// *snip*
-				return beta;
-			}
+			//	return beta;
+			//}
 
 			if (evaluation > alpha) {
 				// found a better move
