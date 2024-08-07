@@ -11,7 +11,7 @@ struct Search_constants
 	};
 
 	int LMP_MARGIN[5] = {
-		0, 6, 9, 12, 15
+		0, 6, 11, 24, 24
 	};
 
 	int RAZOR_MARGIN = 400;

@@ -174,10 +174,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
 
 	// Internal Iterative Deepening
-	/*if (pv_node && depth > 10 && tt.best_move == INVALID_MOVE) {
+	if (pv_node && depth > 10 && tt.best_move == INVALID_MOVE) {
 		search(board, depth - 10, ply, alpha, beta, INVALID_MOVE, true);
 		tt.probe(board.zobrist.key, depth, alpha, beta);
-	}*/
+	}
 
 	// In the end, we decrement the history counters for bad quiet moves.
 	Move_list bad_quiets_searched;
