@@ -402,6 +402,20 @@ struct MoveGenerator : Noncopyable
 		generate_moves<BISHOP>(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
+
+
+		// generate quiet queen promotions too
+		Direction up = (friendly == WHITE) ? NORTH : SOUTH;
+		pawns = board.pieces[piece_of(friendly, PAWN)] & ~pinned;
+		pawns &= (friendly == WHITE) ? RANK_2 : RANK_7;
+		if (pawns && !checkers) {
+
+			uint64_t single_pushes = shift(pawns, up) & ~board.occ;
+			while(single_pushes) {
+				unsigned square = pop_lsb(single_pushes);
+				move_list[size++].move = create_move<PR_QUEEN>(square - up, square);
+			}
+		}
 	}
 	
 	/*void generate_quiescence(Board &board)

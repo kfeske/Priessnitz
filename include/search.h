@@ -25,7 +25,7 @@ struct Search : Noncopyable
 
 	Heuristics heuristics;
 
-	TranspositionTable<(64 * 1024 * 1024) / sizeof(TTEntry)> tt;
+	TranspositionTable<(16 * 1024 * 1024) / sizeof(TTEntry)> tt;
 
 	double time_start;
 	bool abort_search;
@@ -148,6 +148,15 @@ struct Search : Noncopyable
 				return beta;
 			}
 		}
+
+		// Futility Pruning
+		// very close to the horizon of the search, where we are in a position that is much worse than alpha,
+		// it is wise to prune this node completely and not waste our time on futile positions
+		bool futile = false;
+		if (!pv_node && depth <= 4 && !in_check && alpha < mate_score - 100 && beta < mate_score - 100) {
+			int static_evaluation = eval.evaluate(board);
+			futile = static_evaluation + 100 * depth <= alpha;
+		}
 		
 		//if (in_check) depth++;
 
@@ -168,6 +177,12 @@ struct Search : Noncopyable
 			Move move = next_move(move_generator, n);
 
 			board.make_move(move);
+
+			// Futility prune if the conditions are met
+			if (futile && n > 0 && !board.in_check() && flags_of(move) != CAPTURE && !promotion(move)) {
+				board.unmake_move(move);
+				continue;
+			}
 
 			// Principle Variation Search
 

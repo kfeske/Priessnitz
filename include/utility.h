@@ -234,6 +234,11 @@ Move create_move(unsigned from, unsigned to)
 	return Move((mf << 12) | (from << 6) | to);
 }
 
+bool promotion(Move move)
+{
+	return (flags_of(move) & 0b1000);
+}
+
 unsigned rank(unsigned square)
 {
 	return square >> 3;
