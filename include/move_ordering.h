@@ -7,7 +7,7 @@ struct Heuristics
 	int32_t history[16][64];
 };
 
-void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, bool quiescence, unsigned ply)
+void rate_moves(Board &board, Heuristics &heuristics, Move_generator &move_generator, bool quiescence, unsigned ply)
 {
 	for (unsigned n = 0; n < move_generator.size; n++) {
 		Scored_move &m = move_generator.move_list[n];
@@ -40,7 +40,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 	}
 }
 
-Move next_move(MoveGenerator &move_generator, unsigned index)
+Move next_move(Move_generator &move_generator, unsigned index)
 {
 	unsigned best_index = index;
 	int16_t best_score = move_generator.move_list[index].score;

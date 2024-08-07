@@ -52,8 +52,8 @@ enum Indicies {
 };
 
 enum Tuning_params {
-	NUM_TRAINING_POSITIONS = 700000, // number of training positions
-	NUM_TEST_POSITIONS = 25000,      // number of test positions
+	NUM_TRAINING_POSITIONS = 625000, // number of training positions
+	NUM_TEST_POSITIONS = 100000,      // number of test positions
 	//NUM_TRAINING_POSITIONS = 1400000, // number of training positions
 	//NUM_TEST_POSITIONS = 28000,      // number of test positions
 	NUM_TABLES = 34,		 // number of tables to be tuned (eg. pawn piece square table)
@@ -736,7 +736,7 @@ struct Tuner
 		double best_error = average_cost(test_set);
 		std::cerr << "\ntest error " << best_error << "\n";
 
-		unsigned convergence_counter = 0;
+		//unsigned convergence_counter = 0;
 		unsigned iteration = 0;
 		while (true) {
 			iteration++;
@@ -753,13 +753,14 @@ struct Tuner
 				}*/
 			}
 			double test_error = average_cost(test_set);
-			if (test_error < best_error) {
+			if (test_error < best_error - 0.0000001) {
 				best_error = test_error;
 				print_weights();
 				std::cerr << "\ntest error " << test_error << "\n";
 			}
-			else convergence_counter++;
-			if (convergence_counter >= 200) break;
+			else break;
+			//else convergence_counter++;
+			//if (convergence_counter >= 200) break;
 		}
 		std::cerr << "\ntraining error " << average_cost(training_set) << "\n";
 		std::cerr << "\ntest error " << average_cost(test_set) << "\n";

@@ -157,7 +157,7 @@ struct PreComputed : Noncopyable
 
 	// sliding attacks on the fly!
 	// using this function in the move generator would be too slow, hence all the magic bitboard stuff is needed
-	uint64_t sliding_attack_bb(PieceType type, unsigned square, uint64_t occ)
+	uint64_t sliding_attack_bb(Piece_type type, unsigned square, uint64_t occ)
 	{
 		uint64_t attacks = 0ULL;
 		Direction direction_rook[4]   = {NORTH, SOUTH, EAST, WEST};
@@ -192,7 +192,7 @@ struct PreComputed : Noncopyable
 	}
 
 	// fills the lookup tables of the sliding moves for the corresponding magic number
-	void cast_magics(PieceType type)
+	void cast_magics(Piece_type type)
 	{
 		for (unsigned square = 0; square < 64; square++) {
 
@@ -254,7 +254,7 @@ struct PreComputed : Noncopyable
 			cast_magics(BISHOP);
 			cast_magics(ROOK);
 
-			for (PieceType type : { BISHOP, ROOK }) {
+			for (Piece_type type : { BISHOP, ROOK }) {
 				for (unsigned square2 = 0; square2 <= 63; square2++) {
 					if (sliding_attack_bb(type, square, 0ULL) & 1ULL << square2) {
 						between_bb[square][square2] = sliding_attack_bb(type, square, 1ULL << square2) &
@@ -270,7 +270,7 @@ struct PreComputed : Noncopyable
 	}
 
 	// returns the pre-computed moves for a piece on a square
-	template <PieceType p>
+	template <Piece_type p>
 	uint64_t attacks_bb(unsigned square, uint64_t occ)
 	{
 		switch(p) {

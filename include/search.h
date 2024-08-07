@@ -26,7 +26,7 @@ struct Search : Noncopyable
 
 	Heuristics heuristics;
 
-	TranspositionTable<(256 * 1024 * 1024) / sizeof(TTEntry)> tt = *new TranspositionTable<(256 * 1024 * 1024) / sizeof(TTEntry)>;
+	Transposition_table<(256 * 1024 * 1024) / sizeof(TT_entry)> tt = *new Transposition_table<(256 * 1024 * 1024) / sizeof(TT_entry)>;
 
 	double time_start;
 	bool abort_search;
@@ -50,7 +50,7 @@ struct Search : Noncopyable
 		cutoffspv = 0;
 		null_cuts = 0;
 		heuristics = {};
-		for (TTEntry &entry : tt.entries) entry = {};
+		for (TT_entry &entry : tt.entries) entry = {};
 	}
 
 	bool mate(int score)
@@ -73,7 +73,7 @@ struct Search : Noncopyable
 		if (static_evaluation > alpha)
 			alpha = static_evaluation;
 
-		MoveGenerator move_generator;
+		Move_generator move_generator;
 		if (in_check)
 			move_generator.generate_all_moves(board);
 		else
@@ -137,7 +137,7 @@ struct Search : Noncopyable
 
 		// if no move exceeds alpha, we do not have an exact evaluation,
 		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
-		TTEntryFlag flag = UPPERBOUND;
+		TT_flag flag = UPPERBOUND;
 
 		// updated in the tt.probe() function
 		tt.pv_move = INVALID_MOVE;
@@ -203,7 +203,7 @@ struct Search : Noncopyable
 			heuristics.hash_move = tt.pv_move;
 		}*/
 
-		MoveGenerator move_generator;
+		Move_generator move_generator;
 		move_generator.generate_all_moves(board);
 
 		if (move_generator.size == 0) {

@@ -1,5 +1,5 @@
 
-struct TTEntry
+struct TT_entry
 {
 	uint64_t key;
 	uint8_t depth;
@@ -9,28 +9,21 @@ struct TTEntry
 };
 
 template <unsigned int size>
-struct TranspositionTable
+struct Transposition_table
 {
-	TTEntry entries[size];
+	TT_entry entries[size];
 	int current_evaluation;
 	Move pv_move;
 
 	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
 	{
 		uint64_t index = key % size;
-		TTEntry &entry = entries[index];
+		TT_entry &entry = entries[index];
 		if (entry.key == key) {
 			pv_move = Move(entry.best_move);
 			if (entry.depth >= depth) {
 
 				int evaluation = entry.evaluation;
-
-				// correct the mate scores, as we store mates using the distance to the node, they were found in
-				// in case of a transposition, we want to know, how far the mate is
-				//if (evaluation > 31000)
-				//	evaluation -= depth;
-				//if (evaluation < -31000)
-				//	evaluation += depth;
 
 				// we have an exact score for that position. Great!
 				// (that means, we searched all moves and received a new best move)
@@ -53,22 +46,15 @@ struct TranspositionTable
 		return false;
 	}
 
-	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TTEntryFlag flag)
+	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag)
 	{
 		uint64_t index = key % size;
-		TTEntry &entry = entries[index];
+		TT_entry &entry = entries[index];
 		if (entry.depth > depth) return; // do not overwrite a more accurate entry
 		entry.key = key;
 		entry.depth = depth;
 		entry.best_move = best_move;
 		entry.flag = flag;
-
-		// correct the mate scores, as we store mates using the distance to the node, they were found in
-		// in case of a transposition, we want to know, how far the mate is
-		//if (evaluation > 31000)
-		//	evaluation += depth;
-		//if (evaluation < -31000)
-		//	evaluation -= depth;
 		entry.evaluation = int16_t(evaluation);
 	}
 };

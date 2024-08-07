@@ -45,15 +45,15 @@ void mirror_test(Board &board, Search &search)
 	std::cerr << "side to move " << search.eval.evaluate(board) << "\n";
 
 	Board mirrored_board {};
-	mirrored_board.side_to_move = Color(!board.side_to_move);
+	mirrored_board.side_to_move = swap(board.side_to_move);
 
 	for (unsigned p = W_PAWN; p <= B_KING; p++) {
-		PieceType pt = type_of(Piece(p));
+		Piece_type pt = type_of(Piece(p));
 		Color color = color_of(Piece(p));
 		uint64_t bb = board.pieces[p];
 		while (bb) {
 			unsigned square = pop_lsb(bb);
-			mirrored_board.add_piece(normalize[BLACK][square], piece_of(!color, pt));
+			mirrored_board.add_piece(normalize[BLACK][square], piece_of(swap(color), pt));
 		}
 	}
 	print_board(mirrored_board);

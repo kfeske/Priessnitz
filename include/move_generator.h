@@ -1,12 +1,12 @@
 #include <utility>
 #include <vector>
 
-struct MoveGenerator : Noncopyable
+struct Move_generator : Noncopyable
 {
 	uint8_t size = 0;
 	Scored_move move_list[218]; // 218 is the maximum number of moves for a color in a legal position
 
-	template <MoveFlags mf>
+	template <Move_flags mf>
 	void append_attacks(unsigned from, uint64_t attacks)
 	{
 		while (attacks) move_list[size++].move = create_move<mf>(from, pop_lsb(attacks));
@@ -151,7 +151,7 @@ struct MoveGenerator : Noncopyable
 	}
 
 
-	template <PieceType p>
+	template <Piece_type p>
 	void generate_moves(Board &board, Color col, uint64_t targets, uint64_t quiets, uint64_t pinned, unsigned ksq)
 	{
 		uint64_t pieces = board.pieces[piece_of(col, p)];
@@ -179,9 +179,9 @@ struct MoveGenerator : Noncopyable
 
 	void generate_all_moves(Board &board)
 	{
-		Color friendly = Color(board.side_to_move);
+		Color friendly = board.side_to_move;
 		
-		Color enemy = Color(!friendly);
+		Color enemy = swap(friendly);
 		uint64_t us_bb = board.color[friendly];
 		uint64_t them_bb = board.color[enemy];
 
@@ -323,9 +323,9 @@ struct MoveGenerator : Noncopyable
 
 	void generate_quiescence(Board &board)
 	{
-		Color friendly = Color(board.side_to_move);
+		Color friendly = board.side_to_move;
 
-		Color enemy = Color(!friendly);
+		Color enemy = swap(friendly);
 		uint64_t us_bb = board.color[friendly];
 		uint64_t them_bb = board.color[enemy];
 
@@ -420,8 +420,8 @@ struct MoveGenerator : Noncopyable
 	
 	/*void generate_quiescence(Board &board)
 	{
-		Color friendly = Color(board.side_to_move);
-		Color enemy = Color(!friendly);
+		Color friendly = board.side_to_move;
+		Color enemy = !friendly;
 
 		unsigned ksq = 0;
 		uint64_t pinned = 0ULL;
@@ -434,4 +434,8 @@ struct MoveGenerator : Noncopyable
 		generate_moves<ROOK  >(board, friendly, targets, quiets, pinned, ksq);
 		generate_moves<QUEEN >(board, friendly, targets, quiets, pinned, ksq);
 	}*/
+};
+
+enum Gen_stage {
+	CAPTURE_GEN, QUIET_GEN, EVASION_GEN
 };

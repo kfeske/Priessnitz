@@ -5,7 +5,7 @@
 
 // Zobrist Hashing is an efficient way of storing a chess position
 // it is used as an index to the transposition table.
-// This was, we can easily determine, if the position has been reached before.
+// This way, we can easily determine, if the position has been reached before.
 
 // also used to check for threefold-repetitions.
 
@@ -156,7 +156,7 @@ struct Board : Board_state
 		if (type_of(board[move_from(move)]) == PAWN)
 			history[game_ply].rule_50 = 0;
 
-		MoveFlags flags = flags_of(move);
+		Move_flags flags = flags_of(move);
 
 		switch(flags) {
 		case QUIET:
@@ -258,7 +258,7 @@ struct Board : Board_state
 
 		position_history[game_ply] = zobrist.key;
 
-		side_to_move = Color(!side_to_move);
+		side_to_move = swap(side_to_move);
 	}
 
 	void unmake_move(Move move)
@@ -268,7 +268,7 @@ struct Board : Board_state
 		game_ply--;
 		unsigned from = move_to(move);
 		unsigned to   = move_from(move);
-		MoveFlags flags = flags_of(move);
+		Move_flags flags = flags_of(move);
 
 		zobrist.key = 0ULL;
 		
@@ -300,11 +300,11 @@ struct Board : Board_state
 			break;
 		case PR_KNIGHT: case PR_BISHOP: case PR_ROOK: case PR_QUEEN:
 			remove_piece(from);
-			add_piece(to, piece_of(!side_to_move, PAWN));
+			add_piece(to, piece_of(swap(side_to_move), PAWN));
 			break;
 		case PC_KNIGHT: case PC_BISHOP: case PC_ROOK: case PC_QUEEN:
 			remove_piece(from);
-			add_piece(to, piece_of(!side_to_move, PAWN));
+			add_piece(to, piece_of(swap(side_to_move), PAWN));
 			add_piece(from, info.captured);
 			break;
 		default: return;
@@ -317,13 +317,13 @@ struct Board : Board_state
 			zobrist.key ^= zobrist.ep_rand[file(history[game_ply].ep_sq)];
 
 		repetition = false;
-		side_to_move = Color(!side_to_move);
+		side_to_move = swap(side_to_move);
 	}
 	
 	// useful for Null Move Pruning
 	unsigned make_null_move()
 	{
-		side_to_move = Color(!side_to_move);
+		side_to_move = swap(side_to_move);
 		zobrist.piece_side_key ^= zobrist.side_rand;
 		zobrist.key ^= zobrist.side_rand;
 
@@ -339,7 +339,7 @@ struct Board : Board_state
 
 	void unmake_null_move(unsigned ep)
 	{
-		side_to_move = Color(!side_to_move);
+		side_to_move = swap(side_to_move);
 		zobrist.piece_side_key ^= zobrist.side_rand;
 		zobrist.key ^= zobrist.side_rand;
 
@@ -353,13 +353,14 @@ struct Board : Board_state
 	bool in_check()
 	{
 		if (pieces[piece_of(side_to_move, KING)] == 0ULL) std::cerr << "no king\n";
+		Color enemy = swap(side_to_move);
 		unsigned ksq = lsb(pieces[piece_of(side_to_move, KING)]);
-		uint64_t enemy_diag_sliders = pieces[piece_of(!side_to_move, BISHOP)] | pieces[piece_of(!side_to_move, QUEEN)];
-		uint64_t enemy_orth_sliders = pieces[piece_of(!side_to_move, ROOK  )] | pieces[piece_of(!side_to_move, QUEEN)];
+		uint64_t enemy_diag_sliders = pieces[piece_of(enemy, BISHOP)] | pieces[piece_of(enemy, QUEEN)];
+		uint64_t enemy_orth_sliders = pieces[piece_of(enemy, ROOK  )] | pieces[piece_of(enemy, QUEEN)];
 
 		uint64_t checkers = 0ULL;
-		checkers |= precomputed.pawn_attacks[side_to_move][ksq] & pieces[piece_of(!side_to_move, PAWN)];
-		checkers |= precomputed.attacks_bb<KNIGHT>(ksq, 0ULL) & pieces[piece_of(!side_to_move, KNIGHT)];
+		checkers |= precomputed.pawn_attacks[side_to_move][ksq] & pieces[piece_of(enemy, PAWN)];
+		checkers |= precomputed.attacks_bb<KNIGHT>(ksq, 0ULL) & pieces[piece_of(enemy, KNIGHT)];
 		checkers |= precomputed.attacks_bb<BISHOP>(ksq, occ) & enemy_diag_sliders;
 		checkers |= precomputed.attacks_bb<ROOK  >(ksq, occ) & enemy_orth_sliders;
 

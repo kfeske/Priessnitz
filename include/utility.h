@@ -34,18 +34,6 @@ enum File : uint64_t {
 	FILE_H = FILE_A << 7,
 };
 
-const std::string square_string[65] = {
-	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-	"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-	"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-	"None"
-};
-
 // mirror a square, useful for applying the evaluation tables for both white and black
 uint8_t const normalize[2][64] =
 {
@@ -71,10 +59,7 @@ uint8_t const normalize[2][64] =
 	}
 };
 
-enum Color {
-	WHITE, BLACK
-};
-
+// this ugly looking gap from W_KING to B_PAWN can simplify some calculations
 enum Piece {
 	W_PAWN = 0, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
 	B_PAWN = 8, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
@@ -84,17 +69,21 @@ enum Piece {
 Piece const ALL_PIECES[2][6] = { { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING },
 				 { B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING } };
 
-Piece piece_of(unsigned c, unsigned p)
+enum Color {
+	WHITE, BLACK
+};
+
+Color swap(Color color)
 {
-	return Piece((c << 3) + p);
+	return Color(!color);
 }
 
-Color color_of(Piece p)
+Color color_of(Piece piece)
 {
-	return Color(p >> 3);
+	return Color(piece >> 3);
 }
 
-enum PieceType {
+enum Piece_type {
 	PAWN,
 	KNIGHT,
 	BISHOP,
@@ -103,15 +92,21 @@ enum PieceType {
 	KING
 };
 
-PieceType type_of(Piece p)
+Piece_type type_of(Piece piece)
 {
-	return PieceType(p & 0b111);
+	return Piece_type(piece & 0b111);
 }
 
-int piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
+Piece piece_of(Color color, Piece_type type)
+{
+	return Piece((color << 3) + type);
+}
+
+// used in search and move ordering, but not in the evaluation
+int const piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
 			100, 300, 320, 500, 900, 1000 };
 
-int non_pawn_value[14] = { 0, 300, 320, 500, 900, 0, 0, 0,
+int const non_pawn_value[14] = { 0, 300, 320, 500, 900, 0, 0, 0,
 			   0, 300, 320, 500, 900, 0 };
 
 enum Direction {
@@ -158,7 +153,7 @@ struct Scored_move
 
 // Chess has loads of special moves that have to be treated differently.
 // These can be neatly encoded in 4 bits.
-enum MoveFlags {
+enum Move_flags {
 	QUIET = 0b0000,
 	DOUBLE_PUSH = 0b0001,
 	OO = 0b0010, OOO = 0b0011,							// kingside, queenside
@@ -180,9 +175,9 @@ unsigned move_to(Move move)
 }
 
 // special flag
-MoveFlags flags_of(Move move)
+Move_flags flags_of(Move move)
 {
-	return MoveFlags((move >> 12) & 0xF);
+	return Move_flags((move >> 12) & 0xF);
 }
 
 Move create_move(unsigned from, unsigned to)
@@ -190,10 +185,10 @@ Move create_move(unsigned from, unsigned to)
 	return Move((from << 6) + to);
 }
 
-template <MoveFlags mf>
+template <Move_flags flag>
 Move create_move(unsigned from, unsigned to)
 {
-	return Move((mf << 12) | (from << 6) | to);
+	return Move((flag << 12) | (from << 6) | to);
 }
 
 bool promotion(Move move)
@@ -234,7 +229,7 @@ bool is_edge(unsigned square, Direction d)
 }
 
 // the castling rights for both sides fit in 4 bits
-enum CastlingRights {
+enum Castling_rights {
 	NO_RIGHTS,
 	WHITE_OO  = 0b0001,
 	WHITE_OOO = 0b0010,
@@ -243,7 +238,7 @@ enum CastlingRights {
 };
 
 // there are different types of hash entries, since we do not always have exact information about positions
-enum TTEntryFlag {
+enum TT_flag {
 	NO_FLAG,
 	UPPERBOUND,
 	LOWERBOUND,
@@ -309,7 +304,19 @@ void print_bitboard(uint64_t b)
 	std::cerr << str;
 }
 
-std::string flag_string(MoveFlags flag)
+std::string const square_string[65] = {
+	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+	"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+	"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+	"None"
+};
+
+std::string flag_string(Move_flags flag)
 {
 	switch(flag) {
 	case PR_KNIGHT: case PC_KNIGHT: return "n";

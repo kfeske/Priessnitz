@@ -8,9 +8,6 @@
 // extracts the piece with the least value from a bitboard
 // order is pawn, knight, bishop, rook, queen, king
 
-int const see_value[15] = { 100, 325, 325, 500, 1000, 0, 0, 0,
-			    100, 325, 325, 500, 1000, 0, 0 };
-
 struct Attacker
 {
 	Piece piece;
@@ -54,7 +51,7 @@ Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
 	return 0ULL;
 }*/
 
-uint64_t revealed_attacks(Board &board, unsigned square, PieceType pt, uint64_t occupied)
+uint64_t revealed_attacks(Board &board, unsigned square, Piece_type pt, uint64_t occupied)
 {
 	uint64_t bishops = board.pieces[W_BISHOP] | board.pieces[B_BISHOP];
 	uint64_t rooks   = board.pieces[W_ROOK]   | board.pieces[B_ROOK];
@@ -81,7 +78,7 @@ int see(Board &board, Move move)
 
 	// the first exchange is obviously the move
 	Attacker attacker { .piece = board.board[move_from(move)], .square = 1ULL << move_from(move) };
-	gain[0] = see_value[board.board[target_square]];
+	gain[0] = piece_value[board.board[target_square]];
 	//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
 
 	uint64_t attackers = attacks_to(board, target_square, occupied);
@@ -99,7 +96,7 @@ int see(Board &board, Move move)
 		if (!(attackers & board.color[side])) break;
 
 		// ouch, the piece is defended, continue
-		gain[depth] = see_value[attacker.piece] - gain[depth - 1];
+		gain[depth] = piece_value[attacker.piece] - gain[depth - 1];
 		//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
 
 		// if the opponent were to stop the exchange and you still lose it,

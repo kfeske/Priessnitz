@@ -13,7 +13,7 @@ struct Perft {
 			return 1;
 		}
 
-		MoveGenerator move_generator {};
+		Move_generator move_generator {};
 		move_generator.generate_all_moves(board);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
@@ -47,7 +47,7 @@ struct Perft {
 			return 1;
 		}
 
-		MoveGenerator movegenerator {};
+		Move_generator movegenerator {};
 		movegenerator.generate_all_moves(board);
 
 		for (unsigned n = 0; n < movegenerator.size; n++) {
