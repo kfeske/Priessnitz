@@ -238,15 +238,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// Assuming our move ordering is doing a good job, only the first
 			// moves are actually good and should thus be searched deeper than other moves.
 
-			//evaluation = -search(board, depth - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
-			//if (evaluation > alpha && evaluation < beta)
-			//	// If a move happens to be better, we need to re-search it with full window
-			//	evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
-
 			unsigned reduction = 0;
 			if (depth >= 3 && late_move) {
-				reduction = 1;
-				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
+				//reduction = 1;
+				reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
