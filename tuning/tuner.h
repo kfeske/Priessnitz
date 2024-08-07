@@ -62,10 +62,10 @@ enum Indicies {
 };
 
 enum Tuning_params {
-	NUM_TRAINING_POSITIONS = 625000, // number of training positions
-	NUM_TEST_POSITIONS = 100000,      // number of test positions
-	//NUM_TRAINING_POSITIONS = 1400000, // number of training positions
-	//NUM_TEST_POSITIONS = 28000,      // number of test positions
+	//NUM_TRAINING_POSITIONS = 625000, // number of training positions
+	//NUM_TEST_POSITIONS = 100000,      // number of test positions
+	NUM_TRAINING_POSITIONS = 1500000, // number of training positions
+	NUM_TEST_POSITIONS = 153653,      // number of test positions
 	NUM_TABLES = 40,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
@@ -81,16 +81,13 @@ double random_double(double min, double max)
 	return min + (max - min) * random_double();
 }
 
-
 // a single position and the game result
 struct Sample
 {
-	//std::string fen;
-
 	double outcome;
 
 	// stores, how much a weight influences the evaluation of a position
-	double influence[NUM_WEIGHTS] {};
+	float influence[NUM_WEIGHTS] {};
 
 	// useful for king evaluation
 	uint8_t ring_attackers[2] {};
@@ -98,6 +95,7 @@ struct Sample
 	uint8_t zone_attackers[2] {};
 	uint8_t zone_attacks[15] {};
 
+	// Midgame / Endgame gamephase of the position
 	double phase = 0;
 };
 
@@ -324,8 +322,8 @@ struct Tuner
 	// the tuner will change all evaluation parameters to best fit this result
 	double outcome(std::string &result)
 	{
-		if (result == "\"0-1\";") return 0.0;
-		else if (result == "\"1-0\";") return 1.0;
+		if (result == "[0.0]") return 0.0;
+		else if (result == "[1.0]") return 1.0;
 		else return 0.5;
 	}
 
@@ -500,19 +498,23 @@ struct Tuner
 	{
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
-		file.open("training_set.epd");
+		//file.open("training_set.epd");
+		file.open("lichess-big3-resolved.book");
 		if (file.is_open()) {
 			std::string input;
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
 
+				if (pos % 1000 == 0) std::cerr << "position " << pos << "\n";
 				std::string fen;
 				std::string result;
 				while (true) {
 					file >> input;
-					if (input == "c9") break;
+					if (input == "[0.0]" || input == "[0.5]" || input == "[1.0]") {
+						result = input;
+						break;
+					}
 					fen += input + " ";
 				}
-				file >> result;
 
 				// precompute the features of a position to simplify evaluation and allow gradient calculation
 				Sample position { outcome(result) };

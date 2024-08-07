@@ -6,6 +6,7 @@
 #include "evaluation.h"
 #include "move_ordering.h"
 #include "transposition_table.h"
+#include "search_constants.h"
 
 struct Statistics
 {
@@ -36,6 +37,7 @@ struct Search : Noncopyable
 
 	Statistics statistics;
 	Heuristics heuristics;
+	Search_constants search_constants;
 
 	unsigned age;
 	Transposition_table tt;

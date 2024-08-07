@@ -236,8 +236,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// moves are actually good and should thus be searched deeper than other moves.
 
 			unsigned reduction = 0;
-			if (depth >= 3 && late_move && !gives_check) {
-				reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
+			if (depth > 1 && late_move && !gives_check) {
+				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63U, move_count)];
+				if (!pv_node) reduction++;
+				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
