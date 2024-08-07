@@ -5,7 +5,7 @@ CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3
 
 OBJECTS := main.o pre_computed.o search.o board.o evaluation.o move_generator.o uci.o
 
-main: Makefile $(OBJECTS)
+priessnitz: Makefile $(OBJECTS)
 	g++ $(OBJECTS) -o priessnitz $(CXXFLAGS)
 
 profile: Makefile $(OBJECTS)
@@ -22,5 +22,5 @@ clean:
 	rm -f *.o *.d
 	rm priessnitz
 
-test: main
+test: priessnitz
 	./priessnitz

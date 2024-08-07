@@ -65,7 +65,7 @@ struct Board : Board_state
 	// resets information neccessary to start a new game
 	void reset()
 	{
-		static_cast<Board_state&>(*this) = {};
+		static_cast<Board_state&>(*this) = Board_state {};
 		for (unsigned square = 0; square < 64; square++)
 			board[square] = NO_PIECE;
 	}
