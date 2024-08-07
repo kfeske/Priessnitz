@@ -114,13 +114,23 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	
 	bool pv_node = beta - alpha != 1;
 
-	// Updated in the tt.probe() function
-	tt.best_move = INVALID_MOVE;
-
 	// Check for any transpositions at higher or equal depths
-	bool usable = tt.probe(board.zobrist.key, depth, alpha, beta);
-	if (usable && !pv_node && tt.best_move != skip)
-		return tt.current_evaluation;
+	TT_entry &tt_entry = tt.probe(board.zobrist.key);
+	Move hash_move = Move(tt_entry.best_move);
+	if (!pv_node && tt_entry.depth >= depth && hash_move != skip) {
+		// we have an exact score for that position. Great!
+		// (that means, we searched all moves and received a new best move)
+		if (tt_entry.flag == EXACT)
+			return tt_entry.evaluation;
+
+		// this value is too high for us to be concered about, it will cause a beta-cutoff
+		if (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta)
+			return beta;
+
+		// this value is too low, we will not exceed alpha in the search
+		if (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha)
+			return alpha;
+	}
 
 	// Static evaluation of the position
 	int static_eval = eval.evaluate(board);
@@ -174,15 +184,16 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
 
 	// Internal Iterative Deepening
-	if (pv_node && depth > 10 && tt.best_move == INVALID_MOVE) {
+	if (pv_node && depth > 10 && hash_move == INVALID_MOVE) {
 		search(board, depth - 10, ply, alpha, beta, INVALID_MOVE, true);
-		tt.probe(board.zobrist.key, depth, alpha, beta);
+		TT_entry &tt_entry = tt.probe(board.zobrist.key);
+		hash_move = Move(tt_entry.best_move);
 	}
 
 	// In the end, we decrement the history counters for bad quiet moves.
 	Move_list bad_quiets_searched;
 
-	Move_orderer move_orderer { board, tt.best_move, heuristics, ply };
+	Move_orderer move_orderer { board, hash_move, heuristics, ply };
 	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
 	Move move;
 	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
@@ -483,15 +494,15 @@ std::string Search::extract_pv_line(Board &board)
 	std::string pv_line {};
 	Board temp_board = board;
 	for (int depth = 0; depth < current_depth; depth++) {
-		tt.best_move = INVALID_MOVE;
-		tt.probe(temp_board.zobrist.key, depth, -INFINITY_SCORE, INFINITY_SCORE);
-		if (tt.best_move == INVALID_MOVE) break;
+		TT_entry &tt_entry = tt.probe(temp_board.zobrist.key);
+		Move tt_move = Move(tt_entry.best_move);
+		if (tt_move == INVALID_MOVE) break;
 		if (depth == 0) {
-			best_root_move = tt.best_move;
-			root_evaluation = tt.current_evaluation;
+			best_root_move = tt_move;
+			root_evaluation = tt_entry.evaluation;
 		}
-		pv_line += move_string(tt.best_move) + " ";
-		temp_board.make_move(tt.best_move);
+		pv_line += move_string(tt_move) + " ";
+		temp_board.make_move(tt_move);
 	}
 	return pv_line;
 }

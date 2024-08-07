@@ -23,10 +23,9 @@ struct Transposition_table
 	unsigned entry_count = (DEFAULT_TT_SIZE * 1024 * 1024) / sizeof(TT_entry);
 	unsigned bucket_count = entry_count / BUCKET_SIZE;
 	TT_bucket *buckets;
-	int current_evaluation = 0;
-	Move best_move = INVALID_MOVE;
+	TT_entry empty_entry {};
 
-	TT_entry &fetch_entry(uint64_t key)
+	TT_entry &probe(uint64_t key)
 	{
 		uint64_t index = key % bucket_count;
 		TT_bucket &bucket = buckets[index];
@@ -34,36 +33,7 @@ struct Transposition_table
 			TT_entry &entry = bucket.entries[i];
 			if (entry.key == key) return entry;
 		}
-		return bucket.entries[0];
-	}
-
-	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
-	{
-		TT_entry &entry = fetch_entry(key);
-		if (entry.key == key) {
-			best_move = Move(entry.best_move);
-			current_evaluation = entry.evaluation;
-			if (entry.depth >= depth) {
-
-
-				// we have an exact score for that position. Great!
-				// (that means, we searched all moves and received a new best move)
-				if (entry.flag == EXACT) {
-					return true;
-				}
-				// this value is too high for us to be concered about, it will cause a beta-cutoff
-				if (entry.flag == LOWERBOUND && entry.evaluation >= beta) {
-					current_evaluation = beta;
-					return true;
-				}
-				// this value is too low, we will not exceed alpha in the search
-				else if (entry.flag == UPPERBOUND && entry.evaluation <= alpha) {
-					current_evaluation = alpha;
-					return true;
-				}
-			}
-		}
-		return false;
+		return empty_entry;
 	}
 
 	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag, unsigned age)
