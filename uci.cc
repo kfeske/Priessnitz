@@ -53,6 +53,7 @@ void UCI::go_command(std::istringstream &iss)
 	unsigned b_time = 0;
 	unsigned w_inc = 0;
 	unsigned b_inc = 0;
+	unsigned moves_to_go = 0;
 
 	std::string parsed {};
 	while(iss >> parsed) {
@@ -81,6 +82,10 @@ void UCI::go_command(std::istringstream &iss)
 		else if (parsed == "binc")
 			iss >> b_inc;
 
+		else if (parsed == "movestogo") {
+			iss >> moves_to_go;
+		}
+
 		else if (parsed == "perft") {
 			unsigned depth;
 			iss >> depth;
@@ -102,7 +107,7 @@ void UCI::go_command(std::istringstream &iss)
 			return;
 		}
 	}
-	search.think(board, move_time, w_time, b_time, w_inc, b_inc);
+	search.think(board, move_time, w_time, b_time, w_inc, b_inc, moves_to_go);
 }
 
 void UCI::setoption_command(std::istringstream &iss)

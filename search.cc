@@ -426,7 +426,7 @@ void Search::start_search(Board &board)
 	plot_final_info(total_nodes);
 }
 
-void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc)
+void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc, unsigned moves_to_go)
 {
 	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
 
@@ -437,23 +437,31 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 
 		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
 
+		// Safety move overhead buffer to avoid losing on time
 		unsigned move_overhead = 10;
 
-		// Assume the game will last another n moves on average. Of course, the game will likely last for more than
-		// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
-		unsigned remaining_moves = 40;
+		// Sudden death time control
+		if (!moves_to_go) {
+			// Assume the game will last another n moves on average. Of course, the game will likely last for more than
+			// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
 
-		// Add the total time for increments and make sure, we have a
-		// safety move overhead buffer in case of delays.
-		unsigned expected_time_left = time_left - move_overhead + increment * remaining_moves;
+			// The search can abort after an iteration, if the soft time cap has been crossed.
+			soft_time_cap = (time_left - move_overhead) / 40 + increment;
 
-		// The search can abort after an iteration, if the soft time cap has been crossed.
-		soft_time_cap = std::max(1U, expected_time_left / remaining_moves);
-		soft_time_cap = std::min(soft_time_cap, time_left - move_overhead);
+			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
+			hard_time_cap = soft_time_cap * 5;
+		}
+		// X time for Y moves
+		else {
+			// The search can abort after an iteration, if the soft time cap has been crossed.
+			soft_time_cap = 1.0 * (time_left - move_overhead) / (moves_to_go + 5) + increment;
 
-		// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
-		hard_time_cap = soft_time_cap * 5;
-		hard_time_cap = std::min(hard_time_cap, time_left - move_overhead);
+			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
+			hard_time_cap = soft_time_cap * 5;
+		}
+
+		soft_time_cap = std::max(1U, std::min(soft_time_cap, time_left - move_overhead));
+		hard_time_cap = std::max(1U, std::min(hard_time_cap, time_left - move_overhead));
 
 		// Respond instantly in case of a single legal move.
 		if (move_list.size == 1)

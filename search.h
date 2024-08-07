@@ -56,7 +56,7 @@ struct Search : Noncopyable
 
 	void start_search(Board &board);
 
-	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc);
+	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc, unsigned moves_to_go);
 
 	void update_heuristics(Board &board, Move move, int depth, int ply, Move_list &bad_quiets_searched);
 
