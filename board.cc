@@ -199,14 +199,14 @@ void Board::make_move(Move move)
 	repetition = false;
 	if (history[game_ply].rule_50 >= 4) { // a move that resets the 50 move rule also prevents repetitions.
 					      // We do not need to search them in the whole history
-		unsigned cycles = 0;
 		int end = int(game_ply) - int(history[game_ply].rule_50);
 		for (int i = game_ply; i >= end; i -= 2) {
-			if (position_history[i] == zobrist.key)
-				cycles++;
+			if (position_history[i] == zobrist.key) {
+				// Two- and three-fold repetitions are both treated as a draw in the search
+				repetition = true;
+				break;
+			}
 		}
-		if (cycles >= 1) repetition = true; // notice how it says (cycles >= 1), two- and three-fold repetitions
-						    // are both treated as a draw in the search
 	}
 
 	position_history[game_ply] = zobrist.key;
@@ -471,6 +471,13 @@ uint64_t Board::all_pawn_attacks(Color friendly)
 	Direction up_left  = (friendly == WHITE) ? UP_LEFT : DOWN_LEFT;
 	uint64_t pawns = pieces[piece_of(friendly, PAWN)];
 	return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
+}
+
+// Detect completely drawn positions KvK, KvKN, KvKB, KvKNN, ...
+bool Board::insufficient_material()
+{
+	return !(pieces[W_PAWN] || pieces[B_PAWN] || pieces[W_ROOK] || pieces[B_ROOK] || pieces[W_QUEEN] || pieces[B_QUEEN]) &&
+		(pop_count(occ) <= 3 || (pop_count(occ) == 4 && pop_count(pieces[W_BISHOP]) < 2 && pop_count(pieces[B_BISHOP]) < 2));
 }
 
 void Board::set_fenpos(std::string fen)

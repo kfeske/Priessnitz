@@ -42,7 +42,12 @@ enum Indicies {
 	MG_DOUBLE_BISHOP = EG_CHAINED + 1,
 	EG_DOUBLE_BISHOP = MG_DOUBLE_BISHOP + 1,
 
-	MG_KNIGHT_MOBILITY = EG_DOUBLE_BISHOP + 1,
+	MG_ROOK_OPEN_FILE      = EG_DOUBLE_BISHOP + 1,
+	EG_ROOK_OPEN_FILE      = MG_ROOK_OPEN_FILE + 1,
+	MG_ROOK_HALF_OPEN_FILE = EG_ROOK_OPEN_FILE + 1,
+	EG_ROOK_HALF_OPEN_FILE = MG_ROOK_HALF_OPEN_FILE + 1,
+
+	MG_KNIGHT_MOBILITY = EG_ROOK_HALF_OPEN_FILE + 1,
 	EG_KNIGHT_MOBILITY = MG_KNIGHT_MOBILITY + 9,
 	MG_BISHOP_MOBILITY = EG_KNIGHT_MOBILITY + 9,
 	EG_BISHOP_MOBILITY = MG_BISHOP_MOBILITY + 14,
@@ -65,7 +70,7 @@ enum Indicies {
 enum Tuning_params {
 	NUM_TRAINING_POSITIONS = 6500000, // number of training positions
 	NUM_TEST_POSITIONS = 653653,      // number of test positions
-	NUM_TABLES = 41,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 45,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -107,6 +112,7 @@ struct Tuner
 			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
+					   MG_ROOK_OPEN_FILE, EG_ROOK_OPEN_FILE, MG_ROOK_HALF_OPEN_FILE, EG_ROOK_HALF_OPEN_FILE,
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
@@ -114,7 +120,7 @@ struct Tuner
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
 	double const TINY_NUMBER = 0.00000001;   // difference quotient step size
-	double const LEARN_RATE = 0.5;	 // step size
+	double const LEARN_RATE = 0.5;	 	 // step size
 
 	Board board {};
 	Evaluation eval {};
@@ -158,6 +164,11 @@ struct Tuner
 
 		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
 		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
+
+		case MG_ROOK_OPEN_FILE:      return eval.mg_rook_open_file;
+		case EG_ROOK_OPEN_FILE:      return eval.eg_rook_open_file;
+		case MG_ROOK_HALF_OPEN_FILE: return eval.mg_rook_half_open_file;
+		case EG_ROOK_HALF_OPEN_FILE: return eval.eg_rook_half_open_file;
 
 		case MG_KNIGHT_MOBILITY: return eval.mg_knight_mobility[pos];
 		case EG_KNIGHT_MOBILITY: return eval.eg_knight_mobility[pos];
@@ -321,6 +332,11 @@ struct Tuner
 		std::cerr << "\nint mg_double_bishop = " << int_weight(MG_DOUBLE_BISHOP) << ";\n";
 		std::cerr <<   "int eg_double_bishop = " << int_weight(EG_DOUBLE_BISHOP) << ";\n";
 
+		std::cerr << "\nint mg_rook_open_file = "      << int_weight(MG_ROOK_OPEN_FILE) << ";\n";
+		std::cerr <<   "int eg_rook_open_file = "      << int_weight(EG_ROOK_OPEN_FILE) << ";\n";
+		std::cerr << "\nint mg_rook_half_open_file = " << int_weight(MG_ROOK_HALF_OPEN_FILE) << ";\n";
+		std::cerr <<   "int eg_rook_half_open_file = " << int_weight(EG_ROOK_HALF_OPEN_FILE) << ";\n";
+
 	}
 
 	// this functions sets the result of a game; 0 for black win, 0.5 for a draw and 1 for white win
@@ -466,6 +482,18 @@ struct Tuner
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 				influences[MG_ROOK_MOBILITY + safe_squares] += side * mg_phase;
 				influences[EG_ROOK_MOBILITY + safe_squares] += side * eg_phase;
+
+				uint64_t rook_file = file(square);
+				if (!(rook_file & board.pieces[piece_of(friendly, PAWN)])) {
+					if (!(rook_file & board.pieces[piece_of(enemy, PAWN)])) {
+						influences[MG_ROOK_OPEN_FILE] += side * mg_phase;
+						influences[EG_ROOK_OPEN_FILE] += side * eg_phase;
+					}
+					else {
+						influences[MG_ROOK_HALF_OPEN_FILE] += side * mg_phase;
+						influences[EG_ROOK_HALF_OPEN_FILE] += side * eg_phase;
+					}
+				}
 				continue;
 				}
 			case QUEEN:
@@ -738,21 +766,11 @@ struct Tuner
 		double best_error = average_cost(test_set);
 		std::cerr << "\ntest error " << best_error << "\n";
 
-		//unsigned convergence_counter = 0;
-		unsigned iteration = 0;
-		while (true) {
-			iteration++;
+		for (unsigned iteration = 0; iteration < 2000; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
-				//approximate_gradients(batch);
 				compute_gradients(batch);
 				apply_gradients();
-				/*double test_error = average_cost(test_set);
-				if (test_error < best_error) {
-					best_error = test_error;
-					print_weights();
-					std::cerr << "\ntest error " << test_error << "\n";
-				}*/
 			}
 			double test_error = average_cost(test_set);
 			if (test_error < best_error - 0.0000001) {
@@ -761,8 +779,6 @@ struct Tuner
 				std::cerr << "\ntest error " << test_error << "\n";
 			}
 			else break;
-			//else convergence_counter++;
-			//if (convergence_counter >= 200) break;
 		}
 		std::cerr << "\ntraining error " << average_cost(training_set) << "\n";
 		std::cerr << "\ntest error " << average_cost(test_set) << "\n";

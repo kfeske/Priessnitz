@@ -92,10 +92,11 @@ struct Board : Board_state
 
 	uint64_t all_pawn_attacks(Color friendly);
 
-	// draw by repetition or 50-Move-Rule?
-	bool immediate_draw(unsigned ply_from_root)
+	bool insufficient_material();
+
+	bool immediate_draw(unsigned ply)
 	{
-		return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);
+		return (repetition || history[game_ply].rule_50 >= 100 || (ply > 1 && insufficient_material()));
 	}
 
 	void set_fenpos(std::string fen);

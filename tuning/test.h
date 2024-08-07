@@ -205,6 +205,7 @@ std::string test_positions[200] = {
 
 bool test(Tuner &tuner)
 {
+	tuner.eval.tempo_bonus = 0;
 	std::cerr << "checking evaluations...\n";
 	// load the weights from the engine evaluation function
 	for (unsigned w = 0; w < NUM_WEIGHTS; w++)

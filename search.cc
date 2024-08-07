@@ -98,7 +98,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 
 	// check for draws by repetition or by 50 Move Rule
-	if (board.immediate_draw(ply))
+	if (ply > 0 && board.immediate_draw(ply))
 		return DRAW_SCORE;
 
 	if (depth <= 0)
