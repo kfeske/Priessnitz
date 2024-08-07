@@ -164,7 +164,7 @@ struct Search : Noncopyable
 
 		// Reverse Futility Pruning
 		// the position is really bad for the opponent by a big margin, pruning this node is probably safe
-		if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 80 * depth >= beta)
+		if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
 			return beta;
 
 		// Null Move Pruning
@@ -235,7 +235,6 @@ struct Search : Noncopyable
 				board.unmake_move(move);
 				continue;
 			}
-
 
 			// search extensions make the program spend more time in important positions
 			unsigned extension = 0;

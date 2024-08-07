@@ -122,9 +122,6 @@ enum Value : int {
 
 enum Phase {
 	MIDGAME, ENDGAME,
-	// the bounds in which midgame and endgame are interpolated
-	MAX_MATERIAL = 6192,
-	MIN_MATERIAL = 518
 };
 
 Value piece_value(Piece pc, Phase ph)
