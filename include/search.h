@@ -2,6 +2,7 @@
 #include <evaluation.h>
 #include <transposition_table.h>
 #include <move_ordering.h>
+#include <see.h>
 
 struct Search : Noncopyable
 {
@@ -79,6 +80,8 @@ struct Search : Noncopyable
 			int gain = abs(piece_value(board.board[move_to(move)], MIDGAME));
 			if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
 				continue;
+
+			if (see(board, move) < 0) continue;
 
 			quiescence_nodes++;
 
@@ -170,8 +173,6 @@ struct Search : Noncopyable
 			futile = static_evaluation + futility_margin[depth] <= alpha;
 		}
 		
-		//if (in_check) depth++;
-
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
 
@@ -195,6 +196,8 @@ struct Search : Noncopyable
 				board.unmake_move(move);
 				continue;
 			}
+
+			//if (board.in_check() && see(board, move) >= 0) depth++;
 
 			// Principle Variation Search
 

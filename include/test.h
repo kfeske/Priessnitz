@@ -59,3 +59,9 @@ void mirror_test(Board &board, Search &search)
 	print_board(mirrored_board);
 	std::cerr << "other side " << search.eval.evaluate(mirrored_board) << "\n";
 }
+
+void see_test(Board &board, Move move)
+{
+	int value = see(board, move);
+	std::cerr << "see value " << value << "\n";
+}

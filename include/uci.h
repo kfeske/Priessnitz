@@ -78,6 +78,12 @@ struct UCI
 				mirror_test(board, search);
 				return;
 			}
+			else if (parsed == "see") {
+				std::string move;
+				iss >> move;
+				see_test(board, create_move(move));
+				return;
+			}
 		}
 		search.start_search(board);
 	}
