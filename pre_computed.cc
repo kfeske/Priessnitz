@@ -190,7 +190,7 @@ Pre_computed generate_lookup()
 
 		// Mask of the left and right neighbor squares
 		p.neighbor_mask[square] = adjacent_mask & rank(square) & ~(1ULL << square);
-		
+
 		// Used to check if an opponent pawn might easily attack the square
 		p.pawn_threat_mask[WHITE][square] = white_forward_mask & adjacent_mask & ~file(square);
 		p.pawn_threat_mask[BLACK][square] = black_forward_mask & adjacent_mask & ~file(square);

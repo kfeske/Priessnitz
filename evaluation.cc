@@ -67,8 +67,17 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 
 		// Passed pawns
 		if (passed && !doubled) {
-			info.mg_bonus[friendly] += mg_passed_bonus[relative_square];
-			info.eg_bonus[friendly] += eg_passed_bonus[relative_square];
+			uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
+			bool blocked = advance_square & board.occ;
+
+			if (!blocked) {
+				info.mg_bonus[friendly] += mg_passed_bonus[rank_num(relative_square)];
+				info.eg_bonus[friendly] += eg_passed_bonus[rank_num(relative_square)];
+			}
+			else {
+				info.mg_bonus[friendly] += mg_passed_bonus_blocked[rank_num(relative_square)];
+				info.eg_bonus[friendly] += eg_passed_bonus_blocked[rank_num(relative_square)];
+			}
 		}
 	}
 }

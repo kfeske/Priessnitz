@@ -29,8 +29,10 @@ enum Indicies {
 	EG_KING_PSQT = EG_QUEEN_PSQT + 64,
 
 	MG_PASSED_PAWN = EG_KING_PSQT + 64,
-	EG_PASSED_PAWN = MG_PASSED_PAWN + 64,
-	MG_ISOLATED = EG_PASSED_PAWN + 64,
+	EG_PASSED_PAWN = MG_PASSED_PAWN + 8,
+	MG_PASSED_PAWN_BLOCKED = EG_PASSED_PAWN + 8,
+	EG_PASSED_PAWN_BLOCKED = MG_PASSED_PAWN_BLOCKED + 8,
+	MG_ISOLATED = EG_PASSED_PAWN_BLOCKED + 8,
 	EG_ISOLATED = MG_ISOLATED + 1,
 	MG_DOUBLED = EG_ISOLATED + 1,
 	EG_DOUBLED = MG_DOUBLED + 1,
@@ -86,7 +88,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 54,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 56,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -133,7 +135,8 @@ struct Tuner
 	Indicies table[NUM_TABLES + 1] = { MG_VALUES, EG_VALUES,
 					   MG_PAWN_PSQT, MG_KNIGHT_PSQT, MG_BISHOP_PSQT, MG_ROOK_PSQT, MG_QUEEN_PSQT, MG_KING_PSQT,
 	       				   EG_PAWN_PSQT, EG_KNIGHT_PSQT, EG_BISHOP_PSQT, EG_ROOK_PSQT, EG_QUEEN_PSQT, EG_KING_PSQT,
-			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
+			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_PASSED_PAWN_BLOCKED, EG_PASSED_PAWN_BLOCKED,
+					   MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 					   MG_ROOK_OPEN_FILE, EG_ROOK_OPEN_FILE, MG_ROOK_HALF_OPEN_FILE, EG_ROOK_HALF_OPEN_FILE,
@@ -179,8 +182,10 @@ struct Tuner
 		case EG_QUEEN_PSQT:  return eval.eg_queen_psqt[pos];
 		case EG_KING_PSQT:   return eval.eg_king_psqt[pos];
 
-		case MG_PASSED_PAWN: return eval.mg_passed_bonus[pos];
-		case EG_PASSED_PAWN: return eval.eg_passed_bonus[pos];
+		case MG_PASSED_PAWN: 	     return eval.mg_passed_bonus[pos];
+		case EG_PASSED_PAWN: 	     return eval.eg_passed_bonus[pos];
+		case MG_PASSED_PAWN_BLOCKED: return eval.mg_passed_bonus_blocked[pos];
+		case EG_PASSED_PAWN_BLOCKED: return eval.eg_passed_bonus_blocked[pos];
 		case MG_ISOLATED:    return eval.mg_isolated_penalty;
 		case EG_ISOLATED:    return eval.eg_isolated_penalty;
 		case MG_DOUBLED:     return eval.mg_doubled_penalty;
@@ -352,6 +357,19 @@ struct Tuner
 		for (unsigned i = 0; i < 9; i++) print_int_weight(EG_KING_MOBILITY + i);
 		std::cerr << "};\n";
 
+		std::cerr << "\nint mg_passed_bonus[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_PAWN + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint eg_passed_bonus[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_PASSED_PAWN + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint mg_passed_bonus_blocked[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_PASSED_PAWN_BLOCKED + i);
+		std::cerr << "};\n";
+		std::cerr << "\nint eg_passed_bonus_blocked[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_PASSED_PAWN_BLOCKED + i);
+		std::cerr << "};\n";
+
 		std::cerr << "\nint mg_isolated_penalty = " << int_weight(MG_ISOLATED) << ";\n";
 		std::cerr <<   "int eg_isolated_penalty = " << int_weight(EG_ISOLATED) << ";\n";
 
@@ -363,11 +381,6 @@ struct Tuner
 
 		std::cerr << "\nint mg_chained_bonus = " << int_weight(MG_CHAINED) << ";\n";
 		std::cerr <<   "int eg_chained_bonus = " << int_weight(EG_CHAINED) << ";\n";
-
-		std::cerr << "\nint mg_passed_bonus[64] = { ";
-		print_64_field(MG_PASSED_PAWN);
-		std::cerr <<   "int eg_passed_bonus[64] = { ";
-		print_64_field(EG_PASSED_PAWN);
 
 		std::cerr << "\nint mg_double_bishop = " << int_weight(MG_DOUBLE_BISHOP) << ";\n";
 		std::cerr <<   "int eg_double_bishop = " << int_weight(EG_DOUBLE_BISHOP) << ";\n";
@@ -495,10 +508,17 @@ struct Tuner
 
 				// passed pawns
 				if (passed && !doubled) {
-					unsigned mg_index = MG_PASSED_PAWN + relative_square;
-					unsigned eg_index = EG_PASSED_PAWN + relative_square;
-					mg_influences[mg_index] += side * mg_phase;
-					eg_influences[eg_index] += side * eg_phase;
+					uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
+					bool blocked = advance_square & board.occ;
+
+					if (!blocked) {
+						mg_influences[MG_PASSED_PAWN + rank_num(relative_square)] += side * mg_phase;
+						eg_influences[EG_PASSED_PAWN + rank_num(relative_square)] += side * eg_phase;
+					}
+					else {
+						mg_influences[MG_PASSED_PAWN_BLOCKED + rank_num(relative_square)] += side * mg_phase;
+						eg_influences[EG_PASSED_PAWN_BLOCKED + rank_num(relative_square)] += side * eg_phase;
+					}
 				}
 				continue;
 				}

@@ -174,6 +174,11 @@ static inline uint64_t shift(uint64_t bitboard, Direction direction)
 	}
 }
 
+static inline uint64_t pawn_pushes(Color friendly, uint64_t pawns)
+{
+	return (friendly == WHITE) ? pawns >> 8 : pawns << 8;
+}
+
 // Moves are encoded in a 16 bit integer.
 // first     6 bits: from square
 // next      6 bits: to square

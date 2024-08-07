@@ -411,12 +411,11 @@ uint64_t Board::all_pawn_attacks(Color friendly)
 	return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
 }
 
-// Detect completely drawn positions KvK, KvKN, KvKB, KvKNN, ...
+// Detect completely drawn positions KvK, KvKN, KvKB, KvKNN
 bool Board::insufficient_material()
 {
 	return !(pieces(PAWN) || pieces(ROOK) || pieces(QUEEN)) &&
-		(pop_count(occ) <= 3 || (pop_count(occ) == 4 &&
-		 pop_count(pieces(WHITE, BISHOP)) < 2 && pop_count(pieces(BLACK, BISHOP)) < 2));
+		(pop_count(occ) <= 3 || (pop_count(occ) == 4 && pop_count(pieces(KNIGHT)) == 2));
 }
 
 void Board::set_fenpos(std::string fen)
