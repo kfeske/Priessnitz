@@ -62,15 +62,13 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	Move best_move = INVALID_MOVE;
 	TT_flag flag = UPPERBOUND;
 
+	// Generate winning captures and Queen promotions only. In check, generate all moves.
 	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
 	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
 
 	Move move;
 	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
-
-		// Prune moves that lose material. In this case, another quiet move is probably better.
-		//if (!in_check && see(board, move) <= 0) continue;
 
 		statistics.quiescence_nodes++;
 

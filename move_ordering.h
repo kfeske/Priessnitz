@@ -147,7 +147,7 @@ struct Move_orderer
 		if (stage == QUIESCENCES) {
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
-				if (see(board, move) > 0) return move;
+				if (see(board, move) > 0 || promotion(move)) return move;
 			}
 		}
 

@@ -193,7 +193,7 @@ struct Tuner
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
 	double const TINY_NUMBER = 0.00000001;   // difference quotient step size
-	double const LEARN_RATE = 10;	 	 // step size
+	double const LEARN_RATE = 100;	 	 // step size
 
 	Board board {};
 	Evaluation eval {};
@@ -1149,7 +1149,7 @@ struct Tuner
 	{
 		print_weights();
 
-		for (unsigned iteration = 0; iteration < 20000; iteration++) {
+		for (unsigned iteration = 0; iteration < 2000; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 				compute_gradients(batch);
