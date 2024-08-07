@@ -28,19 +28,27 @@
 // *************************+****
 
 enum Gen_stage {
-	CAPTURE_GEN, QUIET_GEN, EVASION_GEN
+	CAPTURE_GEN, QUIET_GEN, IN_CHECK_GEN
 };
 
 
 struct Move_list
 {
 	uint8_t size = 0;
-	Scored_move moves[MAX_MOVES];
+	struct {
+	Scored_move moves[MAX_MOVES]; // uninitialized
+	};
 
 	void add(Move move)
 	{
 		moves[size++].move = move;
 	}
+	
+	Move_list()
+	{
+	}
 };
+
+void generate(Board &board, Move_list &move_list, Gen_stage stage);
 
 void generate_legal(Board &board, Move_list &move_list);

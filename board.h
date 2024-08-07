@@ -77,13 +77,18 @@ struct Board : Board_state
 
 	void unmake_null_move(unsigned ep);
 
-	bool in_check();
+	bool in_check()
+	{
+		return (history[game_ply].checkers != 0ULL);
+	}
 
 	void update_checkers_and_pinners();
 
 	uint64_t square_attackers(unsigned square, uint64_t occupied);
 
 	bool legal(Move move);
+
+	bool pseudo_legal(Move move);
 
 	uint64_t all_pawn_attacks(Color friendly);
 

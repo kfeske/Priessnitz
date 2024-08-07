@@ -31,38 +31,34 @@ double Search::time_elapsed()
 // captures and check evasions to avoid the horizon effect
 int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 {
-	bool in_check = board.in_check() && ply <= 2;
+	bool in_check = board.in_check();
 
 	int static_evaluation = eval.evaluate(board);
 
 	if (!in_check && static_evaluation >= beta)
 		return beta;
 
-
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
-	/*Move_generator move_generator;
-	if (in_check)
-		move_generator.generate_all_moves(board);
-	else
-		move_generator.generate_quiescence(board); // only captures
-
-	rate_moves(board, heuristics, move_generator, true, ply);*/
-
+	if (in_check && ply > 2) return alpha;
 	Move_orderer move_orderer;
-	for (Move move = move_orderer.next_move(); move != INVALID_MOVE;) {
+	if (in_check) move_orderer.stage = GENERATE_IN_CHECKS;
+	else 	      move_orderer.stage = GENERATE_QUIESCENCES;
+
+	Move move;
+	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
+		if (!board.legal(move)) continue;
 
 		// Delta Pruning
 		// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
-		int gain = abs(piece_value[board.board[move_to(move)]]);
+		/*int gain = abs(piece_value[board.board[move_to(move)]]);
 		if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
 			continue;
 
-		if (see(board, move) < 0) continue;
+		if (see(board, move) < 0) continue;*/
 
 		statistics.quiescence_nodes++;
-
 
 		board.make_move(move);
 
@@ -79,11 +75,12 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	return alpha;
 }
 
-// function that finds the best move at a fixed depth (number of moves, it looks into the future)
-// alpha is the best score, the side to move can guarantee in a sequence of moves
-// beta is the best score, the opponent can guarantee in the sequence
+// Function that finds the best move at a fixed depth (number of moves, it looks into the future)
+// Alpha is the best score, the side to move can guarantee in a sequence of moves
+// Beta is the best score, the opponent can guarantee in the sequence
 int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move)
 {
+	(void) allow_null_move;
 	if ((statistics.search_nodes & 1024) == 0 && max_time != INFINITY && time_elapsed() >= max_time)
 	{
 		// Time's up!
@@ -127,12 +124,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	if (usable && !pv_node && tt.pv_move != skip)
 		return tt.current_evaluation;
 
-	// In case of a transposition at a lower depth, we can still use the best move in our move ordering
-	heuristics.hash_move = tt.pv_move;
 
 
 	// Static evaluation of the position
-	int static_eval = eval.evaluate(board);
+	//int static_eval = eval.evaluate(board);
 
 	// Razoring
 	// Prune bad looking positions close to the horizon by dropping to Quiescence immediately.
@@ -144,7 +139,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
-	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
+	/*if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
 		return beta;
 
 	// Null Move Pruning
@@ -173,7 +168,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// it is wise to skip moves that do not improve the situation.
 	bool futile = false;
 	if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
-		futile = static_eval + futility_margin[depth] <= alpha;
+		futile = static_eval + futility_margin[depth] <= alpha;*/
 
 	// Internal Iterative Deepening
 	/*if (pv_node && depth >= 6 && tt.pv_move == INVALID_MOVE) {
@@ -183,15 +178,19 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}*/
 
 	Move_orderer move_orderer;
-	for (Move move = move_orderer.next_move(); move != INVALID_MOVE;) {
+	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
+	move_orderer.tt_move = tt.pv_move;
+	Move move;
+	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
+		if (!board.legal(move) || move == skip) continue;
+
 		move_count++;
 		statistics.search_nodes++;
 
-		if (move == skip) continue;
 
 		board.make_move(move);
 
-		bool gives_check = board.in_check();
+		/*bool gives_check = board.in_check();
 
 		// Futility prune if the conditions are met
 		if (futile && move_count > 0 && !gives_check && !capture(move) && !promotion(move)) {
@@ -199,10 +198,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			continue;
 		}
 
-		/*if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
+		if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
 			board.unmake_move(move);
 			continue;
-		}*/
+		}
 
 		bool late_move = (move_count >= 4 && !in_check && !gives_check && !mate(alpha) &&
 		     		  !capture(move) && !promotion(move) && !board.passed_push(move));
@@ -221,16 +220,16 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 		// by searching them with a zero-width window centered around alpha, which is a lot faster.
 		if (move_count == 0) {
-			/*if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
-				board.unmake_move(move);
-				int singular_score = tt.current_evaluation - 130;
+			//if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
+			//      board.unmake_move(move);
+			//      int singular_score = tt.current_evaluation - 130;
 
-				evaluation = search(board, (depth - 1) / 2, ply + 1, singular_score, singular_score + 1, move, true);
+			//      evaluation = search(board, (depth - 1) / 2, ply + 1, singular_score, singular_score + 1, move, true);
 
-				if (evaluation <= singular_score)
-					extension = 1;
-				board.make_move(move);
-			}*/
+			//      if (evaluation <= singular_score)
+			//      	extension = 1;
+			//      board.make_move(move);
+			///
 
 			evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
@@ -254,7 +253,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			else if (evaluation > alpha && evaluation < beta)
 				// If a move happens to be better, we need to re-search it with full window
 				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
-		}
+		}*/
+		evaluation = -search(board, depth - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 
 		board.unmake_move(move);
 
@@ -464,7 +464,6 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 	}
 	else
 		max_time = move_time;
-
 
 	start_search(board);
 }

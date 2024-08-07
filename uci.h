@@ -16,7 +16,7 @@ struct UCI
 	Search search {};
 	bool quit = false;
 
-	Move create_move(std::string move);
+	Move move_from_string(std::string move);
 
 	void fabricate_position(std::istringstream &iss);
 

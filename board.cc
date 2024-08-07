@@ -305,24 +305,6 @@ void Board::unmake_null_move(unsigned ep)
 }
 
 // is the side to move in check?
-bool Board::in_check()
-{
-	if (pieces[piece_of(side_to_move, KING)] == 0ULL) std::cerr << "no king\n";
-	Color enemy = swap(side_to_move);
-	unsigned ksq = lsb(pieces[piece_of(side_to_move, KING)]);
-	uint64_t enemy_diag_sliders = pieces[piece_of(enemy, BISHOP)] | pieces[piece_of(enemy, QUEEN)];
-	uint64_t enemy_orth_sliders = pieces[piece_of(enemy, ROOK  )] | pieces[piece_of(enemy, QUEEN)];
-
-	uint64_t checkers = 0ULL;
-	checkers |= pawn_attacks(side_to_move, ksq) & pieces[piece_of(enemy, PAWN)];
-	checkers |= piece_attacks(KNIGHT, ksq, 0ULL) & pieces[piece_of(enemy, KNIGHT)];
-	checkers |= piece_attacks(BISHOP, ksq, occ) & enemy_diag_sliders;
-	checkers |= piece_attacks(ROOK,   ksq, occ) & enemy_orth_sliders;
-
-	return (checkers != 0);
-}
-
-// is the side to move in check?
 void Board::update_checkers_and_pinners()
 {
 	if (pieces[piece_of(side_to_move, KING)] == 0ULL) {
@@ -331,6 +313,7 @@ void Board::update_checkers_and_pinners()
 			std::cerr << move_string(history[ply].move) << " ";
 		}
 		std::cerr << "\n";
+		abort();
 		return;
 	}
 	Color friendly = side_to_move;
@@ -368,6 +351,8 @@ uint64_t Board::square_attackers(unsigned square, uint64_t occupied)
 		(piece_attacks(KING, square, 0ULL) & (pieces[W_KING] | pieces[B_KING]));
 }
 
+// Pseudo legal moves are checked for legality by making sure to restrict pinned pieces and not allowing the king
+// to move into a check.
 bool Board::legal(Move move)
 {
 	unsigned from = move_from(move);
@@ -397,6 +382,82 @@ bool Board::legal(Move move)
 		Direction forward = side_to_move == WHITE ? UP : DOWN;
 		if (piece_attacks(ROOK, king_square, occ & ~(1ULL << from) & ~(1ULL << (ep_square - forward))) &
 		    rank(king_square) & (pieces[piece_of(enemy, ROOK)] | pieces[piece_of(enemy, QUEEN)])) return false;
+	}
+	return true;
+}
+
+// Can this move be played in this position, if we do not care about pins and checks?
+bool Board::pseudo_legal(Move move)
+{
+	if (move == INVALID_MOVE) return false;
+
+	unsigned from = move_from(move);
+	unsigned to   = move_to(move);
+	Piece moving_piece   = board[from];
+	Piece captured_piece = board[to];
+	Move_flags flag = flags_of(move);
+
+	if (moving_piece   == NO_PIECE || color_of(moving_piece)   != side_to_move) return false;
+	if (flag == QUIET && captured_piece != NO_PIECE) return false;
+	if (capture(move) && flag != EP_CAPTURE && (captured_piece == NO_PIECE || color_of(captured_piece) == side_to_move)) return false;
+
+	// The piece must be able to go to the destination.
+	if (type_of(moving_piece) == PAWN) {
+		Direction forward         = (side_to_move == WHITE) ? UP : DOWN;
+		unsigned double_push_rank = (side_to_move == WHITE) ? 6  : 1;
+		unsigned promotion_rank   = (side_to_move == WHITE) ? 1  : 6;
+		// En passant captures
+		if (flag == EP_CAPTURE) {
+			unsigned ep_square = history[game_ply].ep_sq;
+			if (ep_square == NO_SQUARE || !(pawn_attacks(side_to_move, from) & (1ULL << to) & (1ULL << ep_square))) return false;
+		}
+		// Normal pawn captures and promotions
+		else if (capture(move) && !(pawn_attacks(side_to_move, from) & (1ULL << to) & color[swap(side_to_move)]))
+			return false;
+		// Quiet pawn moves
+		if ((flag == QUIET || (promotion(move) && !capture(move))) && !((from + forward == to) && board[to] == NO_PIECE))
+			return false;
+		// Double pushes
+		if (flag == DOUBLE_PUSH && !((from + 2 * forward == to) && board[to] == NO_PIECE &&
+			 board[from + forward] == NO_PIECE && rank_num(from) == double_push_rank))
+			return false;
+		// For a promotion, the pawn must be on the 7th rank.
+		if (promotion(move)) {
+				if (rank_num(from) != promotion_rank) return false;
+		}
+		else if (rank_num(from) == promotion_rank) return false;
+	}
+	else {
+		if (promotion(move) || flag == DOUBLE_PUSH || flag == EP_CAPTURE) return false;
+		if (flag != OO && flag != OOO && !(piece_attacks(type_of(moving_piece), from, occ) & (1ULL << to))) return false;
+	}
+
+	if (flag == OO || flag == OOO) {
+		if (type_of(moving_piece) == KING && !history[game_ply].checkers) {
+			// The castling path must not be obstructed.
+			uint8_t castling_rights = history[game_ply].castling_rights;
+			unsigned king_square = square(side_to_move, KING);
+			if (flag == OO && to == king_square + 2) {
+				if (!(castling_rights & king_side[side_to_move])  || (oo_blockers(side_to_move)  & occ)) return false;
+			}
+			else if (flag == OOO && to == king_square - 2) {
+			       	if (!(castling_rights & queen_side[side_to_move]) || (ooo_blockers(side_to_move) & occ)) return false;
+			}
+			else return false;
+		}
+		else return false;
+	}
+
+	// In check, there are some corner cases, which are handled in the move generator.
+	if (history[game_ply].checkers) {
+		if (type_of(moving_piece) != KING) {
+			// In double check, only the king can move.
+			if (pop_count(history[game_ply].checkers) >= 2) return false;
+
+			// Moves that do not block a check, are illegal.
+			if (!(ray_between(square(side_to_move, KING), lsb(history[game_ply].checkers)) & (1ULL << to)))
+				return false;
+		}
 	}
 	return true;
 }

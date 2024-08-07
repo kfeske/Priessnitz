@@ -414,7 +414,7 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 	uint64_t non_promotion_pawns = board.pieces[piece_of(friendly, PAWN)] & ~promotion_rank;
 	uint64_t promotion_pawns     = board.pieces[piece_of(friendly, PAWN)] &  promotion_rank;
 	
-	if (gen == CAPTURE_GEN || gen == EVASION_GEN) {
+	if (gen == CAPTURE_GEN || gen == IN_CHECK_GEN) {
 		uint64_t enemy_targets = targets & board.enemy(friendly);
 		uint64_t right_attacks = shift(non_promotion_pawns, forward_right) & enemy_targets;
 		uint64_t left_attacks  = shift(non_promotion_pawns, forward_left ) & enemy_targets;
@@ -431,7 +431,7 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 		if (promotion_pawns) {
 			// Queen promotions are generated with the captures, because they are not considered quiet.
 			uint64_t promotion_pushes = shift(promotion_pawns, forward) & ~board.occ;
-			if (gen == EVASION_GEN) promotion_pushes &= targets;
+			if (gen == IN_CHECK_GEN) promotion_pushes &= targets;
 			while (promotion_pushes) {
 				unsigned square = pop_lsb(promotion_pushes);
 				move_list.add(create_move(square - forward, square, PR_QUEEN));
@@ -451,7 +451,8 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 		}
 
 		unsigned ep_square = board.history[board.game_ply].ep_sq;
-		if (ep_square != NO_SQUARE) {
+		if (ep_square != NO_SQUARE && !(gen == IN_CHECK_GEN &&
+		    !(((1ULL << ep_square) | (1ULL << (ep_square - forward)))  & targets))) {
 			uint64_t ep_candidates = non_promotion_pawns & pawn_attacks(swap(friendly), ep_square);
 			while (ep_candidates) {
 				unsigned attacker_square = pop_lsb(ep_candidates);
@@ -460,7 +461,7 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 		}
 	}
 
-	if (gen == QUIET_GEN || gen == EVASION_GEN) {
+	if (gen == QUIET_GEN || gen == IN_CHECK_GEN) {
 		uint64_t single_pushes = shift(non_promotion_pawns, forward) & ~board.occ;
 		uint64_t double_pushes = shift(single_pushes & double_push_rank, forward) & ~board.occ & targets;
 		single_pushes &= targets; // Check evasions
@@ -475,7 +476,7 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 		}
 
 		if (promotion_pawns) {
-			uint64_t promotion_pushes = shift(promotion_pawns, forward) & targets;
+			uint64_t promotion_pushes = shift(promotion_pawns, forward) & targets & ~board.occ;
 
 			while (promotion_pushes) {
 				unsigned square = pop_lsb(promotion_pushes);
@@ -511,11 +512,11 @@ void generate(Board &board, Move_list &move_list, Gen_stage gen)
 	switch (gen) {
 		case CAPTURE_GEN: targets = board.enemy(friendly); break;
 		case QUIET_GEN:	  targets = ~board.occ; break;
-		case EVASION_GEN: targets = ray_between(king_square, lsb(board.history[board.game_ply].checkers)); break;
+		case IN_CHECK_GEN: targets = ray_between(king_square, lsb(board.history[board.game_ply].checkers)); break;
 		default: break;
 	}
 
-	if (gen == EVASION_GEN) {
+	if (gen == IN_CHECK_GEN) {
 		generate_piece_moves(board, move_list, ~board.color[friendly], friendly, KING);
 		// Only king moves are possible in case of a double check.
 		if (pop_count(board.history[board.game_ply].checkers) >= 2) return;
@@ -542,8 +543,8 @@ void generate(Board &board, Move_list &move_list, Gen_stage gen)
 void generate_legal(Board &board, Move_list &move_list)
 {
 	Move_list temp_move_list {};
-	if (board.history[board.game_ply].checkers != 0ULL) {
-		generate(board, temp_move_list, EVASION_GEN);
+	if (board.in_check()) {
+		generate(board, temp_move_list, IN_CHECK_GEN);
 	}
 	else {
 		generate(board, temp_move_list, CAPTURE_GEN);

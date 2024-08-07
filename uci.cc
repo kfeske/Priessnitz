@@ -9,7 +9,7 @@
 #include "search.h"
 #include "test.h"
 
-Move UCI::create_move(std::string move)
+Move UCI::move_from_string(std::string move)
 {
 	Move_list move_list;
 	generate_legal(board, move_list);
@@ -40,7 +40,7 @@ void UCI::fabricate_position(std::istringstream &iss)
 
 	std::string movelist {};
 	while (iss >> parsed)
-		board.make_move(create_move(parsed));
+		board.make_move(move_from_string(parsed));
 }
 
 void UCI::go_command(std::istringstream &iss)
@@ -90,7 +90,7 @@ void UCI::go_command(std::istringstream &iss)
 		else if (parsed == "see") {
 			std::string move;
 			iss >> move;
-			see_test(board, create_move(move));
+			see_test(board, move_from_string(move));
 			return;
 		}
 	}

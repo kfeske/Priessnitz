@@ -185,8 +185,8 @@ enum Move : uint16_t {
 // generated moves are later scored based on how good they look to make the search more efficient.
 struct Scored_move
 {
-	Move move = INVALID_MOVE;
-	int16_t score = 0;
+	Move move;
+	int16_t score;
 };
 
 // Chess has loads of special moves that have to be treated differently.
