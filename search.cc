@@ -204,9 +204,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Probcut
 	// If we have a good enough capture that causes a cutoff in a reduced search, we can cut this branch,
 	// because the capture would likely still cause a cutoff at full depth.
-	if (!pv_node && !in_check && depth >= 5 && !mate(beta)) {
-
-		int probcut_beta = beta + 100;
+	int probcut_beta = beta + 100;
+	if (!pv_node && !in_check && depth > 4 && !mate(beta) && !(tt.hit && tt_entry.depth >= depth - 3 && tt_entry.evaluation < probcut_beta)) {
 
 		Quiescence_move_orderer move_orderer {};
 
