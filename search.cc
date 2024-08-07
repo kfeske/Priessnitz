@@ -42,9 +42,10 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 {
 	TT_entry &tt_entry = tt.probe(board.zobrist.key);
 	if (tt.hit) {
-		if (tt_entry.flag == EXACT) return tt_entry.evaluation;
-		if (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta ) return beta;
-		if (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha) return alpha;
+		if ( tt_entry.flag == EXACT ||
+		    (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta) ||
+		    (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha))
+			return tt_entry.evaluation;
 	}
 
 	int static_evaluation = eval.evaluate(board);
@@ -53,7 +54,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 
 	// Captures are usually not forced. This will give the option to stop the capture sequence.
 	if (!in_check && static_evaluation >= beta)
-		return beta;
+		return static_evaluation;
 
 	// Again, we should at least be able to achieve the static evaluation.
 	if (static_evaluation > alpha)
@@ -66,6 +67,8 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	Quiescence_move_orderer move_orderer {};
 	move_orderer.stage = (in_check) ? Quiescence_stage::GENERATE_IN_CHECKS : Quiescence_stage::GENERATE_CAPTURES;
 	int move_count = 0;
+
+	int best_evaluation = alpha;
 
 	Move move;
 	while ((move = move_orderer.next_move(board, 1)) != INVALID_MOVE) {
@@ -80,24 +83,28 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 
 		board.unmake_move(move);
 
-		if (evaluation > alpha) {
-			alpha = evaluation;
+		if (evaluation > best_evaluation) {
+
+			best_evaluation = evaluation;
 			best_move = move;
 
-			if (evaluation >= beta) {
-				tt.store(board.zobrist.key, 0, beta, best_move, static_evaluation, LOWERBOUND, age);
-				return beta;
+			if (evaluation > alpha) {
+				alpha = evaluation;
+				flag = EXACT;
 			}
 
-			flag = EXACT;
+			if (evaluation >= beta) {
+				tt.store(board.zobrist.key, 0, best_evaluation, best_move, static_evaluation, LOWERBOUND, age);
+				return best_evaluation;
+			}
 		}
 	}
 
 	if (in_check && move_count == 0) return -MATE_SCORE + ply;
 
-	tt.store(board.zobrist.key, 0, alpha, best_move, static_evaluation, flag, age);
+	tt.store(board.zobrist.key, 0, best_evaluation, best_move, static_evaluation, flag, age);
 
-	return alpha;
+	return best_evaluation;
 }
 
 // Function that finds the best move at a fixed depth (number of moves, it looks into the future)
@@ -135,16 +142,12 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	if (tt.hit && !pv_node && tt_entry.depth >= depth && hash_move != skip) {
 		// we have an exact score for that position. Great!
 		// (that means, we searched all moves and received a new best move)
-		if (tt_entry.flag == EXACT)
-			return tt_entry.evaluation;
-
+		if (tt_entry.flag == EXACT ||
 		// this value is too high for us to be concered about, it will cause a beta-cutoff
-		if (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta)
-			return beta;
-
+		    (tt_entry.flag == LOWERBOUND && tt_entry.evaluation >= beta) ||
 		// this value is too low, we will not exceed alpha in the search
-		if (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha)
-			return alpha;
+		    (tt_entry.flag == UPPERBOUND && tt_entry.evaluation <= alpha))
+			return tt_entry.evaluation;
 	}
 
 	// Static evaluation of the position
@@ -153,6 +156,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	int move_count = 0;
 	Move best_move = INVALID_MOVE;
 	int evaluation;
+	int best_evaluation = -INFINITY_SCORE;
 	bool in_check = board.in_check();
 	bool skip_quiets = false;
 
@@ -165,14 +169,15 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Prune bad looking positions close to the horizon by testing, if a Quiescence Search can improve them.
 	int razor_alpha = alpha - search_constants.RAZOR_MARGIN;
 	if (!pv_node && depth == 1 && static_eval < razor_alpha && !in_check && !mate(alpha)) {
-		if (quiescence_search(board, razor_alpha, razor_alpha + 1, ply) <= razor_alpha)
-			return alpha;
+		evaluation = quiescence_search(board, razor_alpha, razor_alpha + 1, ply);
+		if (evaluation <= razor_alpha)
+			return evaluation;
 	}
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
 	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - search_constants.REVERSE_FUTILITY_MARGIN * depth >= beta)
-		return beta;
+		return static_eval;
 
 	// Null Move Pruning
 	// If there is a beta cutoff, even if we skip our turn (permitting the opponent to play two moves in a row),
@@ -192,7 +197,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		if (evaluation >= beta && !mate(evaluation)) {
 			statistics.null_cuts++;
 			//tt.store(board.zobrist.key, depth, beta, INVALID_MOVE, LOWERBOUND);
-			return beta;
+			return evaluation;
 		}
 	}
 
@@ -221,8 +226,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			board.unmake_move(move);
 
 			if (evaluation >= probcut_beta) {
-				tt.store(board.zobrist.key, depth, beta, move, static_eval, LOWERBOUND, age);
-				return probcut_beta;
+				tt.store(board.zobrist.key, depth, evaluation, move, static_eval, LOWERBOUND, age);
+				return evaluation;
 			}
 		}
 	}
@@ -332,10 +337,17 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		if (abort_search) return 0;
 
-		// Improve alpha, if we have found a better move
-		if (evaluation > alpha) {
+		if (evaluation > best_evaluation) {
+			best_evaluation = evaluation;
 			best_move = move;
-			alpha = evaluation;
+
+			// Improve lower bound, if we have found a better move
+			if (evaluation > alpha) {
+				alpha = evaluation;
+				// We have had an alpha improvement, we now know an exact score of the position.
+				// This is valuable information for our hash table.
+				flag = EXACT;
+			}
 
 			// Beta cutoff.
 			// We know the opponent can get at least beta, so a branch that evaluates to more than beta
@@ -345,7 +357,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 				// We have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-				tt.store(board.zobrist.key, depth, beta, best_move, static_eval, LOWERBOUND, age);
+				tt.store(board.zobrist.key, depth, best_evaluation, best_move, static_eval, LOWERBOUND, age);
 
 				// Update Killers, Counters, History
 				update_heuristics(board, move, depth, ply, bad_quiets_searched);
@@ -354,12 +366,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 				statistics.cutoffs++;
 
 				// *snip* *snip*
-				return beta;
+				return best_evaluation;
 			}
-
-			// We have had an alpha improvement, we now know an exact score of the position.
-			// This is valuable information for our hash table.
-			flag = EXACT;
 		}
 		else if (!capture(move)) bad_quiets_searched.add(move);
 	}
@@ -370,9 +378,9 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 
 	// Store position in the hash table
-	tt.store(board.zobrist.key, depth, alpha, best_move, static_eval, flag, age);
+	tt.store(board.zobrist.key, depth, best_evaluation, best_move, static_eval, flag, age);
 
-	return alpha;
+	return best_evaluation;
 }
 
 void Search::start_search(Board &board)
