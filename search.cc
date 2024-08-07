@@ -13,7 +13,7 @@ int const futility_margin[5] = {
 };
 
 unsigned const lmp_margins[4] = {
-	0, 8, 12, 16
+	0, 9, 13, 17
 };
 
 bool mate(int score)
@@ -139,8 +139,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
-	//if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
-	//	return beta;
+	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
+		return beta;
 
 	// Null Move Pruning
 	// If there is a beta cutoff, even if we skip our turn (permitting the opponent to play two moves in a row),
@@ -202,7 +202,12 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		//	continue;
 		//}
 
-		bool late_move = (move_count >= 4 && !in_check && !gives_check && !mate(alpha) &&
+		// Search extensions make the program spend more time in important positions
+		unsigned extension = 0;
+
+		if (gives_check && see(board, move) >= 0) extension = 1;
+
+		bool late_move = (move_count >= 4 && !extension && !in_check && !gives_check && !mate(alpha) &&
 		     		  !capture(move) && !promotion(move) && !board.passed_push(move));
 		// Late Move Pruning
 		//if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
@@ -210,10 +215,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		//	continue;
 		//}
 
-		// Search extensions make the program spend more time in important positions
-		unsigned extension = 0;
-
-		if (gives_check && see(board, move) >= 0) extension = 1;
 
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
