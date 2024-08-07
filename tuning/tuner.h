@@ -8,10 +8,8 @@
 #include <cmath>
 #include <vector>
 
-#include <board.h>
-//#include "tuning_board.h"
-#include <evaluation.h>
-//#include "tuning_evaluation.h"
+#include "../board.h"
+#include "../evaluation.h"
 
 enum Indicies {
 	MG_VALUES = 0,
@@ -334,14 +332,18 @@ struct Tuner
 	}
 
 	// we can precompute the number of king attackers and attacks
-	void extract_king_safety(Sample &sample, Piece piece, uint64_t attacks, uint64_t king_ring, uint64_t king_zone)
+	void extract_king_safety(Sample &sample, Piece piece, uint64_t attacks, Color enemy)
 	{
-		uint64_t ring_attacks = attacks & king_ring;
+		unsigned enemy_king_square = board.square(enemy, KING);
+
+		uint64_t ring = piece_attacks(KING, enemy_king_square, 0ULL);
+		uint64_t ring_attacks = attacks & ring;
 		if (ring_attacks) {
 			sample.ring_attacks[piece] += pop_count(ring_attacks);
 			if (sample.ring_attackers[color_of(piece)] < 7) sample.ring_attackers[color_of(piece)]++;
 		}
-		uint64_t zone_attacks = attacks & king_zone;
+		uint64_t zone = king_zone(enemy, enemy_king_square);
+		uint64_t zone_attacks = attacks & zone;
 		if (zone_attacks) {
 			sample.zone_attacks[piece] += pop_count(zone_attacks);
 			if (sample.zone_attackers[color_of(piece)] < 7) sample.zone_attackers[color_of(piece)]++;
@@ -350,7 +352,7 @@ struct Tuner
 
 	// necessary for partial derivative of the mobility weight
 	void extract_mobility(Sample &sample, Piece piece, uint64_t attacks, int side) {
-		sample.mobility_squares[type_of(piece)] += 10 * pop_count(attacks & ~board.pawn_attacks(Color(!color_of(piece)))) * side;
+		sample.mobility_squares[type_of(piece)] += 10 * pop_count(attacks & ~board.all_pawn_attacks(swap(color_of(piece)))) * side;
 		sample.material_difference[type_of(piece)] += side;
 	}
 
@@ -374,20 +376,14 @@ struct Tuner
 		double mg_phase = sample.phase;
 		double eg_phase = (1 - sample.phase);
 
-		unsigned friendly_king_square = lsb(board.pieces[piece_of(WHITE, KING)]);
-		unsigned enemy_king_square = lsb(board.pieces[piece_of(BLACK, KING)]);
-		uint64_t king_ring[2] { board.precomputed.attacks_bb<KING>(friendly_king_square, 0ULL),
-					board.precomputed.attacks_bb<KING>(enemy_king_square, 0ULL) };
-
-		uint64_t king_zone[2] { board.precomputed.king_zone[WHITE][friendly_king_square], 
-			 		board.precomputed.king_zone[BLACK][enemy_king_square] };
 
 		uint64_t all_pieces = board.occ;
 		while (all_pieces) {
 			unsigned square = pop_lsb(all_pieces);
 			Piece piece = board.board[square];
-			PieceType type = type_of(piece);
+			Piece_type type = type_of(piece);
 			Color friendly = color_of(piece);
+			Color enemy = swap(friendly);
 			int side = (friendly == WHITE) ? 1 : -1;
 
 			// material
@@ -406,15 +402,15 @@ struct Tuner
 			case PAWN:
 				{
 				uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
-				uint64_t enemy_pawns = board.pieces[piece_of(!friendly, PAWN)];
-				unsigned forward = (friendly == WHITE) ? NORTH : SOUTH;
-				uint64_t adjacent_files = board.precomputed.isolated_pawn_mask[file(square)];
+				uint64_t enemy_pawns = board.pieces[piece_of(enemy, PAWN)];
+				unsigned forward = (friendly == WHITE) ? UP : DOWN;
+				uint64_t adjacent_files = isolated_pawn_mask(file_num(square));
 
-				bool passed = !(board.precomputed.passed_pawn_mask[friendly][square] & enemy_pawns);
-				bool doubled = board.precomputed.forward_file_mask[friendly][square] & friendly_pawns;
-				bool neighbored = board.precomputed.neighbor_mask[square] & friendly_pawns;
-				bool supported = board.precomputed.passed_pawn_mask[!friendly][square] & adjacent_files & friendly_pawns;
-				bool chained = board.precomputed.pawn_attacks[!friendly][square] & friendly_pawns;
+				bool passed = !(passed_pawn_mask(friendly, square) & enemy_pawns);
+				bool doubled = forward_file_mask(friendly, square) & friendly_pawns;
+				bool neighbored = neighbor_mask(square) & friendly_pawns;
+				bool supported = passed_pawn_mask(enemy, square) & adjacent_files & friendly_pawns;
+				bool chained = pawn_attacks(enemy, square) & friendly_pawns;
 
 				// isolated pawns
 				if (!(adjacent_files & friendly_pawns)) {
@@ -429,7 +425,7 @@ struct Tuner
 				}
 
 				// backward pawns
-				else if (!(supported || neighbored) && board.precomputed.pawn_attacks[friendly][square + forward] & enemy_pawns) {
+				else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
 					sample.influence[MG_BACKWARD] += side * mg_phase;
 					sample.influence[EG_BACKWARD] += side * eg_phase;
 				}
@@ -451,25 +447,25 @@ struct Tuner
 				}
 			// king safety + mobility
 			case KNIGHT:
-				attacks = board.precomputed.attacks_bb<KNIGHT>(square, 0ULL);
-				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
+				attacks = piece_attacks(KNIGHT, square, 0ULL);
+				extract_king_safety(sample, piece, attacks, enemy);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case BISHOP:
 				ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
-				attacks = board.precomputed.attacks_bb<BISHOP>(square, ray_blockers);
-				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
+				attacks = piece_attacks(BISHOP, square, ray_blockers);
+				extract_king_safety(sample, piece, attacks, enemy);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case ROOK:
 				ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
-				attacks = board.precomputed.attacks_bb<ROOK>(square, ray_blockers);
-				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
+				attacks = piece_attacks(ROOK, square, ray_blockers);
+				extract_king_safety(sample, piece, attacks, enemy);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case QUEEN:
-				attacks = board.precomputed.attacks_bb<QUEEN>(square, board.occ);
-				extract_king_safety(sample, piece, attacks, king_ring[!friendly], king_zone[!friendly]);
+				attacks = piece_attacks(QUEEN, square, board.occ);
+				extract_king_safety(sample, piece, attacks, enemy);
 				extract_mobility(sample, piece, attacks, side);
 				continue;
 			case KING: continue;
@@ -491,7 +487,6 @@ struct Tuner
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
 		file.open("training_set.epd");
-		//file.open("quiet-labeled.epd");
 		if (file.is_open()) {
 			std::string input;
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
@@ -553,7 +548,7 @@ struct Tuner
 	double king_ring_pressure(Sample &sample)
 	{
 		double pressure = 0;
-		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 			pressure += weights[RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
 		}
 
@@ -564,20 +559,20 @@ struct Tuner
 	double king_zone_pressure(Sample &sample)
 	{
 		double pressure = 0;
-		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 			pressure += weights[ZONE_POTENCY + type] * sample.zone_attacks[piece_of(color, type)];
 		}
 
 		return pressure / 100;
 	}
 
-	double mg_mobility(Sample &sample, PieceType type)
+	double mg_mobility(Sample &sample, Piece_type type)
 	{
 		//std::cerr << "safe squares " << sample.mobility_squares[type] << "\n";
 		return double(sample.mobility_squares[type]) - double(sample.material_difference[type]) * weights[MG_AVERAGE_MOBILITY + type];
 	}
 
-	double eg_mobility(Sample &sample, PieceType type)
+	double eg_mobility(Sample &sample, Piece_type type)
 	{
 		return double(sample.mobility_squares[type]) - double(sample.material_difference[type]) * weights[EG_AVERAGE_MOBILITY + type];
 	}
@@ -600,7 +595,7 @@ struct Tuner
 
 		// mobility is another inconvenience
 
-		for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 			evaluation += mg_mobility(sample, type) * weights[MG_MOBILITY + type] / 100 * sample.phase;
 			evaluation += eg_mobility(sample, type) * weights[EG_MOBILITY + type] / 100 * (1 - sample.phase);
 		}
@@ -705,7 +700,7 @@ struct Tuner
 			unsigned black_zone_index = ZONE_PRESSURE + sample.zone_attackers[BLACK];
 			gradients[black_zone_index] += king_zone_pressure<BLACK>(sample) * partial_derivative * sample.phase;
 			
-			for (PieceType type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+			for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
 				// Ring attack potency
 				double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
 				gradients[RING_POTENCY + type] -= white_ring_attacks * weights[white_ring_index] / 100 * partial_derivative * sample.phase;

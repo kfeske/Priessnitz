@@ -142,7 +142,7 @@ int const non_pawn_value[15] = { 0, 300, 320, 500, 900, 0, 0, 0,
 enum Score_type {
 	DRAW_SCORE = 0,
 	MATE_SCORE = 30000,
-	INFINITY = 31000
+	INFINITY_SCORE = 31000
 };
 
 // directions are relative to whites' point of view

@@ -53,10 +53,10 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		// Delta Pruning
 		// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
 		//int gain = abs(piece_value[board.board[move_to(move)]]);
-		//if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
+		//if (static_evaluation + gain + 100 <= alpha && !in_check && !promotion(move))
 		//	continue;
 
-		// Prune moves that lose material. In this case, a quiet move is probably better.
+		// Prune moves that lose material. In this case, another quiet move is probably better.
 		if (see(board, move) < 0) continue;
 
 		statistics.quiescence_nodes++;
@@ -96,8 +96,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// we reached a leaf node, start the Quiescence Search
 		return quiescence_search(board, alpha, beta, 0);
 
-	//if (board.game_ply >= 10 && ply % 2 == 0 && board.pieces[B_QUEEN]) return -9999;
-
 	// Mate Distance Pruning
 	// If a forced mate was found, we do not need to search deeper than to where it was found, because we
 	// only care for the shortest mate.
@@ -105,16 +103,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	beta  = std::min(beta, MATE_SCORE - ply);
 	if (alpha >= beta) return alpha;
 	
-
-	unsigned move_count = 0;
-	Move best_move = INVALID_MOVE;
-	int evaluation;
-	bool in_check = board.in_check();
 	bool pv_node = beta - alpha != 1;
-
-	// if no move exceeds alpha, we do not have an exact evaluation,
-	// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
-	TT_flag flag = UPPERBOUND;
 
 	// updated in the tt.probe() function
 	tt.best_move = INVALID_MOVE;
@@ -124,18 +113,26 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	if (usable && !pv_node && tt.best_move != skip)
 		return tt.current_evaluation;
 
-
-
 	// Static evaluation of the position
 	int static_eval = eval.evaluate(board);
 
+	unsigned move_count = 0;
+	Move best_move = INVALID_MOVE;
+	int evaluation;
+	bool in_check = board.in_check();
+
+	// if no move exceeds alpha, we do not have an exact evaluation,
+	// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
+	TT_flag flag = UPPERBOUND;
+
+
 	// Razoring
-	// Prune bad looking positions close to the horizon by dropping to Quiescence immediately.
-	// Seems to have a negligible effect.
-	/*if (!pv_node && depth <= 2 && !in_check && !mate(alpha) && static_eval + 200 * depth <= alpha) {
-		if (quiescence_search(board, alpha, alpha + 1, 0) <= alpha)
+	// Prune bad looking positions close to the horizon by testing, if a Quiescence Search can improve them.
+	int razor_alpha = alpha - 400;
+	if (!pv_node && depth == 1 && static_eval < razor_alpha && !in_check && !mate(alpha)) {
+		if (quiescence_search(board, razor_alpha, razor_alpha + 1, 0) <= razor_alpha)
 			return alpha;
-	}*/
+	}
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
@@ -163,11 +160,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 	}
 
-	// Futility Pruning
-	// Very close to the horizon of the search, where we are in a position that is much worse than alpha,
-	// it is wise to skip moves that do not improve the situation.
 	bool futile = false;
-	if (!pv_node && depth <= 4 && !in_check && !mate(alpha) && !mate(beta))
+	if (!pv_node && depth <= 4 && !in_check && !mate(alpha))
 		futile = static_eval + futility_margin[depth] <= alpha;
 
 	// Internal Iterative Deepening
@@ -186,21 +180,21 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		move_count++;
 		statistics.search_nodes++;
 
+		// Futility Pruning
+		// Very close to the horizon of the search, where we are in a position that looks really bad,
+		// it is wise to skip quiet moves that will likely not improve the situation.
+		if (futile && move_count > 1 && !capture(move) && !promotion(move)) {
+			continue;
+		}
+
+		// SEE Pruning
+		// Skip moves that lose material at low depths
+		if (move_count > 1 && !in_check && move_orderer.stage > GOOD_CAPTURES && depth == 1 && see(board, move) < 0)
+			continue;
 
 		board.make_move(move);
 
 		bool gives_check = board.in_check();
-
-		// Futility prune if the conditions are met
-		if (futile && move_count > 1 && !gives_check && !capture(move) && !promotion(move)) {
-			board.unmake_move(move);
-			continue;
-		}
-
-		//if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
-		//	board.unmake_move(move);
-		//	continue;
-		//}
 
 		// Search extensions make the program spend more time in important positions
 		unsigned extension = 0;
@@ -240,7 +234,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			unsigned reduction = 0;
 			if (depth >= 3 && late_move) {
-				//reduction = 1;
 				reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
@@ -339,8 +332,9 @@ void Search::start_search(Board &board)
 	long nodes_previous_iteration;
 	long total_nodes = 0;
 
-	int alpha = -INFINITY;
-	int beta = INFINITY;
+	int evaluation = 0;
+	int alpha = -INFINITY_SCORE;
+	int beta = INFINITY_SCORE;
 	int window_size = 0;
 
 	// Iterative Deepening
@@ -369,14 +363,14 @@ void Search::start_search(Board &board)
 		}
 
 		while (true) {
-			int evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
+			evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
-			if (time_management) {
+			if (time_management && current_depth >= 4) {
 				if (evaluation <= alpha && time_elapsed() >= soft_time_cap)
 					soft_time_cap = time_elapsed() + search_time_increment;
 			}
-			if (time_management && time_elapsed() >= soft_time_cap) abort_search = true;
+			if (time_management && current_depth > 1 && time_elapsed() >= soft_time_cap) abort_search = true;
 			if (abort_search) break;
 
 			// The returned evaluation was not inside the windows :/
@@ -458,7 +452,7 @@ void Search::extract_pv_line(Board &board)
 	temp_board.make_move(best_root_move);
 	std::cout << move_string(best_root_move) << " ";
 	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
-		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY, INFINITY);
+		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY_SCORE, INFINITY_SCORE);
 		if (!hit) return;
 		std::cout << move_string(tt.best_move) << " ";
 		temp_board.make_move(tt.best_move);
