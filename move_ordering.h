@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "move_generator.h"
+#include "see.h"
 
 struct Heuristics
 {
@@ -16,11 +17,12 @@ enum Stage
 	// Normal ordering
 	TRANSPOSITION,
 	GENERATE_CAPTURES,
-	CAPTURES,
+	GOOD_CAPTURES,
 	FIRST_KILLER,
 	SECOND_KILLER,
 	GENERATE_QUIETS,
 	QUIETS,
+	BAD_CAPTURES,
 	// Ordering in check
 	IN_CHECK_TRANSPOSITION,
 	GENERATE_IN_CHECKS,
@@ -33,7 +35,8 @@ enum Stage
 
 struct Move_orderer
 {
-	Move_list move_list {}; // careful, the array is uninitialized!
+	Move_list move_list {};    // careful, the array is uninitialized!
+	Move_list bad_captures {}; // careful, the array is uninitialized!
 	Stage stage = TRANSPOSITION;
 	unsigned position = 0;
 	Move hash_move;
@@ -42,45 +45,47 @@ struct Move_orderer
 	unsigned ply;
 
 	// Picks the next move from the movelist that has the highest score.
-	Move next_best_move()
+	Move next_best_move(Move_list &list)
 	{
 		unsigned best_index = position;
-		int best_score = move_list.moves[position].score;
-		for (unsigned i = position + 1; i < move_list.size; i++) {
-			Scored_move &m = move_list.moves[i];
+		int best_score = list.moves[position].score;
+		for (unsigned i = position + 1; i < list.size; i++) {
+			Scored_move &m = list.moves[i];
 			if (m.score > best_score) {
 				best_score = m.score;
 				best_index = i;
 			}
 		}
-		std::swap(move_list.moves[position], move_list.moves[best_index]);
-		Move move = move_list.moves[position].move;
+		std::swap(list.moves[position], list.moves[best_index]);
+		Move move = list.moves[position].move;
 		position++;
 
 		return move;
 	}
 
-	void score(Board &board, Stage sort_type)
+	void score(Board &board, Gen_stage sort_type)
 	{
-		if (sort_type == CAPTURES) {
+		if (sort_type == CAPTURE_GEN) {
 			for (unsigned n = position; n < move_list.size; n++) {
 				Scored_move &scored_move = move_list.moves[n];
 				Move move = scored_move.move;
 				scored_move.score = 10 * piece_value[board.board[move_to(move)]] - piece_value[board.board[move_from(move)]];
 			}
 		}
-		if (sort_type == QUIETS) {
+		if (sort_type == QUIET_GEN) {
 			for (unsigned n = position; n < move_list.size; n++) {
 				Scored_move &scored_move = move_list.moves[n];
 				scored_move.score = 0;
-				//if (scored_move.move == heuristics.killer_move[0][ply]) scored_move.score += 100;
-				//if (scored_move.move == heuristics.killer_move[1][ply]) scored_move.score += 70;
 			}
 		}
-		if (sort_type == IN_CHECKS) {
+		if (sort_type == IN_CHECK_GEN) {
 			for (unsigned n = position; n < move_list.size; n++) {
 				Scored_move &scored_move = move_list.moves[n];
 				scored_move.score = 0;
+				Move move = scored_move.move;
+				if (capture(move)) {
+					scored_move.score = 10 * piece_value[board.board[move_to(move)]] - piece_value[board.board[move_from(move)]];
+				}
 			}
 		}
 	}
@@ -93,10 +98,6 @@ struct Move_orderer
 			stage = GENERATE_CAPTURES;
 			if (board.pseudo_legal(hash_move)) return hash_move;
 		}
-		//if (stage == QUIESCENCE_TRANSPOSITION) {
-		//	stage = GENERATE_QUIESCENCES;
-		//	if (board.pseudo_legal(hash_move)) return hash_move;
-		//}
 		if (stage == IN_CHECK_TRANSPOSITION) {
 			stage = GENERATE_IN_CHECKS;
 			if (board.pseudo_legal(hash_move)) return hash_move;
@@ -105,16 +106,22 @@ struct Move_orderer
 		// Generate captures and queen promotions
 		if (stage == GENERATE_CAPTURES) {
 			generate(board, move_list, CAPTURE_GEN);
-			score(board, CAPTURES);
-			stage = CAPTURES;
+			score(board, CAPTURE_GEN);
+			stage = GOOD_CAPTURES;
 		}
-		if (stage == CAPTURES) {
+		if (stage == GOOD_CAPTURES) {
 			while (position < move_list.size) {
-				Move move = next_best_move();
+				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
 				// Queen promotions can be killer moves.
 				if (move == first_killer)  first_killer  = INVALID_MOVE;
 				if (move == second_killer) second_killer = INVALID_MOVE;
+
+				// Only captures with a positive see score are "Good captures".
+				if (see(board, move) < 0) {
+					bad_captures.add(move);
+					continue;
+				}
 				return move;
 			}
 			stage = FIRST_KILLER;
@@ -123,12 +130,12 @@ struct Move_orderer
 		// Generate captures and queen promotions
 		if (stage == GENERATE_QUIESCENCES) {
 			generate(board, move_list, CAPTURE_GEN);
-			score(board, CAPTURES);
+			score(board, CAPTURE_GEN);
 			stage = QUIESCENCES;
 		}
 		if (stage == QUIESCENCES) {
 			if (position < move_list.size)
-				return next_best_move();
+				return next_best_move(move_list);
 		}
 
 		// We can still try the killer moves before generating the quiet moves.
@@ -144,12 +151,12 @@ struct Move_orderer
 		// Generate check evasions.
 		if (stage == GENERATE_IN_CHECKS) {
 			generate(board, move_list, IN_CHECK_GEN);
-			score(board, IN_CHECKS);
+			score(board, IN_CHECK_GEN);
 			stage = IN_CHECKS;
 		}
 		if (stage == IN_CHECKS) {
 			while (position < move_list.size) {
-				Move move = next_best_move();
+				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
 				return move;
 			}
@@ -158,12 +165,23 @@ struct Move_orderer
 		// Now, all quiet moves are generated.
 		if (stage == GENERATE_QUIETS) {
 			generate(board, move_list, QUIET_GEN);
-			score(board, QUIETS);
+			score(board, QUIET_GEN);
 			stage = QUIETS;
 		}
 		if (stage == QUIETS) {
 			while (position < move_list.size) {
-				Move move = next_best_move();
+				Move move = next_best_move(move_list);
+				if (move == hash_move || move == first_killer || move == second_killer) continue;
+				return move;
+			}
+			stage = BAD_CAPTURES;
+			position = 0; // We have a seperate list for bad captures.
+		}
+
+		// Finally, loop over the losing captures, they might still be some kind of sacrifice.
+		if (stage == BAD_CAPTURES) {
+			while (position < bad_captures.size) {
+				Move move = next_best_move(bad_captures);
 				if (move == hash_move || move == first_killer || move == second_killer) continue;
 				return move;
 			}
