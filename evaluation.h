@@ -243,6 +243,9 @@ struct Evaluation : Noncopyable
 	
 	int mg_queen_threatened_by_lesser = -1;
 	int eg_queen_threatened_by_lesser = -1;
+
+	int mg_minor_threatened_by_major = -10;
+	int eg_minor_threatened_by_major = -2;
 	
 	int mg_passed_pawn[8] = { 0, 41, 17, -10, -38, -20, 4, 0, };
 	int eg_passed_pawn[8] = { 0, 96, 66, 35, 24, 14, 8, 0, };

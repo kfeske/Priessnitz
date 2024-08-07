@@ -145,8 +145,10 @@ struct Move_orderer
 			stage = QUIESCENCES;
 		}
 		if (stage == QUIESCENCES) {
-			if (position < move_list.size)
-				return next_best_move(move_list);
+			while (position < move_list.size) {
+				Move move = next_best_move(move_list);
+				if (see(board, move) > 0) return move;
+			}
 		}
 
 		// We can still try the killer and counter moves before generating the quiet moves.

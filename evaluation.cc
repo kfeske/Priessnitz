@@ -337,6 +337,7 @@ void Evaluation::evaluate_threats(Board &board, Color friendly)
 
 	uint64_t attacked_by_pawn  = info.attacked_by_piece[enemy][PAWN];
 	uint64_t attacked_by_minor = info.attacked_by_piece[enemy][KNIGHT] | info.attacked_by_piece[enemy][BISHOP];
+	uint64_t attacked_by_major = info.attacked_by_piece[enemy][ROOK]   | info.attacked_by_piece[enemy][QUEEN];
 
 	// Our minors attacked by enemy pawns
 	uint64_t minors_threatened_by_pawn   = pop_count((friendly_knights | friendly_bishops) & attacked_by_pawn);
@@ -357,6 +358,12 @@ void Evaluation::evaluate_threats(Board &board, Color friendly)
 	uint64_t queens_threatened_by_lesser = pop_count(friendly_queens & (info.attacked[enemy] & !info.attacked_by_piece[enemy][QUEEN]));
 	info.mg_bonus[friendly] += mg_queen_threatened_by_lesser * queens_threatened_by_lesser;
 	info.eg_bonus[friendly] += eg_queen_threatened_by_lesser * queens_threatened_by_lesser;
+
+	// Undefended minors attacked by majors
+	uint64_t weak = info.attacked[enemy] & ~info.attacked[friendly];
+	uint64_t minors_threatened_by_major = pop_count((friendly_knights | friendly_bishops) & weak & attacked_by_major);
+	info.mg_bonus[friendly] += mg_minor_threatened_by_major * minors_threatened_by_major;
+	info.eg_bonus[friendly] += eg_minor_threatened_by_major * minors_threatened_by_major;
 }
 
 void Evaluation::evaluate_center_control(Color friendly)
