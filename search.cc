@@ -567,13 +567,22 @@ std::string Search::extract_pv_line(Board &board)
 	return pv_line;
 }
 
+std::string Search::print_score(int score)
+{
+	if (mate(score)) {
+		int ply_from_mate = MATE_SCORE - abs(score);
+		return "mate " + std::to_string((score > 0) ? (ply_from_mate + 1) / 2 : -ply_from_mate / 2);
+	}
+	return "cp " + std::to_string(score);
+}
+
 void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
 {
 	unsigned nodes = statistics.search_nodes + statistics.quiescence_nodes;
 	if (current_depth > 1) statistics.branching_factor = nodes / double(nodes_previous_iteration) + 0.0001;
 	std::string pv_line = extract_pv_line(board);
 
-	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed()
+	std::cout << "info depth " << current_depth << " score " << print_score(root_evaluation) << " time " << time_elapsed()
 		  << " nodes " << nodes << " hashfull " << statistics.hash_full(tt)
 	//std::cout << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
 	//std::cout << " branching " << statistics.branching_factor;

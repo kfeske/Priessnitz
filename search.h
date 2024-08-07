@@ -64,6 +64,8 @@ struct Search : Noncopyable
 
 	std::string extract_pv_line(Board &board);
 
+	std::string print_score(int score);
+
 	void plot_info(Board &board, unsigned nodes_previous_iteration);
 
 	void plot_final_info(unsigned total_nodes);
