@@ -174,10 +174,9 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
 
 	// Internal Iterative Deepening
-	/*if (pv_node && depth > 6 && tt.best_move == INVALID_MOVE) {
-		search(board, depth - 2, ply, alpha, beta, true);
+	/*if (pv_node && depth > 10 && tt.best_move == INVALID_MOVE) {
+		search(board, depth - 10, ply, alpha, beta, INVALID_MOVE, true);
 		tt.probe(board.zobrist.key, depth, alpha, beta);
-		heuristics.hash_move = tt.best_move;
 	}*/
 
 	// In the end, we decrement the history counters for bad quiet moves.
@@ -297,11 +296,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// We have had an alpha improvement, we now know an exact score of the position.
 			// This is valuable information for our hash table.
 			flag = EXACT;
-
-			if (ply == 0) {
-				best_root_move = best_move;
-				root_evaluation = evaluation;
-			}
 		}
 		else if (!capture(move)) bad_quiets_searched.add(move);
 	}
@@ -484,30 +478,35 @@ unsigned Statistics::hash_full(Transposition_table &tt)
 }
 
 // The best sequence of moves can be extracted from the hash table.
-void Search::extract_pv_line(Board &board)
+std::string Search::extract_pv_line(Board &board)
 {
+	std::string pv_line {};
 	Board temp_board = board;
-	temp_board.make_move(best_root_move);
-	std::cout << move_string(best_root_move) << " ";
-	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
-		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY_SCORE, INFINITY_SCORE);
-		if (!hit) return;
-		std::cout << move_string(tt.best_move) << " ";
+	for (int depth = 0; depth < current_depth; depth++) {
+		tt.best_move = INVALID_MOVE;
+		tt.probe(temp_board.zobrist.key, depth, -INFINITY_SCORE, INFINITY_SCORE);
+		if (tt.best_move == INVALID_MOVE) break;
+		if (depth == 0) {
+			best_root_move = tt.best_move;
+			root_evaluation = tt.current_evaluation;
+		}
+		pv_line += move_string(tt.best_move) + " ";
 		temp_board.make_move(tt.best_move);
 	}
+	return pv_line;
 }
 
 void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
 {
 	unsigned nodes = statistics.search_nodes + statistics.quiescence_nodes;
 	if (current_depth > 1) statistics.branching_factor = nodes / double(nodes_previous_iteration) + 0.0001;
+	std::string pv_line = extract_pv_line(board);
 
-	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed();
-	std::cout << " nodes " << nodes << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
-	std::cout << " branching " << statistics.branching_factor << " hashfull " << statistics.hash_full(tt);
-	std::cout << " pv ";
-	extract_pv_line(board);
-	std::cout << "\n";
+	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed()
+		  << " nodes " << nodes << " hashfull " << statistics.hash_full(tt)
+	//std::cout << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
+	//std::cout << " branching " << statistics.branching_factor;
+		  << " pv " << pv_line << "\n";
 }
 
 void Search::plot_final_info(unsigned total_nodes)

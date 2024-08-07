@@ -63,7 +63,7 @@ struct Search : Noncopyable
 
 	void increment_history(Board &board, Move move, int bonus);
 
-	void extract_pv_line(Board &board);
+	std::string extract_pv_line(Board &board);
 
 	void plot_info(Board &board, unsigned nodes_previous_iteration);
 

@@ -42,23 +42,22 @@ struct Transposition_table
 		TT_entry &entry = fetch_entry(key);
 		if (entry.key == key) {
 			best_move = Move(entry.best_move);
+			current_evaluation = entry.evaluation;
 			if (entry.depth >= depth) {
 
-				int evaluation = entry.evaluation;
 
 				// we have an exact score for that position. Great!
 				// (that means, we searched all moves and received a new best move)
 				if (entry.flag == EXACT) {
-					current_evaluation = evaluation;
 					return true;
 				}
 				// this value is too high for us to be concered about, it will cause a beta-cutoff
-				if (entry.flag == LOWERBOUND && evaluation >= beta) {
+				if (entry.flag == LOWERBOUND && entry.evaluation >= beta) {
 					current_evaluation = beta;
 					return true;
 				}
 				// this value is too low, we will not exceed alpha in the search
-				else if (entry.flag == UPPERBOUND && evaluation <= alpha) {
+				else if (entry.flag == UPPERBOUND && entry.evaluation <= alpha) {
 					current_evaluation = alpha;
 					return true;
 				}
