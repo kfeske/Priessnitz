@@ -16,8 +16,7 @@ struct Search_constants
 	{
 		for (unsigned depth = 0; depth < 64; depth++) {
 			for (unsigned move_count = 0; move_count < 64; move_count++)
-				// Formula from Pirarucu Engine, similar to Ethereal's implementation
-				LATE_MOVE_REDUCTION[depth][move_count] = std::log(depth) * std::log(move_count * 1.2) / 2.5;
+				LATE_MOVE_REDUCTION[depth][move_count] = 0.75 + std::log(depth) * std::log(move_count) / 2.5;
 		}
 	}
 };
