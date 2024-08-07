@@ -66,29 +66,8 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		}
 
 		// Passed pawns
-		if (passed && !doubled) {
-			unsigned relative_rank = rank_num(relative_square);
-			uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
-			bool blocked = advance_square & board.occ;
-
-			// Evaluate based on rank and ability to advance
-			if (!blocked) {
-				info.mg_bonus[friendly] += mg_passed_bonus[relative_rank];
-				info.eg_bonus[friendly] += eg_passed_bonus[relative_rank];
-			}
-			else {
-				info.mg_bonus[friendly] += mg_passed_bonus_blocked[relative_rank];
-				info.eg_bonus[friendly] += eg_passed_bonus_blocked[relative_rank];
-			}
-			// Evaluate based on the distance of the two kings from the passer
-			unsigned friendly_distance = square_distance(square, board.square(friendly, KING));
-			info.mg_bonus[friendly] += friendly_distance * mg_passed_friendly_distance[relative_rank];
-			info.eg_bonus[friendly] += friendly_distance * eg_passed_friendly_distance[relative_rank];
-
-			unsigned enemy_distance    = square_distance(square, board.square(enemy,    KING));
-			info.mg_bonus[friendly] += enemy_distance * mg_passed_enemy_distance[relative_rank];
-			info.eg_bonus[friendly] += enemy_distance * eg_passed_enemy_distance[relative_rank];
-		}
+		if (passed && !doubled)
+			info.passed_pawns[friendly] |= 1ULL << square;
 	}
 }
 
@@ -297,6 +276,45 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	info.eg_bonus[friendly] -= info.eg_king_ring_pressure[friendly] * eg_pressure_weight / 100;
 }
 
+void Evaluation::evaluate_passed_pawns(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+
+	uint64_t temp = info.passed_pawns[friendly];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize_square[friendly][square];
+		unsigned relative_rank = rank_num(relative_square);
+		uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
+		bool blocked = advance_square & board.occ;
+		bool safe_advance = advance_square & ~info.attacked[enemy];
+
+		// Evaluate based on rank and ability to advance
+		if (!blocked) {
+			info.mg_bonus[friendly] += mg_passed_pawn[relative_rank];
+			info.eg_bonus[friendly] += eg_passed_pawn[relative_rank];
+		}
+		else {
+			info.mg_bonus[friendly] += mg_passed_pawn_blocked[relative_rank];
+			info.eg_bonus[friendly] += eg_passed_pawn_blocked[relative_rank];
+		}
+
+		if (safe_advance) {
+			info.mg_bonus[friendly] += mg_passed_pawn_safe_advance;
+			info.eg_bonus[friendly] += eg_passed_pawn_safe_advance;
+		}
+
+		// Evaluate based on the distance of the two kings from the passer
+		unsigned friendly_distance = square_distance(square, board.square(friendly, KING));
+		info.mg_bonus[friendly] += friendly_distance * mg_passed_friendly_distance[relative_rank];
+		info.eg_bonus[friendly] += friendly_distance * eg_passed_friendly_distance[relative_rank];
+
+		unsigned enemy_distance    = square_distance(square, board.square(enemy,    KING));
+		info.mg_bonus[friendly] += enemy_distance * mg_passed_enemy_distance[relative_rank];
+		info.eg_bonus[friendly] += enemy_distance * eg_passed_enemy_distance[relative_rank];
+	}
+}
+
 void Evaluation::evaluate_threats(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
@@ -365,6 +383,9 @@ int Evaluation::evaluate(Board &board)
 	evaluate_queens( board, BLACK);
 	evaluate_kings(  board, WHITE);
 	evaluate_kings(  board, BLACK);
+
+	evaluate_passed_pawns(board, WHITE);
+	evaluate_passed_pawns(board, BLACK);
 
 	evaluate_threats(board, WHITE);
 	evaluate_threats(board, BLACK);

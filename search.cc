@@ -70,7 +70,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		if (!board.legal(move)) continue;
 
 		// Prune moves that lose material. In this case, another quiet move is probably better.
-		if (see(board, move) < 0) continue;
+		if (!in_check && see(board, move) < 0) continue;
 
 		statistics.quiescence_nodes++;
 
