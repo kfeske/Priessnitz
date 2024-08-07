@@ -138,8 +138,7 @@ static inline uint64_t rook_attacks(unsigned square, uint64_t occ)
 }
 
 // Returns the pre-computed moves for a piece on a square
-template <Piece_type type>
-static inline uint64_t piece_attacks(unsigned square, uint64_t occ)
+static inline uint64_t piece_attacks(Piece_type type, unsigned square, uint64_t occ)
 {
 	switch (type) {
 	case KNIGHT: return pre_computed.knight_attacks[square];
@@ -147,6 +146,7 @@ static inline uint64_t piece_attacks(unsigned square, uint64_t occ)
 	case ROOK:   return rook_attacks(square, occ);
 	case QUEEN:  return bishop_attacks(square, occ) | rook_attacks(square, occ);
 	case KING:   return pre_computed.king_attacks[square];
+	default: return 0ULL;
 	}
 }
 

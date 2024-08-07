@@ -74,25 +74,26 @@ void see_test(Board &board, Move move)
 struct Perft {
 	
 	long nodes = 0;
-	unsigned captures = 0;
-	unsigned ep_captures = 0;
-	unsigned max_depth;
-	unsigned cap = 0;
+	long sub_nodes = 0;
+	long captures = 0;
+	long ep_captures = 0;
+	long promotions = 0;
+	unsigned max_depth = 0;
 
-	long perft(Board &board, unsigned depth)
+	void perft(Board &board, unsigned depth)
 	{
-		if (depth == 0) {
-			nodes++;
-			return 1;
-		}
+		Move_list move_list;
+		generate_legal(board, move_list);
 
-		Move_generator move_generator {};
-		move_generator.generate_all_moves(board);
+		for (unsigned move_count = 0; move_count < move_list.size; move_count++) {
+			Move move = move_list.moves[move_count].move;
 
-		for (unsigned n = 0; n < move_generator.size; n++) {
-			Move move = move_generator.move_list[n].move;
+			if (depth == max_depth)
+				std::cerr << move_string(move) << " ";
 
 			if (depth == 1) {
+				nodes++;
+				sub_nodes++;
 				switch(flags_of(move)) {
 				case CAPTURE: case PC_KNIGHT: case PC_BISHOP: case PC_ROOK: case PC_QUEEN:
 					captures++;
@@ -103,49 +104,29 @@ struct Perft {
 					break;
 				default: break;
 				}
+				if (promotion(move)) promotions++;
 			}
-			board.make_move(move);
+			else {
+				board.make_move(move);
 
-			perft(board, depth - 1);
+				perft(board, depth - 1);
 
-			board.unmake_move(move);
-		}
-		return nodes;
-	}
-
-	long get_legal_moves_count(Board &board, unsigned depth)
-	{
-		long nds = 0;
-		if (depth == 0) {
-			return 1;
-		}
-
-		Move_generator movegenerator {};
-		movegenerator.generate_all_moves(board);
-
-		for (unsigned n = 0; n < movegenerator.size; n++) {
-			Move move = movegenerator.move_list[n].move;
-
-			board.make_move(move);
+				board.unmake_move(move);
+			}
 
 			if (depth == max_depth) {
-				print_move(move);
-				nds += get_legal_moves_count(board, depth - 1);
-				std::cerr << nds << "\n\n";
-				nds = 0;
+				std::cerr << sub_nodes << "\n";
+				sub_nodes = 0;
 			}
-			else
-				nds += get_legal_moves_count(board, depth - 1);
-
-			board.unmake_move(move);
 		}
-		return nds;
 	}
 
-	Perft(unsigned depth)
+	Perft(Board &board, unsigned depth, unsigned max_depth)
 	:
-		max_depth(depth)
-	{}
+		max_depth(max_depth)
+	{
+		perft(board, depth);
+	}
 };
 
 void run_perft(Board &board, unsigned depth)
@@ -153,12 +134,10 @@ void run_perft(Board &board, unsigned depth)
 	auto time_start = std::chrono::high_resolution_clock::now();
 	for (unsigned i = 1; i <= depth; i++)
 	{
-		Perft perft { i };
-		perft.perft(board, i);
+		Perft perft { board, i, depth };
 		auto time_end = std::chrono::high_resolution_clock::now();
-		std::cerr << "captures: " << perft.cap << "\n";
 		std::cerr << "DEPTH: " << i << "  LEGAL_MOVES: " << perft.nodes << "  CAPTURES: " << perft.captures
-			  << "  EN PASSANT: " << perft.ep_captures;
+			  << "  EN PASSANT: " << perft.ep_captures << " PROMOTIONS: " << perft.promotions;
 		std::cerr << "  TIME: " << std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count() << "\n";
 	}
 }

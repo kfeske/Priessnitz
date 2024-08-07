@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utility.h"
+#include "pre_computed.h"
 
 struct Zobrist
 {
@@ -19,11 +20,14 @@ struct Zobrist
 
 // used in unmake_move()
 // stores essential position data that cannot be restored
-struct UndoInfo {
+struct Undo_info {
 	Piece captured = NO_PIECE;
 	uint8_t ep_sq = NO_SQUARE; // save en passant square in case the last move was a double pawn push
 	uint8_t castling_rights = NO_RIGHTS;
 	unsigned rule_50 = 0;
+	uint64_t checkers = 0ULL;
+	uint64_t pinned = 0ULL;
+	Move move;
 };
 
 struct Board_state
@@ -38,7 +42,7 @@ struct Board_state
 
 	unsigned game_ply = 0;
 
-	UndoInfo history[1024] {};
+	Undo_info history[1024] {};
 	uint64_t position_history[1024] {};
 	bool repetition = false;
 
@@ -49,8 +53,13 @@ struct Board : Board_state
 {
 	Zobrist zobrist {};
 
-	uint64_t enemy(Color friendly);
-	uint64_t enemy_or_empty(Color friendly);
+	uint64_t enemy(Color friendly) { return color[swap(friendly)]; }
+	uint64_t enemy_or_empty(Color friendly) { return ~color[friendly]; }
+
+	unsigned square(Color friendly, Piece_type type)
+	{
+		return lsb(pieces[piece_of(friendly, type)]);
+	}
 
 	void reset();
 
@@ -70,11 +79,28 @@ struct Board : Board_state
 
 	bool in_check();
 
+	void update_checkers_and_pinners();
+
+	uint64_t square_attackers(unsigned square, uint64_t occupied);
+
+	bool legal(Move move);
+
 	uint64_t all_pawn_attacks(Color friendly);
 
-	bool passed_push(Move move);
+	// did the move push a passed pawn to the 6th rank or higher?
+	// should only be called, after the move was made
+	bool passed_push(Move move)
+	{
+		unsigned to_square = move_to(move);
+		return (type_of(board[to_square]) == PAWN && rank_num(normalize[side_to_move][to_square]) > 4 &&
+			!(passed_pawn_mask(swap(side_to_move), to_square) & pieces[piece_of(side_to_move, PAWN)]));
+	}
 
-	bool immediate_draw(unsigned ply_from_root);
+	// draw by repetition or 50-Move-Rule?
+	bool immediate_draw(unsigned ply_from_root)
+	{
+		return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);
+	}
 
 	void set_fenpos(std::string fen);
 

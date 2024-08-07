@@ -18,14 +18,14 @@ enum Square {
 };
 
 enum Rank : uint64_t {
-	RANK_1 = 0xff,
-	RANK_2 = RANK_1 << (8 * 1),
-	RANK_3 = RANK_1 << (8 * 2),
-	RANK_4 = RANK_1 << (8 * 3),
-	RANK_5 = RANK_1 << (8 * 4),
-	RANK_6 = RANK_1 << (8 * 5),
-	RANK_7 = RANK_1 << (8 * 6),
-	RANK_8 = RANK_1 << (8 * 7)
+	RANK_8 = 0xff,
+	RANK_7 = RANK_8 << (8 * 1),
+	RANK_6 = RANK_8 << (8 * 2),
+	RANK_5 = RANK_8 << (8 * 3),
+	RANK_4 = RANK_8 << (8 * 4),
+	RANK_3 = RANK_8 << (8 * 5),
+	RANK_2 = RANK_8 << (8 * 6),
+	RANK_1 = RANK_8 << (8 * 7)
 };
 
 enum File : uint64_t {
@@ -108,16 +108,26 @@ static inline Piece piece_of(Color color, Piece_type type)
 	return Piece((color << 3) + type);
 }
 
+static inline unsigned rank_num(unsigned square)
+{
+	// equivalent to "square / 8".
+	return square >> 3;
+}
+
+static inline unsigned file_num(unsigned square)
+{
+	// thanks to the 8 * 8 chess board, the last three bits denote the file.
+	return square & 7;
+}
+
 static inline uint64_t rank(unsigned square)
 {
-	unsigned index = square >> 3;
-	return RANK_1 << (index * 8);
+	return RANK_8 << (rank_num(square) * 8);
 }
 
 static inline uint64_t file(unsigned square)
 {
-	unsigned index = square & 7;
-	return FILE_A << index;
+	return FILE_A << file_num(square);
 }
 
 // used in search and move ordering, evaluation has its own values
@@ -181,7 +191,7 @@ struct Scored_move
 
 // Chess has loads of special moves that have to be treated differently.
 // These can be neatly encoded in 4 bits.
-enum Move_flags {
+enum Move_flags : uint8_t {
 	QUIET = 0b0000,
 	DOUBLE_PUSH = 0b0001,
 	OO = 0b0010, OOO = 0b0011,							// kingside, queenside
@@ -213,8 +223,7 @@ static inline Move create_move(unsigned from, unsigned to)
 	return Move((from << 6) + to);
 }
 
-template <Move_flags flag>
-static inline Move create_move(unsigned from, unsigned to)
+static inline Move create_move(unsigned from, unsigned to, Move_flags flag)
 {
 	return Move((flag << 12) | (from << 6) | to);
 }
@@ -229,26 +238,17 @@ static inline bool capture(Move move)
 	return (flags_of(move) & 0b0100);
 }
 
-static inline unsigned rank_num(unsigned square)
-{
-	// equivalent to "square / 8".
-	return square >> 3;
-}
-
-static inline unsigned file_num(unsigned square)
-{
-	// thanks to the 8 * 8 chess board, the last three bits denote the file.
-	return square & 7;
-}
-
 // the castling rights for both sides fit in 4 bits
-enum Castling_rights {
+enum Castling_rights : uint8_t {
 	NO_RIGHTS,
 	WHITE_OO  = 0b0001,
 	WHITE_OOO = 0b0010,
 	BLACK_OO  = 0b0100,
 	BLACK_OOO = 0b1000
 };
+
+Castling_rights const king_side[2]  = { WHITE_OO,  BLACK_OO  };
+Castling_rights const queen_side[2] = { WHITE_OOO, BLACK_OOO };
 
 // there are different types of hash entries, since we do not always have exact information about positions
 enum TT_flag {

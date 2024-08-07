@@ -11,9 +11,9 @@
 
 Move UCI::create_move(std::string move)
 {
-	Move_generator move_generator {};
-	move_generator.generate_all_moves(board);
-	for (Scored_move m : move_generator.move_list) {
+	Move_list move_list;
+	generate_legal(board, move_list);
+	for (Scored_move m : move_list.moves) {
 		if (move_string(m.move) == move)
 			return m.move;
 	}

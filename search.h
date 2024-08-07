@@ -28,6 +28,7 @@ struct Search : Noncopyable
 	unsigned max_depth = 63;
 	double max_time = 999999;
 	unsigned current_depth;
+	bool time_management;
 
 	Statistics statistics;
 	Heuristics heuristics;

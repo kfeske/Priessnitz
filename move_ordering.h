@@ -11,7 +11,15 @@ struct Heuristics
 	int32_t history[16][64];
 };
 
-static inline void rate_moves(Board &board, Heuristics &heuristics, Move_generator &move_generator, bool quiescence, unsigned ply)
+struct Move_orderer
+{
+	Move next_move()
+	{
+		return INVALID_MOVE;
+	}
+};
+
+/*static inline void rate_moves(Board &board, Heuristics &heuristics, Move_generator &move_generator, bool quiescence, unsigned ply)
 {
 	for (unsigned n = 0; n < move_generator.size; n++) {
 		Scored_move &m = move_generator.move_list[n];
@@ -57,4 +65,4 @@ static inline Move next_move(Move_generator &move_generator, unsigned index)
 	}
 	std::swap(move_generator.move_list[index], move_generator.move_list[best_index]);
 	return move_generator.move_list[index].move;
-}
+}*/

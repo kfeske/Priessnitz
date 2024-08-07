@@ -19,18 +19,6 @@ struct Attacker
 	uint64_t square;
 };
 
-static inline uint64_t attacks_to(Board &board, unsigned square, uint64_t occupied)
-{
-	return 	(pawn_attacks(WHITE, square) & board.pieces[B_PAWN]) |
-		(pawn_attacks(BLACK, square) & board.pieces[W_PAWN]) |
-		(piece_attacks<KNIGHT>(square, 0ULL) & (board.pieces[W_KNIGHT] | board.pieces[B_KNIGHT])) |
-		(piece_attacks<BISHOP>(square, occupied) &
-		(board.pieces[W_BISHOP] | board.pieces[B_BISHOP] | board.pieces[W_QUEEN] | board.pieces[B_QUEEN])) |
-		(piece_attacks<ROOK>(square, occupied) &
-		(board.pieces[W_ROOK] | board.pieces[B_ROOK] | board.pieces[W_QUEEN] | board.pieces[B_QUEEN])) |
-		(piece_attacks<KING>(square, 0ULL) & (board.pieces[W_KING] | board.pieces[B_KING]));
-}
-
 static inline Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
 {
 	for (Piece pc : ALL_PIECES[side]) {
@@ -52,12 +40,12 @@ static inline uint64_t revealed_attacks(Board &board, unsigned square, Piece_typ
 	uint64_t queens  = board.pieces[W_QUEEN]  | board.pieces[B_QUEEN];
 
 	if (pt == BISHOP || pt == PAWN)
-		return piece_attacks<BISHOP>(square, occupied) & (bishops | queens);
+		return piece_attacks(BISHOP, square, occupied) & (bishops | queens);
 	else if (pt == ROOK)
-		return piece_attacks<ROOK>(square, occupied) & (rooks | queens);
+		return piece_attacks(ROOK, square, occupied) & (rooks | queens);
 	else if (pt == QUEEN)
-		return (piece_attacks<BISHOP>(square, occupied) & (bishops | queens)) |
-		       (piece_attacks<ROOK>(square, occupied) & (rooks | queens));
+		return (piece_attacks(BISHOP, square, occupied) & (bishops | queens)) |
+		       (piece_attacks(ROOK,   square, occupied) & (rooks | queens));
 	return 0ULL;
 }
 
@@ -75,7 +63,7 @@ static inline int see(Board &board, Move move)
 	gain[0] = piece_value[board.board[target_square]];
 	//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
 
-	uint64_t attackers = attacks_to(board, target_square, occupied);
+	uint64_t attackers = board.square_attackers(target_square, occupied);
 
 	// loop through the exchange sequence and see, who wins it
 	while (true) {

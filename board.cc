@@ -41,8 +41,6 @@ Zobrist::Zobrist()
 	populate();
 }
 
-uint64_t Board::enemy(Color friendly) { return color[swap(friendly)]; }
-uint64_t Board::enemy_or_empty(Color friendly) { return ~color[friendly]; }
 
 // resets information neccessary to start a new game
 void Board::reset()
@@ -104,6 +102,8 @@ void Board::make_move(Move move)
 	history[game_ply].castling_rights = history[game_ply - 1].castling_rights &
 					    prohibiters(from) & prohibiters(to);
 	history[game_ply].rule_50 = history[game_ply - 1].rule_50 + 1;
+
+	history[game_ply].move = move;
 
 	zobrist.key = 0ULL;
 
@@ -194,8 +194,7 @@ void Board::make_move(Move move)
 	zobrist.key ^= zobrist.piece_side_key;
 	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
 
-
-	// check for any three-fold-repetitions
+	// Check for any three-fold-repetitions
 
 	repetition = false;
 	if (history[game_ply].rule_50 >= 4) { // a move that resets the 50 move rule also prevents repetitions.
@@ -213,11 +212,13 @@ void Board::make_move(Move move)
 	position_history[game_ply] = zobrist.key;
 
 	side_to_move = swap(side_to_move);
+
+	update_checkers_and_pinners();
 }
 
 void Board::unmake_move(Move move)
 {
-	UndoInfo info = history[game_ply];
+	Undo_info info = history[game_ply];
 	position_history[game_ply] = 0ULL;
 	game_ply--;
 	unsigned from = move_to(move);
@@ -314,11 +315,90 @@ bool Board::in_check()
 
 	uint64_t checkers = 0ULL;
 	checkers |= pawn_attacks(side_to_move, ksq) & pieces[piece_of(enemy, PAWN)];
-	checkers |= piece_attacks<KNIGHT>(ksq, 0ULL) & pieces[piece_of(enemy, KNIGHT)];
-	checkers |= piece_attacks<BISHOP>(ksq, occ) & enemy_diag_sliders;
-	checkers |= piece_attacks<ROOK  >(ksq, occ) & enemy_orth_sliders;
+	checkers |= piece_attacks(KNIGHT, ksq, 0ULL) & pieces[piece_of(enemy, KNIGHT)];
+	checkers |= piece_attacks(BISHOP, ksq, occ) & enemy_diag_sliders;
+	checkers |= piece_attacks(ROOK,   ksq, occ) & enemy_orth_sliders;
 
 	return (checkers != 0);
+}
+
+// is the side to move in check?
+void Board::update_checkers_and_pinners()
+{
+	if (pieces[piece_of(side_to_move, KING)] == 0ULL) {
+		std::cerr << "no king -> retracing steps...\n";
+		for (unsigned ply = 1; ply <= game_ply; ply++) {
+			std::cerr << move_string(history[ply].move) << " ";
+		}
+		std::cerr << "\n";
+		return;
+	}
+	Color friendly = side_to_move;
+	Color enemy = swap(friendly);
+	unsigned king_square = square(side_to_move, KING);
+	uint64_t enemy_diag_sliders = pieces[piece_of(enemy, BISHOP)] | pieces[piece_of(enemy, QUEEN)];
+	uint64_t enemy_orth_sliders = pieces[piece_of(enemy, ROOK  )] | pieces[piece_of(enemy, QUEEN)];
+
+	history[game_ply].checkers |= pawn_attacks(side_to_move, king_square) & pieces[piece_of(enemy, PAWN)];
+	history[game_ply].checkers |= piece_attacks(KNIGHT, king_square, 0ULL) & pieces[piece_of(enemy, KNIGHT)];
+
+	uint64_t king_sliders = (piece_attacks(BISHOP, king_square, color[enemy]) & enemy_diag_sliders) |
+			        (piece_attacks(ROOK,   king_square, color[enemy]) & enemy_orth_sliders);
+	while (king_sliders) {
+		unsigned square = pop_lsb(king_sliders);
+		uint64_t pin_ray = ray_between(king_square, square) & color[friendly];
+
+		// No pieces block the ray - our king is in check.
+		if (pin_ray == 0) history[game_ply].checkers |= 1ULL << square;
+
+		// One of our pieces blocks the ray - the piece is pinned.
+		else if ((pin_ray & (pin_ray - 1)) == 0) history[game_ply].pinned |= pin_ray;
+	}
+}
+
+uint64_t Board::square_attackers(unsigned square, uint64_t occupied)
+{
+	return 	(pawn_attacks(WHITE, square) & pieces[B_PAWN]) |
+		(pawn_attacks(BLACK, square) & pieces[W_PAWN]) |
+		(piece_attacks(KNIGHT, square, 0ULL) & (pieces[W_KNIGHT] | pieces[B_KNIGHT])) |
+		(piece_attacks(BISHOP, square, occupied) &
+		(pieces[W_BISHOP] | pieces[B_BISHOP] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
+		(piece_attacks(ROOK, square, occupied) &
+		(pieces[W_ROOK] | pieces[B_ROOK] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
+		(piece_attacks(KING, square, 0ULL) & (pieces[W_KING] | pieces[B_KING]));
+}
+
+bool Board::legal(Move move)
+{
+	unsigned from = move_from(move);
+	unsigned to   = move_to(move);
+	if (type_of(board[from]) == KING) {
+		// The king cannot move to attacked squares.
+		if (square_attackers(to, occ & ~(1ULL << from)) & color[swap(side_to_move)]) return false;
+
+		// Castling through attacks is not allowed.
+		Move_flags flag = flags_of(move);
+		if (flag == OO) {
+			if ((square_attackers(from + 1, occ) & color[swap(side_to_move)]) != 0ULL) return false;
+		}
+		else if (flag == OOO) {
+			if ((square_attackers(from - 1, occ) & color[swap(side_to_move)]) != 0ULL) return false;
+		}
+	}
+	// Restrict pinned pieces to only move along the ray away or towards the king.
+	else if ((history[game_ply].pinned & (1ULL << from)) && !(ray(square(side_to_move, KING), from) & (1ULL << to)))
+		return false;
+
+	// En passant captures have a tricky case, where a horizontal check can be revealed.
+	else if (flags_of(move) == EP_CAPTURE) {
+		Color enemy = swap(side_to_move);
+		unsigned king_square = square(side_to_move, KING);
+		unsigned ep_square = history[game_ply].ep_sq;
+		Direction forward = side_to_move == WHITE ? UP : DOWN;
+		if (piece_attacks(ROOK, king_square, occ & ~(1ULL << from) & ~(1ULL << (ep_square - forward))) &
+		    rank(king_square) & (pieces[piece_of(enemy, ROOK)] | pieces[piece_of(enemy, QUEEN)])) return false;
+	}
+	return true;
 }
 
 // used in the SEE function
@@ -328,21 +408,6 @@ uint64_t Board::all_pawn_attacks(Color friendly)
 	Direction up_left  = (friendly == WHITE) ? UP_LEFT : DOWN_LEFT;
 	uint64_t pawns = pieces[piece_of(friendly, PAWN)];
 	return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
-}
-
-// did the move push a passed pawn to the 6th rank or higher?
-// should only be called, after the move was made
-bool Board::passed_push(Move move)
-{
-	unsigned to_square = move_to(move);
-	return (type_of(board[to_square]) == PAWN && rank_num(normalize[side_to_move][to_square]) > 4 &&
-		!(passed_pawn_mask(swap(side_to_move), to_square) & pieces[piece_of(side_to_move, PAWN)]));
-}
-
-// draw by repetition or 50-Move-Rule?
-bool Board::immediate_draw(unsigned ply_from_root)
-{
-	return ((repetition && ply_from_root > 1) || history[game_ply].rule_50 >= 100);
 }
 
 void Board::set_fenpos(std::string fen)
@@ -429,6 +494,7 @@ void Board::set_fenpos(std::string fen)
 	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
 	if (history[game_ply].ep_sq != NO_SQUARE)
 		zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
+	update_checkers_and_pinners();
 }
 
 void Board::set_startpos()

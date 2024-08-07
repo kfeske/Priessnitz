@@ -97,7 +97,7 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		{
 		mg_bonus[friendly] += mg_knight_psqt[relative_square] + mg_piece_value[KNIGHT];
 		eg_bonus[friendly] += eg_knight_psqt[relative_square] + eg_piece_value[KNIGHT];
-		uint64_t attacks = piece_attacks<KNIGHT>(square, 0ULL);
+		uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
 		note_king_attacks<KNIGHT>(attacks, friendly);
 		evaluate_mobility<KNIGHT>(board, attacks, friendly);
 		return;
@@ -108,7 +108,7 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		eg_bonus[friendly] += eg_bishop_psqt[relative_square] + eg_piece_value[BISHOP];
 		// queen is not counted as a blocker, because a bishop behind a queen makes the attack more potent
 		uint64_t ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
-		uint64_t attacks = piece_attacks<BISHOP>(square, ray_blockers);
+		uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
 		note_king_attacks<BISHOP>(attacks, friendly);
 		evaluate_mobility<BISHOP>(board, attacks, friendly);
 		return;
@@ -119,7 +119,7 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		eg_bonus[friendly] += eg_rook_psqt[relative_square] + eg_piece_value[ROOK];
 		// queen and rooks are not counted as a blockers, because their pressure increases when stacked
 		uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
-		uint64_t attacks = piece_attacks<ROOK>(square, ray_blockers);
+		uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
 		note_king_attacks<ROOK>(attacks, friendly);
 		evaluate_mobility<ROOK>(board, attacks, friendly);
 		return;
@@ -128,7 +128,7 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		{
 		mg_bonus[friendly] += mg_queen_psqt[relative_square] + mg_piece_value[QUEEN];
 		eg_bonus[friendly] += eg_queen_psqt[relative_square] + eg_piece_value[QUEEN];
-		uint64_t attacks = piece_attacks<QUEEN>(square, board.occ);
+		uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
 		note_king_attacks<QUEEN>(attacks, friendly);
 		evaluate_mobility<QUEEN>(board, attacks, friendly);
 		return;
@@ -159,8 +159,8 @@ int Evaluation::evaluate(Board &board)
 	zone_attackers[BLACK] = 0;
 	unsigned white_king_square = lsb(board.pieces[piece_of(WHITE, KING)]);
 	unsigned black_king_square = lsb(board.pieces[piece_of(BLACK, KING)]);
-	ring[WHITE] = piece_attacks<KING>(white_king_square, 0ULL);
-	ring[BLACK] = piece_attacks<KING>(black_king_square, 0ULL);
+	ring[WHITE] = piece_attacks(KING, white_king_square, 0ULL);
+	ring[BLACK] = piece_attacks(KING, black_king_square, 0ULL);
 	zone[WHITE] = king_zone(WHITE, white_king_square);
 	zone[BLACK] = king_zone(BLACK, black_king_square);
 

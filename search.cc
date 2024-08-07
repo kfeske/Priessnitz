@@ -42,16 +42,16 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
-	Move_generator move_generator;
+	/*Move_generator move_generator;
 	if (in_check)
 		move_generator.generate_all_moves(board);
 	else
 		move_generator.generate_quiescence(board); // only captures
 
-	rate_moves(board, heuristics, move_generator, true, ply);
+	rate_moves(board, heuristics, move_generator, true, ply);*/
 
-	for (unsigned n = 0; n < move_generator.size; n++) {
-		Move move = next_move(move_generator, n);
+	Move_orderer move_orderer;
+	for (Move move = move_orderer.next_move(); move != INVALID_MOVE;) {
 
 		// Delta Pruning
 		// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
@@ -109,6 +109,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	if (alpha >= beta) return alpha;
 	
 
+	unsigned move_count = 0;
 	Move best_move = INVALID_MOVE;
 	int evaluation;
 	bool in_check = board.in_check();
@@ -181,21 +182,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		heuristics.hash_move = tt.pv_move;
 	}*/
 
-	Move_generator move_generator;
-	move_generator.generate_all_moves(board);
-
-	if (move_generator.size == 0) {
-		if (in_check) return -MATE_SCORE + ply; // Checkmate
-		else return 0; // Stalemate
-	}
-
-	// Score each move depending on how good it looks
-	rate_moves(board, heuristics, move_generator, false, ply);
-
-	for (unsigned n = 0; n < move_generator.size; n++) {
+	Move_orderer move_orderer;
+	for (Move move = move_orderer.next_move(); move != INVALID_MOVE;) {
+		move_count++;
 		statistics.search_nodes++;
-
-		Move move = next_move(move_generator, n);
 
 		if (move == skip) continue;
 
@@ -204,7 +194,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		bool gives_check = board.in_check();
 
 		// Futility prune if the conditions are met
-		if (futile && n > 0 && !gives_check && !capture(move) && !promotion(move)) {
+		if (futile && move_count > 0 && !gives_check && !capture(move) && !promotion(move)) {
 			board.unmake_move(move);
 			continue;
 		}
@@ -214,10 +204,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			continue;
 		}*/
 
-		bool late_move = (n >= 4 && !in_check && !gives_check && !mate(alpha) &&
+		bool late_move = (move_count >= 4 && !in_check && !gives_check && !mate(alpha) &&
 		     		  !capture(move) && !promotion(move) && !board.passed_push(move));
 		// Late Move Pruning
-		if (late_move && depth <= 3 && n >= lmp_margins[depth]) {
+		if (late_move && depth <= 3 && move_count >= lmp_margins[depth]) {
 			board.unmake_move(move);
 			continue;
 		}
@@ -230,7 +220,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// Principle Variation Search
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 		// by searching them with a zero-width window centered around alpha, which is a lot faster.
-		if (n == 0) {
+		if (move_count == 0) {
 			/*if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
 				board.unmake_move(move);
 				int singular_score = tt.current_evaluation - 130;
@@ -252,7 +242,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			unsigned reduction = 0;
 			if (depth >= 3 && late_move) {
 				reduction = 1;
-				//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
+				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
@@ -293,7 +283,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 					// increment history score
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
 				}
-				if (n == 0) statistics.cutoffspv++;
+				if (move_count == 0) statistics.cutoffspv++;
 				statistics.cutoffs++;
 
 				// *snip* *snip*
@@ -309,6 +299,11 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 				root_evaluation = evaluation;
 			}
 		}
+	}
+
+	if (move_count == 0) {
+		if (in_check) return -MATE_SCORE + ply; // Checkmate
+		else return 0; // Stalemate
 	}
 	
 	// Store position in the hash table
@@ -421,7 +416,10 @@ void Search::start_search(Board &board)
 			else break;
 		}
 
+
 		plot_info(board, nodes_previous_iteration);
+
+		if (time_management && mate(root_evaluation)) break;
 
 		if (abort_search) break;
 	}
@@ -433,8 +431,11 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 {
 	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
 
-	bool time_management = time_left != INFINITY;
-	bool time_limit      = move_time != INFINITY;
+	time_management = time_left != INFINITY;
+	bool time_limit = move_time != INFINITY;
+
+	Move_list move_list;
+	generate_legal(board, move_list);
 
 	if (time_management) {
 		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
@@ -449,10 +450,14 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 		// safety move overhead buffer, so that we never run out of time.
 		time_left = time_left - move_overhead + increment * remaining_moves;
 
-		// The engine will allocate enough time for the remaining moves
+		// Allocate enough time for the remaining moves.
 		unsigned time_allocated = std::max(1U, (time_left / remaining_moves));
 
-		if (time_limit)
+		// Respond instantly in case of a single legal move.
+		if (move_list.size == 1)
+			max_time = 1;
+
+		else if (time_limit)
 			max_time = std::min(time_allocated, move_time);
 		else
 			max_time = time_allocated;
