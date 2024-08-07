@@ -85,7 +85,17 @@ enum Indicies {
 	EG_KING_RING_POTENCY = MG_KING_RING_POTENCY + 6,
 	MG_KING_RING_PRESSURE = EG_KING_RING_POTENCY + 6,
 	EG_KING_RING_PRESSURE = MG_KING_RING_PRESSURE + 8,
-	PAWN_SHIELD = EG_KING_RING_PRESSURE + 8,
+
+	MG_SAFE_KNIGHT_CHECK = EG_KING_RING_PRESSURE + 8,
+	EG_SAFE_KNIGHT_CHECK = MG_SAFE_KNIGHT_CHECK + 1,
+	MG_SAFE_BISHOP_CHECK = EG_SAFE_KNIGHT_CHECK + 1,
+	EG_SAFE_BISHOP_CHECK = MG_SAFE_BISHOP_CHECK + 1,
+	MG_SAFE_ROOK_CHECK   = EG_SAFE_BISHOP_CHECK + 1,
+	EG_SAFE_ROOK_CHECK   = MG_SAFE_ROOK_CHECK + 1,
+	MG_SAFE_QUEEN_CHECK  = EG_SAFE_ROOK_CHECK + 1,
+	EG_SAFE_QUEEN_CHECK  = MG_SAFE_QUEEN_CHECK + 1,
+
+	PAWN_SHIELD = EG_SAFE_QUEEN_CHECK + 1,
 
 	CENTER_CONTROL = PAWN_SHIELD + 6,
 
@@ -103,7 +113,7 @@ enum Tuning_params {
 	//NUM_TEST_POSITIONS = 0,
 	NUM_TRAINING_POSITIONS = 7153653,
 	NUM_TEST_POSITIONS = 0,
-	NUM_TABLES = 69,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 77,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -162,7 +172,10 @@ struct Tuner
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 					   MG_MINOR_THREATENED_BY_PAWN, EG_MINOR_THREATENED_BY_PAWN, MG_MINOR_THREATENED_BY_MINOR, EG_MINOR_THREATENED_BY_MINOR,
 					   MG_ROOK_THREATENED_BY_LESSER, EG_ROOK_THREATENED_BY_LESSER, MG_QUEEN_THREATENED_BY_LESSER, EG_QUEEN_THREATENED_BY_LESSER,
-			     	      	   MG_KING_RING_POTENCY, EG_KING_RING_POTENCY, MG_KING_RING_PRESSURE, EG_KING_RING_PRESSURE, PAWN_SHIELD,
+			     	      	   MG_KING_RING_POTENCY, EG_KING_RING_POTENCY, MG_KING_RING_PRESSURE, EG_KING_RING_PRESSURE,
+					   MG_SAFE_KNIGHT_CHECK, EG_SAFE_KNIGHT_CHECK, MG_SAFE_BISHOP_CHECK, EG_SAFE_BISHOP_CHECK,
+					   MG_SAFE_ROOK_CHECK, EG_SAFE_ROOK_CHECK, MG_SAFE_QUEEN_CHECK, EG_SAFE_QUEEN_CHECK,
+					   PAWN_SHIELD,
 					   CENTER_CONTROL,
 					   PAWN_COUNT_SCALE_OFFSET,
 					   PAWN_COUNT_SCALE_WEIGHT,
@@ -258,6 +271,16 @@ struct Tuner
 		case EG_KING_RING_POTENCY:  return eval.eg_king_ring_attack_potency[pos];
 		case MG_KING_RING_PRESSURE: return eval.mg_king_ring_pressure_weight[pos];
 		case EG_KING_RING_PRESSURE: return eval.eg_king_ring_pressure_weight[pos];
+
+		case MG_SAFE_KNIGHT_CHECK: return eval.mg_safe_knight_check;
+		case EG_SAFE_KNIGHT_CHECK: return eval.eg_safe_knight_check;
+		case MG_SAFE_BISHOP_CHECK: return eval.mg_safe_bishop_check;
+		case EG_SAFE_BISHOP_CHECK: return eval.eg_safe_bishop_check;
+		case MG_SAFE_ROOK_CHECK:   return eval.mg_safe_rook_check;
+		case EG_SAFE_ROOK_CHECK:   return eval.eg_safe_rook_check;
+		case MG_SAFE_QUEEN_CHECK:  return eval.mg_safe_queen_check;
+		case EG_SAFE_QUEEN_CHECK:  return eval.eg_safe_queen_check;
+
 		case PAWN_SHIELD:   return eval.mg_pawn_shield[pos];
 
 		case CENTER_CONTROL: return eval.mg_center_control;
@@ -354,6 +377,16 @@ struct Tuner
 		std::cerr << "int eg_king_ring_pressure_weight[8] = { ";
 		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_KING_RING_PRESSURE + i);
 		std::cerr << "};\n";
+
+		std::cerr << "\nint mg_safe_knight_check = " << int_weight(MG_SAFE_KNIGHT_CHECK) << ";\n";
+		std::cerr <<   "int eg_safe_knight_check = " << int_weight(EG_SAFE_KNIGHT_CHECK) << ";\n";
+		std::cerr << "\nint mg_safe_bishop_check = " << int_weight(MG_SAFE_BISHOP_CHECK) << ";\n";
+		std::cerr <<   "int eg_safe_bishop_check = " << int_weight(EG_SAFE_BISHOP_CHECK) << ";\n";
+		std::cerr << "\nint mg_safe_rook_check = "   << int_weight(MG_SAFE_ROOK_CHECK)   << ";\n";
+		std::cerr <<   "int eg_safe_rook_check = "   << int_weight(EG_SAFE_ROOK_CHECK)   << ";\n";
+		std::cerr << "\nint mg_safe_queen_check = "  << int_weight(MG_SAFE_QUEEN_CHECK)  << ";\n";
+		std::cerr <<   "int eg_safe_queen_check = "  << int_weight(EG_SAFE_QUEEN_CHECK)  << ";\n";
+
 		std::cerr << "\nint mg_pawn_shield[6] = { ";
 		for (unsigned i = 0; i < 6; i++) print_int_weight(PAWN_SHIELD + i);
 		std::cerr << "};\n";
@@ -501,6 +534,8 @@ struct Tuner
 		uint64_t attacked_by_piece[2][6] {};
 		uint64_t white_pawn_attacks = board.all_pawn_attacks(WHITE);
 		uint64_t black_pawn_attacks = board.all_pawn_attacks(BLACK);
+		attacked[WHITE] = attacked_by_piece[WHITE][KING] = piece_attacks(KING, board.square(WHITE, KING), 0ULL);
+		attacked[BLACK] = attacked_by_piece[BLACK][KING] = piece_attacks(KING, board.square(BLACK, KING), 0ULL);
 		attacked[WHITE] |= white_pawn_attacks;
 		attacked[BLACK] |= black_pawn_attacks;
 		attacked_by_piece[WHITE][PAWN] = white_pawn_attacks;
@@ -670,26 +705,48 @@ struct Tuner
 				eg_influences[EG_QUEEN_MOBILITY + safe_squares] += side * eg_phase;
 				continue;
 				}
-			case KING:
-				{
-				uint64_t attacks = piece_attacks(KING, square, 0ULL);
-				attacked[friendly] |= attacks;
-				attacked_by_piece[friendly][KING] |= attacks;
-
-				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-				mg_influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
-				eg_influences[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
-
-				uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
-				while (shield_pawns) {
-					unsigned pawn_square = pop_lsb(shield_pawns);
-					unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
-					mg_influences[PAWN_SHIELD + shield_square] += side * mg_phase;
-				}
-				continue;
-				}
+			case KING: continue;
 			}
 		}
+		uint64_t kings = board.pieces(KING);
+		while (kings) {
+			unsigned square = pop_lsb(kings);
+			Color friendly = color_of(board.board[square]);
+			Color enemy = swap(friendly);
+			int side = (friendly == WHITE) ? 1 : -1;
+
+			uint64_t attacks = piece_attacks(KING, square, 0ULL);
+
+			unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
+			mg_influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
+			eg_influences[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
+
+			// Safe checks by enemy pieces
+			uint64_t safe = ~attacked[friendly] & ~board.pieces(enemy);
+			int knight_checks = pop_count(piece_attacks(KNIGHT, square, 0ULL)      & safe & attacked_by_piece[enemy][KNIGHT]);
+			mg_influences[MG_SAFE_KNIGHT_CHECK] += side * knight_checks * mg_phase;
+			eg_influences[EG_SAFE_KNIGHT_CHECK] += side * knight_checks * eg_phase;
+
+			int bishop_checks = pop_count(piece_attacks(BISHOP, square, board.occ) & safe & attacked_by_piece[enemy][BISHOP]);
+			mg_influences[MG_SAFE_BISHOP_CHECK] += side * bishop_checks * mg_phase;
+			eg_influences[EG_SAFE_BISHOP_CHECK] += side * bishop_checks * eg_phase;
+
+			int rook_checks   = pop_count(piece_attacks(ROOK,   square, board.occ) & safe & attacked_by_piece[enemy][ROOK]);
+			mg_influences[MG_SAFE_ROOK_CHECK] += side * rook_checks * mg_phase;
+			eg_influences[EG_SAFE_ROOK_CHECK] += side * rook_checks * eg_phase;
+
+			int queen_checks  = pop_count(piece_attacks(QUEEN,  square, board.occ) & safe & attacked_by_piece[enemy][QUEEN]);
+			mg_influences[MG_SAFE_QUEEN_CHECK] += side * queen_checks * mg_phase;
+			eg_influences[EG_SAFE_QUEEN_CHECK] += side * queen_checks * eg_phase;
+
+			uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
+			while (shield_pawns) {
+				unsigned pawn_square = pop_lsb(shield_pawns);
+				unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
+				mg_influences[PAWN_SHIELD + shield_square] += side * mg_phase;
+			}
+		}
+
 		// bishop pair
 		if (pop_count(board.pieces(WHITE, BISHOP)) >= 2) {
 			mg_influences[MG_DOUBLE_BISHOP] += mg_phase;

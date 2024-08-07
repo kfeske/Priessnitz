@@ -258,8 +258,6 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	info.eg_bonus[friendly] += eg_king_psqt[relative_square];
 
 	uint64_t attacks = piece_attacks(KING, square, 0ULL);
-	info.attacked_by_piece[friendly][KING]  = attacks;
-	info.attacked[friendly]		       |= attacks;
 
 	// Mobility
 	unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
@@ -275,9 +273,22 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	}
 
 	// Safe checks by enemy pieces
-	//uint64_t safe = ~info.attacked[friendly] & ~board.pieces[enemy];
-	//uint64_t knight_checks = piece_attacks(KNIGHT, square, 0ULL) & safe & info.attacked_by_piece[enemy][KNIGHT];
-	//if (knight_checks) print_bitboard(knight_checks);
+	uint64_t safe = ~info.attacked[friendly] & ~board.pieces(enemy);
+	unsigned knight_checks = pop_count(piece_attacks(KNIGHT, square, 0ULL)      & safe & info.attacked_by_piece[enemy][KNIGHT]);
+	info.mg_bonus[friendly] += mg_safe_knight_check * knight_checks;
+	info.eg_bonus[friendly] += eg_safe_knight_check * knight_checks;
+
+	unsigned bishop_checks = pop_count(piece_attacks(BISHOP, square, board.occ) & safe & info.attacked_by_piece[enemy][BISHOP]);
+	info.mg_bonus[friendly] += mg_safe_bishop_check * bishop_checks;
+	info.eg_bonus[friendly] += eg_safe_bishop_check * bishop_checks;
+
+	unsigned rook_checks   = pop_count(piece_attacks(ROOK,   square, board.occ) & safe & info.attacked_by_piece[enemy][ROOK]);
+	info.mg_bonus[friendly] += mg_safe_rook_check   * rook_checks;
+	info.eg_bonus[friendly] += eg_safe_rook_check   * rook_checks;
+
+	unsigned queen_checks  = pop_count(piece_attacks(QUEEN,  square, board.occ) & safe & info.attacked_by_piece[enemy][QUEEN]);
+	info.mg_bonus[friendly] += mg_safe_queen_check  * queen_checks;
+	info.eg_bonus[friendly] += eg_safe_queen_check  * queen_checks;
 	
 	// Evaluate king safety based on the number of attacks near the king
 	int mg_pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
