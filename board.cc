@@ -36,59 +36,6 @@ void Zobrist::populate()
 	side_rand = random_64();
 }
 
-Zobrist::Zobrist()
-{
-	populate();
-}
-
-
-// resets information neccessary to start a new game
-void Board::reset()
-{
-	static_cast<Board_state&>(*this) = {};
-}
-
-void Board::add_piece(unsigned square, Piece p)
-{
-	Color c = color_of(p);
-
-	set_bit(pieces[p], square);
-	set_bit(color[c], square);
-	occ = color[WHITE] | color[BLACK];
-	board[square] = p;
-	non_pawn_material[c] += non_pawn_value[p];
-	zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
-}
-
-void Board::remove_piece(unsigned square)
-{
-	Piece p = board[square];
-	Color c = color_of(p);
-
-	pop_bit(pieces[p], square);
-	pop_bit(color[c], square);
-	occ = color[WHITE] | color[BLACK];
-	board[square] = NO_PIECE;
-	non_pawn_material[c] -= non_pawn_value[p];
-	zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
-}
-
-void Board::push_piece_quiet(unsigned from, unsigned to)
-{
-	Piece p = board[from];
-	Color c = color_of(p);
-
-	uint64_t mask = 1ULL << from | 1ULL << to;
-	pieces[p] ^= mask;
-	color[c] ^= mask;
-	occ = color[WHITE] | color[BLACK];
-
-	board[to]   = p;
-	board[from] = NO_PIECE;
-	zobrist.piece_side_key ^= zobrist.piece_rand[p][from];
-	zobrist.piece_side_key ^= zobrist.piece_rand[p][to];
-}
-
 void Board::make_move(Move move)
 {
 	if (move == INVALID_MOVE) std::cerr << "attempted to play invalid move\n";
@@ -339,18 +286,6 @@ void Board::update_checkers_and_pinners()
 		// One of our pieces blocks the ray - the piece is pinned.
 		else if ((pin_ray & (pin_ray - 1)) == 0) history[game_ply].pinned |= pin_ray;
 	}
-}
-
-uint64_t Board::square_attackers(unsigned square, uint64_t occupied)
-{
-	return 	(pawn_attacks(WHITE, square) & pieces[B_PAWN]) |
-		(pawn_attacks(BLACK, square) & pieces[W_PAWN]) |
-		(piece_attacks(KNIGHT, square, 0ULL) & (pieces[W_KNIGHT] | pieces[B_KNIGHT])) |
-		(piece_attacks(BISHOP, square, occupied) &
-		(pieces[W_BISHOP] | pieces[B_BISHOP] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
-		(piece_attacks(ROOK, square, occupied) &
-		(pieces[W_ROOK] | pieces[B_ROOK] | pieces[W_QUEEN] | pieces[B_QUEEN])) |
-		(piece_attacks(KING, square, 0ULL) & (pieces[W_KING] | pieces[B_KING]));
 }
 
 // Pseudo legal moves are checked for legality by making sure to restrict pinned pieces and not allowing the king

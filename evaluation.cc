@@ -5,60 +5,6 @@
 #include "board.h"
 
 
-// pawn structure evaluation
-void Evaluation::evaluate_pawn(Board &board, unsigned square, Color friendly)
-{
-	Color enemy = swap(friendly);
-	uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
-	uint64_t enemy_pawns = board.pieces[piece_of(enemy, PAWN)];
-	unsigned forward = (friendly == WHITE) ? UP : DOWN;
-	uint64_t adjacent_files = isolated_pawn_mask(file_num(square));
-
-	bool passed = !(passed_pawn_mask(friendly, square) & enemy_pawns);
-	bool doubled = forward_file_mask(friendly, square) & friendly_pawns;
-	bool neighbored = neighbor_mask(square) & friendly_pawns;
-	bool supported = passed_pawn_mask(enemy, square) & adjacent_files & friendly_pawns;
-	bool chained = pawn_attacks(enemy, square) & friendly_pawns;
-
-	// Isolated pawns
-	if (!(adjacent_files & friendly_pawns)) {
-		mg_bonus[friendly] += mg_isolated_penalty;
-		eg_bonus[friendly] += eg_isolated_penalty;
-	}
-
-	// Doubled pawns
-	else if (doubled) {
-		mg_bonus[friendly] += mg_doubled_penalty;
-		eg_bonus[friendly] += eg_doubled_penalty;
-	}
-
-	// Backward pawns
-	else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
-		mg_bonus[friendly] += mg_backward_penalty;
-		eg_bonus[friendly] += eg_backward_penalty;
-	}
-
-	// Pawn chain
-	if (chained) {
-		mg_bonus[friendly] += mg_chained_bonus;
-		eg_bonus[friendly] += eg_chained_bonus;
-	}
-
-	// Passed pawns
-	if (passed && !doubled) {
-		mg_bonus[friendly] += mg_passed_bonus[normalize[friendly][square]];
-		eg_bonus[friendly] += eg_passed_bonus[normalize[friendly][square]];
-	}
-}
-
-void Evaluation::evaluate_kings()
-{
-	mg_bonus[WHITE] -= ring_pressure[WHITE] * ring_pressure_weight[std::min(ring_attackers[WHITE], 7)] / 100;
-	mg_bonus[BLACK] -= ring_pressure[BLACK] * ring_pressure_weight[std::min(ring_attackers[BLACK], 7)] / 100;
-	mg_bonus[WHITE] -= zone_pressure[WHITE] * zone_pressure_weight[std::min(zone_attackers[WHITE], 7)] / 100;
-	mg_bonus[BLACK] -= zone_pressure[BLACK] * zone_pressure_weight[std::min(zone_attackers[BLACK], 7)] / 100;
-}
-
 void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
 {
 	if (attacks & ring[!friendly]) {
@@ -71,21 +17,69 @@ void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color frie
 	}
 }
 
-void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
+void Evaluation::evaluate_pawns(Board &board, Color friendly)
 {
-	Color friendly = color_of(p);
 	Color enemy = swap(friendly);
-	unsigned relative_square = normalize[friendly][square];
+	Direction forward = (friendly == WHITE) ? UP : DOWN;
+	uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
+	uint64_t enemy_pawns    = board.pieces[piece_of(enemy,    PAWN)];
 
-	switch (type_of(p)) {
-	case PAWN:
+	attacked_by_pawn[friendly] = board.all_pawn_attacks(friendly);
+
+	uint64_t temp = friendly_pawns;
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
+
 		mg_bonus[friendly] += mg_pawn_psqt[relative_square] + mg_piece_value[PAWN];
 		eg_bonus[friendly] += eg_pawn_psqt[relative_square] + eg_piece_value[PAWN];
-		evaluate_pawn(board, square, friendly);
-		return;
 
-	case KNIGHT:
-		{
+		uint64_t adjacent_files = isolated_pawn_mask(file_num(square));
+		bool passed = !(passed_pawn_mask(friendly, square) & enemy_pawns);
+		bool doubled = forward_file_mask(friendly, square) & friendly_pawns;
+		bool neighbored = neighbor_mask(square) & friendly_pawns;
+		bool supported = passed_pawn_mask(enemy, square) & adjacent_files & friendly_pawns;
+		bool chained = pawn_attacks(enemy, square) & friendly_pawns;
+
+		// Isolated pawns
+		if (!(adjacent_files & friendly_pawns)) {
+			mg_bonus[friendly] += mg_isolated_penalty;
+			eg_bonus[friendly] += eg_isolated_penalty;
+		}
+
+		// Doubled pawns
+		else if (doubled) {
+			mg_bonus[friendly] += mg_doubled_penalty;
+			eg_bonus[friendly] += eg_doubled_penalty;
+		}
+
+		// Backward pawns
+		else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
+			mg_bonus[friendly] += mg_backward_penalty;
+			eg_bonus[friendly] += eg_backward_penalty;
+		}
+
+		// Pawn chain
+		if (chained) {
+			mg_bonus[friendly] += mg_chained_bonus;
+			eg_bonus[friendly] += eg_chained_bonus;
+		}
+
+		// Passed pawns
+		if (passed && !doubled) {
+			mg_bonus[friendly] += mg_passed_bonus[relative_square];
+			eg_bonus[friendly] += eg_passed_bonus[relative_square];
+		}
+	}
+}
+
+void Evaluation::evaluate_knights(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t temp = board.pieces[piece_of(friendly, KNIGHT)];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
 		mg_bonus[friendly] += mg_knight_psqt[relative_square] + mg_piece_value[KNIGHT];
 		eg_bonus[friendly] += eg_knight_psqt[relative_square] + eg_piece_value[KNIGHT];
 
@@ -94,13 +88,20 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		note_king_attacks(KNIGHT, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(enemy));
+		unsigned safe_squares = pop_count(attacks & ~attacked_by_pawn[enemy]);
 		mg_bonus[friendly] += mg_knight_mobility[safe_squares];
 		eg_bonus[friendly] += eg_knight_mobility[safe_squares];
-		return;
-		}
-	case BISHOP:
-		{
+	}
+}
+
+void Evaluation::evaluate_bishops(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t temp = board.pieces[piece_of(friendly, BISHOP)];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
+
 		mg_bonus[friendly] += mg_bishop_psqt[relative_square] + mg_piece_value[BISHOP];
 		eg_bonus[friendly] += eg_bishop_psqt[relative_square] + eg_piece_value[BISHOP];
 
@@ -111,13 +112,20 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		note_king_attacks(BISHOP, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(enemy));
+		unsigned safe_squares = pop_count(attacks & ~attacked_by_pawn[enemy]);
 		mg_bonus[friendly] += mg_bishop_mobility[safe_squares];
 		eg_bonus[friendly] += eg_bishop_mobility[safe_squares];
-		return;
-		}
-	case ROOK:
-		{
+	}
+}
+
+void Evaluation::evaluate_rooks(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t temp = board.pieces[piece_of(friendly, ROOK)];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
+
 		mg_bonus[friendly] += mg_rook_psqt[relative_square] + mg_piece_value[ROOK];
 		eg_bonus[friendly] += eg_rook_psqt[relative_square] + eg_piece_value[ROOK];
 
@@ -128,7 +136,7 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		note_king_attacks(ROOK, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(enemy));
+		unsigned safe_squares = pop_count(attacks & ~attacked_by_pawn[enemy]);
 		mg_bonus[friendly] += mg_rook_mobility[safe_squares];
 		eg_bonus[friendly] += eg_rook_mobility[safe_squares];
 
@@ -144,11 +152,17 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 				eg_bonus[friendly] += eg_rook_half_open_file;
 			}
 		}
+	}
+}
 
-		return;
-		}
-	case QUEEN:
-		{
+void Evaluation::evaluate_queens(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t temp = board.pieces[piece_of(friendly, QUEEN)];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
+
 		mg_bonus[friendly] += mg_queen_psqt[relative_square] + mg_piece_value[QUEEN];
 		eg_bonus[friendly] += eg_queen_psqt[relative_square] + eg_piece_value[QUEEN];
 
@@ -157,12 +171,20 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 		note_king_attacks(QUEEN, attacks, friendly);
 
 		// Mobility
-		unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(enemy));
+		unsigned safe_squares = pop_count(attacks & ~attacked_by_pawn[enemy]);
 		mg_bonus[friendly] += mg_queen_mobility[safe_squares];
 		eg_bonus[friendly] += eg_queen_mobility[safe_squares];
-		return;
-		}
-	case KING:
+	}
+}
+
+void Evaluation::evaluate_kings(Board &board, Color friendly)
+{
+	Color enemy = swap(friendly);
+	uint64_t temp = board.pieces[piece_of(friendly, KING)];
+	while (temp) {
+		unsigned square = pop_lsb(temp);
+		unsigned relative_square = normalize[friendly][square];
+
 		mg_bonus[friendly] += mg_king_psqt[relative_square];
 		eg_bonus[friendly] += eg_king_psqt[relative_square];
 		uint64_t attacks = piece_attacks(KING, square, 0ULL);
@@ -179,8 +201,9 @@ void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 			unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
 			mg_bonus[friendly] += mg_pawn_shield[shield_square];
 		}
-		return;
 	}
+	mg_bonus[friendly] -= ring_pressure[friendly] * ring_pressure_weight[std::min(ring_attackers[friendly], 7)] / 100;
+	mg_bonus[friendly] -= zone_pressure[friendly] * zone_pressure_weight[std::min(zone_attackers[friendly], 7)] / 100;
 }
 
 // main evaluation function
@@ -209,15 +232,18 @@ int Evaluation::evaluate(Board &board)
 	material = std::max(taper_end, std::min(material, taper_start)); // endgame and midgame limit clamp
 	int phase = ((material - taper_end) * 256) / (taper_start - taper_end); // 0(Endgame) - 256(Midgame) linear interpolation
 
-	uint64_t pieces = board.occ;
-
-	while (pieces) {
-		unsigned square = pop_lsb(pieces);
-		Piece p = board.board[square];
-		evaluate_piece(board, p, square);
-	}
-
-	evaluate_kings();
+	evaluate_pawns(  board, WHITE);
+	evaluate_pawns(  board, BLACK);
+	evaluate_knights(board, WHITE);
+	evaluate_knights(board, BLACK);
+	evaluate_bishops(board, WHITE);
+	evaluate_bishops(board, BLACK);
+	evaluate_rooks(  board, WHITE);
+	evaluate_rooks(  board, BLACK);
+	evaluate_queens( board, WHITE);
+	evaluate_queens( board, BLACK);
+	evaluate_kings(  board, WHITE);
+	evaluate_kings(  board, BLACK);
 
 	if (pop_count(board.pieces[W_BISHOP]) >= 2) {
 		mg_bonus[WHITE] += mg_double_bishop;

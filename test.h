@@ -5,6 +5,7 @@
 
 void test_position(Board &board, Search &search, std::string position)
 {
+	search.fixed_time = true;
 	board.set_fenpos(position);
 	std::cerr << "3 seconds:\n";
 	search.hard_time_cap = 3000;

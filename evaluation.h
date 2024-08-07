@@ -14,6 +14,8 @@ struct Evaluation : Noncopyable
 	int ring_attackers[2];
 	int zone_attackers[2];
 
+	uint64_t attacked_by_pawn[2];
+
 	int mg_piece_value[6] = { 50, 306, 319, 406, 916, 0, };
 	int eg_piece_value[6] = { 76, 325, 336, 594, 1109, 0, };
 	
@@ -207,15 +209,16 @@ struct Evaluation : Noncopyable
 	int taper_start = 6377;
 	int taper_end = 321;
 
-	void evaluate_pawn(Board &board, unsigned square, Color friendly);
-
-	void evaluate_kings();
+	void evaluate_pawns(  Board &board, Color friendly);
+	void evaluate_knights(Board &board, Color friendly);
+	void evaluate_bishops(Board &board, Color friendly);
+	void evaluate_rooks(  Board &board, Color friendly);
+	void evaluate_queens( Board &board, Color friendly);
+	void evaluate_kings(  Board &board, Color friendly);
 
 	void note_king_attacks(Piece_type type, uint64_t attacks, Color friendly);
 
 	void evaluate_mobility(Board &board, Piece_type type, uint64_t attacks, Color friendly);
-
-	void evaluate_piece(Board &board, Piece p, unsigned square);
 
 	int evaluate(Board &board);
 };
