@@ -68,7 +68,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	int move_count = 0;
 
 	Move move;
-	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
+	while ((move = move_orderer.next_move(board, 1)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
 
 		move_count++;
@@ -196,30 +196,29 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 	}
 
-	//if (!pv_node && !in_check && depth >= 5 && !mate(beta)) {
+	if (!pv_node && !in_check && depth >= 5 && !mate(beta)) {
 
-	//	int prob_cut_beta = beta + 100;
+		int prob_cut_beta = beta + 100;
 
-	//	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
-	//	move_orderer.stage = GENERATE_QUIESCENCES;
+		Quiescence_move_orderer move_orderer {};
 
-	//	Move move;
-	//	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
-	//		if (!board.legal(move)) continue;
+		Move move;
+		while ((move = move_orderer.next_move(board, prob_cut_beta - static_eval)) != INVALID_MOVE) {
+			if (!board.legal(move)) continue;
 
-	//		board.make_move(move);
+			board.make_move(move);
 
-	//		evaluation = -quiescence_search(board, -prob_cut_beta, -prob_cut_beta + 1, ply + 1);
+			evaluation = -quiescence_search(board, -prob_cut_beta, -prob_cut_beta + 1, ply + 1);
 
-	//		if (evaluation >= prob_cut_beta)
-	//			evaluation = -search(board, depth - 4, ply + 1, -prob_cut_beta, -prob_cut_beta + 1, INVALID_MOVE, true);
+			if (evaluation >= prob_cut_beta)
+				evaluation = -search(board, depth - 4, ply + 1, -prob_cut_beta, -prob_cut_beta + 1, INVALID_MOVE, true);
 
-	//		board.unmake_move(move);
+			board.unmake_move(move);
 
-	//		if (evaluation >= prob_cut_beta)
-	//			return prob_cut_beta;
-	//	}
-	//}
+			if (evaluation >= prob_cut_beta)
+				return prob_cut_beta;
+		}
+	}
 
 
 	bool futile = false;

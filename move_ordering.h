@@ -263,7 +263,7 @@ struct Quiescence_move_orderer
 			}
 		}
 	}
-	Move next_move(Board &board)
+	Move next_move(Board &board, int threshold)
 	{
 		switch (stage) {
 		// Generate captures and queen promotions
@@ -276,7 +276,7 @@ struct Quiescence_move_orderer
 		case Quiescence_stage::GOOD_CAPTURES:
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
-				if (see(board, move) > 0 || promotion(move)) return move;
+				if (see(board, move) >= threshold || promotion(move)) return move;
 			}
 			return INVALID_MOVE;
 
