@@ -8,7 +8,8 @@
 void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
 {
 	if (attacks & info.king_ring[!friendly]) {
-		info.king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
+		info.mg_king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
+		info.eg_king_ring_pressure[!friendly] += eg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
 		info.king_ring_attackers[!friendly]++;
 	}
 }
@@ -272,10 +273,17 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 		unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
 		info.mg_bonus[friendly] += mg_pawn_shield[shield_square];
 	}
+
+	// Safe checks by enemy pieces
+	//uint64_t safe = ~info.attacked[friendly] & ~board.pieces[enemy];
+	//uint64_t knight_checks = piece_attacks(KNIGHT, square, 0ULL) & safe & info.attacked_by_piece[enemy][KNIGHT];
+	//if (knight_checks) print_bitboard(knight_checks);
 	
 	// Evaluate king safety based on the number of attacks near the king
-	int pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
-	info.mg_bonus[friendly] -= info.king_ring_pressure[friendly] * pressure_weight / 100;
+	int mg_pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
+	info.mg_bonus[friendly] -= info.mg_king_ring_pressure[friendly] * mg_pressure_weight / 100;
+	int eg_pressure_weight = eg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
+	info.eg_bonus[friendly] -= info.eg_king_ring_pressure[friendly] * eg_pressure_weight / 100;
 }
 
 void Evaluation::evaluate_threats(Board &board, Color friendly)

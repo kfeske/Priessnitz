@@ -197,12 +197,7 @@ Pre_computed generate_lookup()
 		p.pawn_threat_mask[BLACK][square] = black_forward_mask & adjacent_mask & ~file(square);
 
 		// The king ring consists of the squares, the king attacks. If the king is on the edge, the ring is extended a bit.
-		unsigned ring_center = square;
-		//if (file_num(square) == 0) ring_center += RIGHT;
-		//if (file_num(square) == 7) ring_center += LEFT;
-		//if (rank_num(square) == 0) ring_center += DOWN;
-		//if (rank_num(square) == 7) ring_center += UP;
-		p.king_ring_mask[square] = p.king_attacks[ring_center] | (1ULL << ring_center);
+		p.king_ring_mask[square] = p.king_attacks[square] | (1ULL << square);
 
 		// Pawn Shelter consists of pawns in front of the king
 		if (square >= 8)  p.pawn_shield[WHITE][square] = p.king_attacks[square - 8] | 1ULL << (square - 8);
