@@ -182,7 +182,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		unsigned ep_square = board.make_null_move();
 
-		unsigned reduction = 2 + depth / 3;
+		unsigned reduction = 3 + depth / 5;
 		evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, INVALID_MOVE, false);
 
 		board.unmake_null_move(ep_square);
@@ -442,10 +442,9 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 
 		// Sudden death time control
 		if (!moves_to_go) {
-			// Assume the game will last another n moves on average. Of course, the game will likely last for more than
-			// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
 
 			// The search can abort after an iteration, if the soft time cap has been crossed.
+			// We always use a fraction of the remaining time, which means, we spend more time in the early game.
 			soft_time_cap = (time_left - move_overhead) / 40 + increment;
 
 			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
@@ -454,7 +453,8 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 		// X time for Y moves
 		else {
 			// The search can abort after an iteration, if the soft time cap has been crossed.
-			soft_time_cap = 1.0 * (time_left - move_overhead) / (moves_to_go + 5) + increment;
+			// We try to equally distribute the time for the remaining moves.
+			soft_time_cap = (time_left - move_overhead) / (moves_to_go + 5) + increment;
 
 			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
 			hard_time_cap = soft_time_cap * 5;
