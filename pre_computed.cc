@@ -148,8 +148,8 @@ Pre_computed generate_lookup()
 		p.cast_magics(BISHOP);
 		p.cast_magics(ROOK);
 
-		for (Piece_type type : { BISHOP, ROOK }) {
-			for (unsigned square2 = 0; square2 <= 63; square2++) {
+		for (unsigned square2 = 0; square2 <= 63; square2++) {
+			for (Piece_type type : { BISHOP, ROOK }) {
 				if (generate_sliding_attacks(type, square, 0ULL) & 1ULL << square2) {
 					p.ray_between[square][square2] = generate_sliding_attacks(type, square, 1ULL << square2) &
 								         generate_sliding_attacks(type, square2, 1ULL << square);
@@ -157,11 +157,12 @@ Pre_computed generate_lookup()
 								  generate_sliding_attacks(type, square2, 0ULL)) |
 								 (1ULL << square) | (1ULL << square2);
 				}
-				p.ray_between[square][square2] |= 1ULL << square2;
-
-				p.rank_distance[square][square2] = abs(rank_num(square) - rank_num(square2));
-				p.file_distance[square][square2] = abs(file_num(square) - file_num(square2));
 			}
+			p.ray_between[square][square2] |= 1ULL << square2;
+
+			p.rank_distance[square][square2] = abs(rank_num(square) - rank_num(square2));
+			p.file_distance[square][square2] = abs(file_num(square) - file_num(square2));
+			p.square_distance[square][square2] = std::max(p.rank_distance[square][square2], p.file_distance[square][square2]);
 		}
 	}
 	// Evaluation tables

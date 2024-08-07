@@ -100,6 +100,7 @@ struct Pre_computed
 	// Quick distance lookup
 	unsigned rank_distance[64][64];
 	unsigned file_distance[64][64];
+	unsigned square_distance[64][64];
 
 	// Evaluation tables
 	uint64_t passed_pawn_mask[2][64];
@@ -175,3 +176,4 @@ static inline uint64_t ray_between(unsigned square_1, unsigned square_2) { retur
 static inline uint64_t ray(unsigned square_1, unsigned square_2) { return pre_computed.ray[square_1][square_2]; };
 static inline unsigned rank_distance(unsigned square_1, unsigned square_2) { return pre_computed.rank_distance[square_1][square_2]; };
 static inline unsigned file_distance(unsigned square_1, unsigned square_2) { return pre_computed.file_distance[square_1][square_2]; };
+static inline unsigned square_distance(unsigned square_1, unsigned square_2) { return pre_computed.square_distance[square_1][square_2]; };

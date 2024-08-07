@@ -67,17 +67,26 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 
 		// Passed pawns
 		if (passed && !doubled) {
+			unsigned relative_rank = rank_num(relative_square);
 			uint64_t advance_square = pawn_pushes(friendly, 1ULL << square);
 			bool blocked = advance_square & board.occ;
 
+			// Evaluate based on rank and ability to advance
 			if (!blocked) {
-				info.mg_bonus[friendly] += mg_passed_bonus[rank_num(relative_square)];
-				info.eg_bonus[friendly] += eg_passed_bonus[rank_num(relative_square)];
+				info.mg_bonus[friendly] += mg_passed_bonus[relative_rank];
+				info.eg_bonus[friendly] += eg_passed_bonus[relative_rank];
 			}
 			else {
-				info.mg_bonus[friendly] += mg_passed_bonus_blocked[rank_num(relative_square)];
-				info.eg_bonus[friendly] += eg_passed_bonus_blocked[rank_num(relative_square)];
+				info.mg_bonus[friendly] += mg_passed_bonus_blocked[relative_rank];
+				info.eg_bonus[friendly] += eg_passed_bonus_blocked[relative_rank];
 			}
+			unsigned friendly_distance = square_distance(square, board.square(friendly, KING));
+			info.mg_bonus[friendly] += friendly_distance * mg_passed_friendly_distance[relative_rank];
+			info.eg_bonus[friendly] += friendly_distance * eg_passed_friendly_distance[relative_rank];
+
+			unsigned enemy_distance    = square_distance(square, board.square(enemy,    KING));
+			info.mg_bonus[friendly] += enemy_distance * mg_passed_enemy_distance[relative_rank];
+			info.eg_bonus[friendly] += enemy_distance * eg_passed_enemy_distance[relative_rank];
 		}
 	}
 }
