@@ -105,6 +105,113 @@ void UCI::go_command(std::istringstream &iss)
 	search.think(board, move_time, w_time, b_time, w_inc, b_inc);
 }
 
+void UCI::setoption_command(std::istringstream &iss)
+{
+	std::string parsed;
+	iss >> parsed; // name token
+	iss >> parsed;
+	if (parsed == "FpMargin1") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[1];
+		iss >> value;
+	}
+	if (parsed == "FpMargin2") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[2];
+		iss >> value;
+	}
+	if (parsed == "FpMargin3") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[3];
+		iss >> value;
+	}
+	if (parsed == "FpMargin4") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[4];
+		iss >> value;
+	}
+	if (parsed == "FpMargin5") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[5];
+		iss >> value;
+	}
+	if (parsed == "FpMargin6") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.FUTILITY_MARGIN[6];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin1") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[1];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin2") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[2];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin3") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[3];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin4") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[4];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin5") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[5];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin6") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[6];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin7") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[7];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin8") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[8];
+		iss >> value;
+	}
+	if (parsed == "RfpMargin9") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[9];
+		iss >> value;
+	}
+	if (parsed == "LmpMargin1") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.LMP_MARGIN[1];
+		iss >> value;
+	}
+	if (parsed == "LmpMargin2") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.LMP_MARGIN[2];
+		iss >> value;
+	}
+	if (parsed == "LmpMargin3") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.LMP_MARGIN[3];
+		iss >> value;
+	}
+	if (parsed == "LmpMargin4") {
+		iss >> parsed; // value token
+		int &value = search.search_constants.LMP_MARGIN[4];
+		iss >> value;
+	}
+	if (parsed == "Tempo") {
+		iss >> parsed; // value token
+		int &value = search.eval.tempo_bonus;
+		iss >> value;
+	}
+}
+
 void UCI::await_input()
 {
 	std::string line {};
@@ -116,14 +223,16 @@ void UCI::await_input()
 	while(iss >> parsed) {
 		if (parsed == "uci") {
 			std::cout << "id name Priessnitz\n";
-			std::cout << "id author Kevin Feske\n";
+			std::cout << "id author Kevin Feske\n\n";
+			//std::cout << "option name FpMargin3 type spin default 100 min 0 max 200\n";
 			std::cout << "uciok\n";
 		}
-		if (parsed == "ucinewgame") break;
+		if (parsed == "ucinewgame") search.reset();
 		if (parsed == "isready") std::cout << "readyok\n";
 		if (parsed == "position") fabricate_position(iss);
 		if (parsed == "d") print_board(board);
 		if (parsed == "go") go_command(iss);
+		if (parsed == "setoption") setoption_command(iss);
 		if (parsed == "quit") quit = true;
 	}
 }

@@ -8,23 +8,32 @@
 #include "see.h"
 #include "move_ordering.h"
 
-int const futility_margin[5] = {
-	0, 100, 200, 300, 400
-};
-
-unsigned const lmp_margins[4] = {
-	0, 6, 9, 12
-};
-
 bool mate(int score)
 {
 	return (abs(score) >= MATE_SCORE - 100);
+}
+
+void Search::reset()
+{
+	best_root_move = INVALID_MOVE;
+	root_evaluation = 0;
+	heuristics = {};
+	statistics = {};
+	age = 0;
+	tt.resize(DEFAULT_TT_SIZE);
+	abort_search = false;
 }
 
 double Search::time_elapsed()
 {
 	auto time_end = std::chrono::high_resolution_clock::now();
 	return std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+}
+
+bool Search::crossed_hard_time_limit()
+{
+	return (current_depth > 1 && (fixed_time || time_management) &&
+		(statistics.search_nodes & 1024) == 0 && time_elapsed() >= hard_time_cap);
 }
 
 // Quiescence Search is a shallower search, generating only
@@ -81,9 +90,9 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 // Beta is the best score, the opponent can guarantee in the sequence
 int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move)
 {
-	if ((fixed_time || time_management) && (statistics.search_nodes & 1024) == 0 && time_elapsed() >= hard_time_cap)
+	if (crossed_hard_time_limit())
 	{
-		// Time's up!
+		// Time's up! Abort the search immediately!
 		abort_search = true;
 		return 0;
 	}
@@ -116,7 +125,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// Static evaluation of the position
 	int static_eval = eval.evaluate(board);
 
-	unsigned move_count = 0;
+	int move_count = 0;
 	Move best_move = INVALID_MOVE;
 	int evaluation;
 	bool in_check = board.in_check();
@@ -128,7 +137,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	// Razoring
 	// Prune bad looking positions close to the horizon by testing, if a Quiescence Search can improve them.
-	int razor_alpha = alpha - 400;
+	int razor_alpha = alpha - search_constants.RAZOR_MARGIN;
 	if (!pv_node && depth == 1 && static_eval < razor_alpha && !in_check && !mate(alpha)) {
 		if (quiescence_search(board, razor_alpha, razor_alpha + 1, 0) <= razor_alpha)
 			return alpha;
@@ -136,19 +145,19 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
-	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - 60 * depth >= beta)
+	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - search_constants.REVERSE_FUTILITY_MARGIN[depth] >= beta)
 		return beta;
 
 	// Null Move Pruning
 	// If there is a beta cutoff, even if we skip our turn (permitting the opponent to play two moves in a row),
 	// the position is so terrible for the opponent that we can just prune the whole branch.
 	// (should not be used in complicated endgames and zugzwang positions!!!)
-	if (!pv_node && allow_null_move && !in_check && ply > 0 && depth >= 3 &&
+	if (!pv_node && allow_null_move && !in_check && ply > 0 && depth > 1 &&
 	    board.non_pawn_material[board.side_to_move] && static_eval >= beta) {
 
 		unsigned ep_square = board.make_null_move();
 
-		unsigned reduction = 3;
+		unsigned reduction = 2 + depth / 3;
 		evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, INVALID_MOVE, false);
 
 		board.unmake_null_move(ep_square);
@@ -161,8 +170,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 
 	bool futile = false;
-	if (!pv_node && depth <= 4 && !in_check && !mate(alpha))
-		futile = static_eval + futility_margin[depth] <= alpha;
+	if (!pv_node && depth < 7 && !in_check)
+		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
 
 	// Internal Iterative Deepening
 	/*if (pv_node && depth >= 6 && tt.best_move == INVALID_MOVE) {
@@ -183,25 +192,27 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		move_count++;
 		statistics.search_nodes++;
 
-		bool late_move = (move_count >= 4 && !in_check && !mate(alpha) &&
-		     		  !capture(move) && !promotion(move));
+		bool quiet_move = !capture(move) && !promotion(move);
 
-		// Late Move Pruning
-		if (late_move && depth < 4 && move_count > lmp_margins[depth]) {
-			continue;
+		//// Forward Pruning at low depths
+		if (!in_check && move_count > 1 && !mate(alpha)) {
+
+			// Late Move Pruning
+			// Due to our move ordering, late moves are likely bad and not worth searching.
+			if (depth < 4 && quiet_move && move_count > search_constants.LMP_MARGIN[depth])
+				continue;
+
+			// Futility Pruning
+			// Very close to the horizon of the search, where we are in a position that looks really bad,
+			// it is wise to skip quiet moves that will likely not improve the situation.
+			if (futile && quiet_move)
+				continue;
+
+			// SEE Pruning
+			// Skip moves that lose material at low depths
+			if (move_orderer.stage > GOOD_CAPTURES && depth < 6 && !promotion(move) && see(board, move) < -20 * depth)
+				continue;
 		}
-
-		// Futility Pruning
-		// Very close to the horizon of the search, where we are in a position that looks really bad,
-		// it is wise to skip quiet moves that will likely not improve the situation.
-		if (futile && move_count > 1 && !capture(move) && !promotion(move)) {
-			continue;
-		}
-
-		// SEE Pruning
-		// Skip moves that lose material at low depths
-		if (move_count > 1 && !in_check && move_orderer.stage > GOOD_CAPTURES && depth < 6 && !promotion(move) && see(board, move) < -20 * depth)
-			continue;
 
 		board.make_move(move);
 
@@ -226,7 +237,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			//      if (evaluation <= singular_score)
 			//      	extension = 1;
 			//      board.make_move(move);
-			///
+			//
 
 			evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
@@ -236,20 +247,20 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// moves are actually good and should thus be searched deeper than other moves.
 
 			unsigned reduction = 0;
-			if (depth > 1 && late_move && !gives_check) {
-				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63U, move_count)];
+			if (quiet_move && depth > 1 && move_count > 3 && !in_check) {
+				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63, move_count)];
 				if (!pv_node) reduction++;
-				//reduction = std::min(2, int(depth / 4)) + unsigned(move_count / 12);
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
 
+			// If the reduced search indicates an improvement, it needs a re-search to the full depth
 			if (reduction && evaluation > alpha)
-				// If the reduced search indicates an improvement, it needs a re-search to the full depth
 				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 
-			else if (evaluation > alpha && evaluation < beta)
-				// If a move happens to be better, we need to re-search it with full window
+			// If a move happens to be better, we need to re-search it with full window
+			// This is not done in non-PV nodes, because any alpha increase will cause a beta cutoff there.
+			else if (pv_node && evaluation > alpha)
 				evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 		}
 
@@ -409,10 +420,13 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 
 		// Add the total time for increments and make sure, we have a
 		// safety move overhead buffer in case of delays.
-		time_left = time_left - move_overhead + increment * remaining_moves;
+		unsigned expected_time_left = time_left - move_overhead + increment * remaining_moves;
 
-		soft_time_cap = std::max(1U, unsigned(time_left / remaining_moves * 0.6));
-		hard_time_cap = std::min(soft_time_cap * 5, time_left / 4);
+		// The search can abort after an iteration, if the soft time cap has been crossed.
+		soft_time_cap = std::max(1U, unsigned(expected_time_left / remaining_moves * 0.6));
+		// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
+		hard_time_cap = std::min(soft_time_cap * 5, expected_time_left / 5);
+		hard_time_cap = std::min(hard_time_cap, time_left - move_overhead);
 		search_time_increment = (hard_time_cap - soft_time_cap) / 40;
 
 		// Respond instantly in case of a single legal move.

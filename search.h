@@ -49,6 +49,8 @@ struct Search : Noncopyable
 
 	double time_elapsed();
 
+	bool crossed_hard_time_limit();
+
 	int quiescence_search(Board &board, int alpha, int beta, unsigned ply);
 
 	int search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move);

@@ -207,7 +207,7 @@ int Evaluation::evaluate(Board &board)
 		eg_bonus[BLACK] += eg_double_bishop;
 	}
 
-	//mg_bonus[board.side_to_move] += tempo_bonus;
+	mg_bonus[board.side_to_move] += tempo_bonus;
 
 	int mg_value = mg_bonus[WHITE] - mg_bonus[BLACK];
 	int eg_value = eg_bonus[WHITE] - eg_bonus[BLACK];
