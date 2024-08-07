@@ -16,7 +16,7 @@
 
 struct UCI
 {
-	Board board;
+	Board board {};
 	Search search;
 	bool quit = false;
 

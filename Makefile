@@ -1,7 +1,9 @@
 test:
 #CXXFLAGS += -fsanitize=undefined -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
-#profile
-#g++ main.cc -o main -g -pg -Wall -Wextra -Weffc++ -Werror -MMD -Iinclude -lSDL2 -lSDL2_image
+#main -g -pg -Wall -Wextra -Weffc++ -Werror -MMD -Iinclude -lSDL2 -lSDL2_image
+profile:
+	g++ main.cc -o main $(CXXFLAGS) -g -pg 
+	./main
 CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -Iinclude
 CXXFLAGS += -lSDL2 -lSDL2_image
 

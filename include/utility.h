@@ -75,10 +75,6 @@ enum Color {
 	WHITE, BLACK
 };
 
-enum State {
-	ONGOING, W_CHECKMATE, B_CHECKMATE, STALEMATE, MOVE_50, REPETITION
-};
-
 enum Piece {
 	W_PAWN = 0, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
 	B_PAWN = 8, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
@@ -179,26 +175,23 @@ uint64_t shift(uint64_t b, Direction d)
 	}
 }
 
+// Moves are encoded in a 16 bit integer.
+// first     6 bits: from square
+// next      6 bits: to square
+// remaining 4 bits: move flag (Capture, Promotion, En Passant, ...)
 enum Move : uint16_t {
 	INVALID_MOVE
 };
 
+// generated moves are later scored based on how good they look to make the search more efficient.
 struct Scored_move
 {
-	Move move;
-	int16_t score;
-
-	Scored_move(Move move)
-	:
-		move(move), score(0)
-	{}
-
-	Scored_move()
-	:
-		move(INVALID_MOVE), score(0)
-	{}
+	Move move = INVALID_MOVE;
+	int16_t score = 0;
 };
 
+// Chess has loads of special moves that have to be treated differently.
+// These can be neatly encoded in 4 bits.
 enum MoveFlags {
 	QUIET = 0b0000,
 	DOUBLE_PUSH = 0b0001,
@@ -208,16 +201,19 @@ enum MoveFlags {
 	PC_KNIGHT = 0b1100, PC_BISHOP = 0b1101, PC_ROOK = 0b1110, PC_QUEEN = 0b1111	// promotion capture
 };
 
+// source square
 unsigned move_from(Move move)
 {
 	return (move >> 6) & 0x3F;
 }
 
+// target square
 unsigned move_to(Move move)
 {
 	return move & 0x3F;
 }
 
+// special flag
 MoveFlags flags_of(Move move)
 {
 	return MoveFlags((move >> 12) & 0xF);
@@ -239,21 +235,21 @@ bool promotion(Move move)
 	return (flags_of(move) & 0b1000);
 }
 
+bool capture(Move move)
+{
+	return (flags_of(move) & 0b0100);
+}
+
 unsigned rank(unsigned square)
 {
+	// equivalent to "square / 8".
 	return square >> 3;
 }
 
 unsigned file(unsigned square)
 {
+	// thanks to the 8 * 8 chess board, the last three bits denote the file.
 	return square & 7;
-}
-
-unsigned mirrored(unsigned square)
-{
-	unsigned y = 7 - rank(square);
-	unsigned x = file(square);
-	return y * 8 + x;
 }
 
 bool is_edge(unsigned square, Direction d)
@@ -271,6 +267,7 @@ bool is_edge(unsigned square, Direction d)
 	}
 }
 
+// the castling rights for both sides fit in 4 bits
 enum CastlingRights {
 	NO_RIGHTS,
 	WHITE_OO  = 0b0001,
@@ -279,6 +276,7 @@ enum CastlingRights {
 	BLACK_OOO = 0b1000
 };
 
+// there are different types of hash entries, since we do not always have exact information about positions
 enum TTEntryFlag {
 	NO_FLAG,
 	UPPERBOUND,
@@ -291,12 +289,6 @@ uint64_t random_64()
 	uint64_t ran = rand();
 	return ran << 32 | rand();
 }
-
-struct Magic
-{
-	uint64_t magic;
-	unsigned shift;
-};
 
 // bit stuff
 
@@ -328,7 +320,7 @@ unsigned lsb(uint64_t b)
 unsigned pop_lsb(uint64_t &b)
 {
 	unsigned square = lsb(b);
-	pop_bit(b, square);
+	b &= (b - 1);
 	return square;
 }
 

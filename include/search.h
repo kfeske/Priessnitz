@@ -12,7 +12,7 @@ struct Search : Noncopyable
 
 	unsigned max_depth = 63;
 	double max_time = 999999;
-	unsigned current_depth;
+	unsigned current_depth = 0;
 	int const mate_score = 31000;
 	int const infinity = 32000;
 
@@ -26,7 +26,7 @@ struct Search : Noncopyable
 
 	Heuristics heuristics;
 
-	TranspositionTable<(16 * 1024 * 1024) / sizeof(TTEntry)> tt;
+	TranspositionTable<(256 * 1024 * 1024) / sizeof(TTEntry)> tt = *new TranspositionTable<(256 * 1024 * 1024) / sizeof(TTEntry)>;
 
 	double time_start;
 	bool abort_search;
@@ -73,7 +73,7 @@ struct Search : Noncopyable
 		if (static_evaluation > alpha)
 			alpha = static_evaluation;
 
-		MoveGenerator move_generator {};
+		MoveGenerator move_generator;
 		if (in_check)
 			move_generator.generate_all_moves(board);
 		else
@@ -203,7 +203,7 @@ struct Search : Noncopyable
 			heuristics.hash_move = tt.pv_move;
 		}*/
 
-		MoveGenerator move_generator {};
+		MoveGenerator move_generator;
 		move_generator.generate_all_moves(board);
 
 		if (move_generator.size == 0) {
@@ -226,7 +226,7 @@ struct Search : Noncopyable
 			bool gives_check = board.in_check();
 
 			// Futility prune if the conditions are met
-			if (futile && n > 0 && !gives_check && flags_of(move) != CAPTURE && !promotion(move)) {
+			if (futile && n > 0 && !gives_check && !capture(move) && !promotion(move)) {
 				board.unmake_move(move);
 				continue;
 			}
@@ -236,9 +236,10 @@ struct Search : Noncopyable
 				continue;
 			}*/
 
+			bool late_move = (n >= 4 && !in_check && !gives_check && !mate(alpha) &&
+			     		  !capture(move) && !promotion(move) && !board.passed_push(move));
 			// Late Move Pruning
-			if (!pv_node && depth <= 3 && !gives_check && !mate(alpha) && n >= lmp_margins[depth]
-			    && flags_of(move) != CAPTURE && !promotion(move) && !board.passed_push(move)) {
+			if (late_move && depth <= 3 && n >= lmp_margins[depth]) {
 				board.unmake_move(move);
 				continue;
 			}
@@ -271,7 +272,7 @@ struct Search : Noncopyable
 				// moves are actually good and should thus be searched to full depth.
 
 				unsigned reduction = 0;
-				if (n >= 4 && depth >= 3 && !in_check && flags_of(move) != CAPTURE && !promotion(move) && !board.passed_push(move)) {
+				if (depth >= 3 && late_move) {
 					reduction = 1;
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
 				}
@@ -307,7 +308,7 @@ struct Search : Noncopyable
 					// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
 					tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND);
 
-					if (flags_of(move) != CAPTURE) {
+					if (!capture(move)) {
 						// this is a killer move - Store it!
 						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
 						heuristics.killer_move[0][ply] = move;

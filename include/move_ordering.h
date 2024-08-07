@@ -23,7 +23,6 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 {
 	for (unsigned n = 0; n < move_generator.size; n++) {
 		Scored_move &m = move_generator.move_list[n];
-		MoveFlags flags = flags_of(m.move);
 
 		// transposition table move
 		if (m.move == heuristics.hash_move) {
@@ -32,7 +31,7 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 		}
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
-		else if (flags == CAPTURE) {
+		else if (capture(m.move)) {
 			//if (see(board, m.move) >= 0)
 			//	m.score += std::min(5000 + 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]), 29999);
 			//else

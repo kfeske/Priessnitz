@@ -53,7 +53,7 @@ void mirror_test(Board &board, Search &search)
 		uint64_t bb = board.pieces[p];
 		while (bb) {
 			unsigned square = pop_lsb(bb);
-			mirrored_board.add_piece(mirrored(square), piece_of(!color, pt));
+			mirrored_board.add_piece(normalize[BLACK][square], piece_of(!color, pt));
 		}
 	}
 	print_board(mirrored_board);

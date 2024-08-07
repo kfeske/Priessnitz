@@ -3,7 +3,7 @@
 
 struct MoveGenerator : Noncopyable
 {
-	uint8_t size;
+	uint8_t size = 0;
 	Scored_move move_list[218]; // 218 is the maximum number of moves for a color in a legal position
 
 	template <MoveFlags mf>
@@ -270,7 +270,7 @@ struct MoveGenerator : Noncopyable
 
 				// queenside
 				if ((board.history[board.game_ply].castling_rights & 0b0010) &&
-				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
+				    !(((danger & ~(1ULL << B1)) | board.occ) & board.precomputed.ooo_blockers[friendly]))
 					move_list[size++].move = create_move<OOO>(ksq, ksq - 2);
 			}
 			else {
@@ -281,7 +281,7 @@ struct MoveGenerator : Noncopyable
 
 				// queenside
 				if ((board.history[board.game_ply].castling_rights & 0b1000) &&
-				    !(((danger & ~board.precomputed.oooo) | board.occ) & board.precomputed.ooo_blockers[friendly]))
+				    !(((danger & ~(1ULL << B8)) | board.occ) & board.precomputed.ooo_blockers[friendly]))
 					move_list[size++].move = create_move<OOO>(ksq, ksq - 2);
 			}
 		}
@@ -316,7 +316,7 @@ struct MoveGenerator : Noncopyable
 			uint64_t ep_candidates = pawns & board.precomputed.pawn_attacks[!friendly][ep_square];
 			while (ep_candidates) {
 				unsigned attacker_square = pop_lsb(ep_candidates);
-				move_list[size++] = create_move<EP_CAPTURE>(attacker_square, ep_square);
+				move_list[size++].move = create_move<EP_CAPTURE>(attacker_square, ep_square);
 			}
 		}
 	}
