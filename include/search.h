@@ -113,7 +113,7 @@ struct Search : Noncopyable
 	// function that finds the best move at a fixed depth (number of moves, it looks into the future)
 	// alpha is the best score, the side to move can guarantee in a sequence of moves
 	// beta is the best score, the opponent can guarantee in the sequence
-	int search(Board &board, int depth, unsigned ply, int alpha, int beta, bool allow_null_move)
+	int search(Board &board, int depth, unsigned ply, int alpha, int beta, Move skip, bool allow_null_move)
 	{
 		if ((search_nodes & 2047) == 0 && SDL_GetTicks() - time_start > max_time && max_time != 0)
 		{
@@ -144,7 +144,7 @@ struct Search : Noncopyable
 
 		// check for any transpositions at higher or equal depths
 		bool usable = tt.probe(board.zobrist.key, depth, alpha, beta);
-		if (usable && !pv_node)
+		if (usable && !pv_node && tt.pv_move != skip)
 			return tt.current_evaluation;
 
 		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
@@ -179,7 +179,7 @@ struct Search : Noncopyable
 			unsigned ep_square = board.make_null_move();
 
 			unsigned reduction = 3;
-			evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, false);
+			evaluation = -search(board, depth - 1 - reduction, ply + 1, -beta, -beta + 1, INVALID_MOVE, false);
 
 			board.unmake_null_move(ep_square);
 
@@ -219,6 +219,8 @@ struct Search : Noncopyable
 
 			Move move = next_move(move_generator, n);
 
+			if (move == skip) continue;
+
 			board.make_move(move);
 
 			bool gives_check = board.in_check();
@@ -228,6 +230,11 @@ struct Search : Noncopyable
 				board.unmake_move(move);
 				continue;
 			}
+
+			/*if (depth <= 5 && (flags_of(move) == CAPTURE || gives_check) && see(board, move) <= -200) {
+				board.unmake_move(move);
+				continue;
+			}*/
 
 			// Late Move Pruning
 			if (!pv_node && depth <= 3 && !gives_check && !mate(alpha) && n >= lmp_margins[depth]
@@ -245,7 +252,18 @@ struct Search : Noncopyable
 			// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 			// by searching them with a zero-width window centered around alpha, which is a lot faster.
 			if (n == 0) {
-				evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, true);
+				/*if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
+					board.unmake_move(move);
+					int singular_score = tt.current_evaluation - 130;
+
+					evaluation = search(board, (depth - 1) / 2, ply + 1, singular_score, singular_score + 1, move, true);
+
+					if (evaluation <= singular_score)
+						extension = 1;
+					board.make_move(move);
+				}*/
+
+				evaluation = -search(board, depth - 1 + extension, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 			}
 			else {
 				// Late Move Reduction
@@ -258,15 +276,15 @@ struct Search : Noncopyable
 					//reduction = std::min(2, int(depth / 4)) + unsigned(n / 12);
 				}
 
-				evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, true);
+				evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
 
 				if (reduction && evaluation > alpha)
 					// if the reduced search does not fail low, it needs a re-search to the full depth
-					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, true);
+					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 
 				else if (evaluation > alpha && evaluation < beta)
 					// if a move happens to be better, we need to re-search it with full window
-					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, true);
+					evaluation = -search(board, depth + extension - 1, ply + 1, -beta, -alpha, INVALID_MOVE, true);
 			}
 
 			board.unmake_move(move);
@@ -357,7 +375,7 @@ struct Search : Noncopyable
 			}
 
 			while (true) {
-				int evaluation = search(board, current_depth, 0, alpha, beta, true);
+				int evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 				total_nodes += search_nodes + quiescence_nodes;
 
 				// The returned evaluation was not inside the windows :/

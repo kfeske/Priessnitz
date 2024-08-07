@@ -12,22 +12,22 @@ struct Evaluation : Noncopyable
 	int ring_attackers[2];
 	int zone_attackers[2];
 
-	int mg_piece_value[6] = { 98, 344, 385, 506, 1213, 0 };
-	int eg_piece_value[6] = { 107, 293, 311, 546, 928, 0 };
+	int mg_piece_value[6] = { 99, 346, 365, 509, 1231, 0 };
+	int eg_piece_value[6] = { 107, 294, 308, 547, 925, 0 };
 
-	int ring_attack_potency[6] = { 0, 2, 30, 38, 119, 0 };
-	int zone_attack_potency[6] = { 0, -11, 23, 17, 20, 0 };
+	int ring_attack_potency[6] = { 0, 3, 27, 38, 119, 0 };
+	int zone_attack_potency[6] = { 0, -9, 20, 16, 20, 0 };
 
-	int ring_pressure_weight[8] = { 0, 7, 38, 67, 103, 48, 0, 0 };
-	int zone_pressure_weight[8] = { 0, 3, 11, 20, 29, 38, 35, 4 };
+	int ring_pressure_weight[8] = { 0, 7, 38, 67, 105, 49, 0, 0 };
+	int zone_pressure_weight[8] = { 0, 5, 12, 20, 30, 40, 37, 4 };
 
-	int mg_average_mobility[6] = { 0, -23, -27, -24, -65, 0 };
-	int eg_average_mobility[6] = { 0, 5, 9, -10, -11, 0 };
-	int mg_mobility_weight[6] = { 0, 111, 84, 82, 18, 0 };
-	int eg_mobility_weight[6] = { 0, 10, 27, 31, 85, 0 };
+	int mg_average_mobility[6] = { 0, -22, -17, -25, -69, 0 };
+	int eg_average_mobility[6] = { 0, 5, 9, -10, -8, 0 };
+	int mg_mobility_weight[6] = { 0, 111, 85, 82, 17, 0 };
+	int eg_mobility_weight[6] = { 0, 8, 29, 31, 85, 0 };
 
 	int mg_isolated_penalty = -19;
-	int eg_isolated_penalty = -11;
+	int eg_isolated_penalty = -12;
 
 	int mg_doubled_penalty = -4;
 	int eg_doubled_penalty = -5;
@@ -38,27 +38,30 @@ struct Evaluation : Noncopyable
 	int mg_chained_bonus = 10;
 	int eg_chained_bonus = 7;
 
+	int mg_double_bishop = 33;
+	int eg_double_bishop = 53;
+
 	int mg_passed_bonus[64] =
 	{
 	 0, 0, 0, 0, 0, 0, 0, 0, 
-	 39, 71, 27, 52, 31, 69, 0, -28, 
-	 56, 16, 27, 9, -8, -2, -50, -41, 
-	 38, 20, 15, -2, 7, 33, -4, -2, 
-	 24, -16, -25, -21, -22, -17, -16, 22, 
-	 11, -6, -19, -40, -2, 29, 11, 30, 
-	 2, 7, 11, -21, -9, 22, 18, 0, 
+	 39, 70, 27, 52, 29, 67, 0, -27, 
+	 56, 16, 26, 8, -11, -4, -49, -40, 
+	 38, 21, 15, -2, 7, 34, -3, -2, 
+	 24, -15, -25, -20, -22, -17, -15, 22, 
+	 11, -5, -19, -39, -3, 30, 12, 30, 
+	 3, 8, 11, -21, -8, 21, 16, 0, 
 	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
 
 	int eg_passed_bonus[64] =
 	{
 	 0, 0, 0, 0, 0, 0, 0, 0, 
-	 113, 102, 97, 78, 90, 79, 103, 120, 
-	 151, 150, 114, 100, 80, 107, 130, 143, 
-	 84, 73, 61, 52, 41, 47, 79, 77, 
-	 47, 46, 37, 28, 29, 34, 51, 43, 
-	 19, 20, 18, 18, 9, 6, 26, 17, 
-	 17, 17, 2, 18, 19, 8, 18, 20, 
+	 113, 102, 97, 79, 91, 79, 104, 121, 
+	 151, 150, 115, 101, 81, 107, 130, 143, 
+	 84, 73, 61, 52, 41, 47, 79, 76, 
+	 46, 45, 38, 28, 29, 34, 51, 43, 
+	 19, 19, 18, 18, 9, 5, 26, 17, 
+	 16, 17, 1, 18, 19, 8, 18, 20, 
 	 0, 0, 0, 0, 0, 0, 0, 0, 
 	};
 	
@@ -231,6 +234,15 @@ struct Evaluation : Noncopyable
 		}
 
 		evaluate_kings();
+
+		if (pop_count(board.pieces[W_BISHOP]) >= 2) {
+			mg_bonus[WHITE] += mg_double_bishop;
+			eg_bonus[WHITE] += eg_double_bishop;
+		}
+		if (pop_count(board.pieces[B_BISHOP]) >= 2) {
+			mg_bonus[BLACK] += mg_double_bishop;
+			eg_bonus[BLACK] += eg_double_bishop;
+		}
 
 		//mg_bonus[board.side_to_move] += tempo_bonus;
 

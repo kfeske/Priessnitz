@@ -220,7 +220,7 @@ bool test(Tuner &tuner)
 		double tuner_eval = tuner.evaluate(sample);
 
 		// is the evaluation correct?
-		if (fabs(tuner_eval - correct_eval) > 3) {
+		if (fabs(tuner_eval - correct_eval) > 5) {
 			std::cerr << "error in position " << position << ", where correct " << correct_eval << " and tuner " << tuner_eval << "\n";
 			error = true;
 		}

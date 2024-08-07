@@ -38,7 +38,9 @@ enum Indicies {
 	EG_BACKWARD = MG_BACKWARD + 1,
 	MG_CHAINED = EG_BACKWARD  + 1,
 	EG_CHAINED = MG_CHAINED + 1,
-	MG_AVERAGE_MOBILITY = EG_CHAINED + 1,
+	MG_DOUBLE_BISHOP = EG_CHAINED + 1,
+	EG_DOUBLE_BISHOP = MG_DOUBLE_BISHOP + 1,
+	MG_AVERAGE_MOBILITY = EG_DOUBLE_BISHOP + 1,
 	EG_AVERAGE_MOBILITY = MG_AVERAGE_MOBILITY + 6,
 	MG_MOBILITY = EG_AVERAGE_MOBILITY + 6,
 	EG_MOBILITY = MG_MOBILITY + 6,
@@ -52,7 +54,9 @@ enum Indicies {
 enum Tuning_params {
 	NUM_TRAINING_POSITIONS = 700000, // number of training positions
 	NUM_TEST_POSITIONS = 25000,      // number of test positions
-	NUM_TABLES = 32,		 // number of tables to be tuned (eg. pawn piece square table)
+	//NUM_TRAINING_POSITIONS = 1400000, // number of training positions
+	//NUM_TEST_POSITIONS = 28000,      // number of test positions
+	NUM_TABLES = 34,		 // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,         // values to be tuned
 	BATCH_SIZE = 1000	         // how much the training set is split for computational efficiency
 };
@@ -98,6 +102,7 @@ struct Tuner
 	       				   EG_PAWN_PSQT, EG_KNIGHT_PSQT, EG_BISHOP_PSQT, EG_ROOK_PSQT, EG_QUEEN_PSQT, EG_KING_PSQT,
 			     	      	   MG_PASSED_PAWN, EG_PASSED_PAWN, MG_ISOLATED, EG_ISOLATED, MG_DOUBLED, EG_DOUBLED,
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
+					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 			     	      	   MG_AVERAGE_MOBILITY, EG_AVERAGE_MOBILITY, MG_MOBILITY, EG_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE,
 			     	      	   END_INDEX };
@@ -140,6 +145,8 @@ struct Tuner
 		case EG_BACKWARD: return eval.eg_backward_penalty;
 		case MG_CHAINED: return eval.mg_chained_bonus;
 		case EG_CHAINED: return eval.eg_chained_bonus;
+		case MG_DOUBLE_BISHOP: return eval.mg_double_bishop;
+		case EG_DOUBLE_BISHOP: return eval.eg_double_bishop;
 		case MG_AVERAGE_MOBILITY: return eval.mg_average_mobility[pos];
 		case EG_AVERAGE_MOBILITY: return eval.eg_average_mobility[pos];
 		case MG_MOBILITY: return eval.mg_mobility_weight[pos];
@@ -197,6 +204,8 @@ struct Tuner
 		case EG_BACKWARD: std::cerr << "\neg backward pawn\n"; break;
 		case MG_CHAINED: std::cerr << "\nmg chained pawn\n"; break;
 		case EG_CHAINED: std::cerr << "\neg chained pawn\n"; break;
+		case MG_DOUBLE_BISHOP: std::cerr << "\nmg bishop pair\n"; break;
+		case EG_DOUBLE_BISHOP: std::cerr << "\neg bishop pair\n"; break;
 		case MG_AVERAGE_MOBILITY: std::cerr << "\nmg average mobility\n"; break;
 		case EG_AVERAGE_MOBILITY: std::cerr << "\neg average mobility\n"; break;
 		case MG_MOBILITY: std::cerr << "\nmg mobility\n"; break;
@@ -379,6 +388,15 @@ struct Tuner
 			case KING: continue;
 			}
 		}
+		// bishop pair
+		if (pop_count(board.pieces[W_BISHOP]) >= 2) {
+			sample.influence[MG_DOUBLE_BISHOP] += mg_phase;
+			sample.influence[EG_DOUBLE_BISHOP] += eg_phase;
+		}
+		if (pop_count(board.pieces[B_BISHOP]) >= 2) {
+			sample.influence[MG_DOUBLE_BISHOP] -= mg_phase;
+			sample.influence[EG_DOUBLE_BISHOP] -= eg_phase;
+		}
 	}
 
 	void load_training_set()
@@ -386,6 +404,7 @@ struct Tuner
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
 		file.open("training_set.epd");
+		//file.open("quiet-labeled.epd");
 		if (file.is_open()) {
 			std::string input;
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
