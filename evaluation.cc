@@ -71,14 +71,6 @@ void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color frie
 	}
 }
 
-/*void Evaluation::evaluate_mobility(Board &board, Piece_type type, uint64_t attacks, Color friendly)
-{
-	// do not count mobility, when the squares are protected by enemy pawns
-	int safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
-	mg_bonus[friendly] += (10 * safe_squares - mg_average_mobility[type]) * mg_mobility_weight[type] / 100;
-	eg_bonus[friendly] += (10 * safe_squares - eg_average_mobility[type]) * eg_mobility_weight[type] / 100;
-}*/
-
 void Evaluation::evaluate_piece(Board &board, Piece p, unsigned square)
 {
 	Color friendly = color_of(p);

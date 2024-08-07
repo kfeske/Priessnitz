@@ -133,7 +133,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 
 	// Static evaluation of the position
-	int static_eval = eval.evaluate(board);
+	int static_eval = (tt.hit) ? tt_entry.static_evaluation : eval.evaluate(board);
 
 	int move_count = 0;
 	Move best_move = INVALID_MOVE;
@@ -256,11 +256,12 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// Assuming our move ordering is doing a good job, only the first
 			// moves are actually good and should thus be searched deeper than other moves.
 
-			unsigned reduction = 0;
+			int reduction = 0;
 			if (quiet_move && depth > 1 && move_count > 3 && !in_check) {
 				reduction = search_constants.LATE_MOVE_REDUCTION[std::min(63, depth)][std::min(63, move_count)];
 				if (!pv_node) reduction++;
 				reduction -= heuristics.history[board.board[move_from(move)]][move_to(move)] / 5000;
+				reduction = std::min(depth - 1, std::max(reduction, 0));
 			}
 
 			evaluation = -search(board, depth - reduction + extension - 1, ply + 1, -alpha - 1, -alpha, INVALID_MOVE, true);
@@ -292,7 +293,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 				// We have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
 				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
-				tt.store(board.zobrist.key, depth, beta, best_move, LOWERBOUND, age);
+				tt.store(board.zobrist.key, depth, beta, best_move, static_eval, LOWERBOUND, age);
 
 				// Update Killers, Counters, History
 				update_heuristics(board, move, depth, ply, bad_quiets_searched);
@@ -317,7 +318,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	}
 
 	// Store position in the hash table
-	tt.store(board.zobrist.key, depth, alpha, best_move, flag, age);
+	tt.store(board.zobrist.key, depth, alpha, best_move, static_eval, flag, age);
 
 	return alpha;
 }

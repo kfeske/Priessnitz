@@ -9,6 +9,7 @@ struct TT_entry
 	uint8_t depth;
 	int16_t evaluation;
 	uint16_t best_move;
+	int16_t static_evaluation;
 	uint8_t flag;
 	uint8_t age; // Could be combined with flag.
 };
@@ -39,7 +40,7 @@ struct Transposition_table
 		return empty_entry;
 	}
 
-	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag, unsigned age)
+	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, int static_evaluation, TT_flag flag, unsigned age)
 	{
 		uint64_t index = key % bucket_count;
 		TT_bucket &bucket = buckets[index];
@@ -53,6 +54,7 @@ struct Transposition_table
 			first_entry.best_move = best_move;
 			first_entry.flag = flag;
 			first_entry.evaluation = int16_t(evaluation);
+			first_entry.static_evaluation = int16_t(static_evaluation);
 			first_entry.age = age;
 		}
 		else {
@@ -61,6 +63,7 @@ struct Transposition_table
 			second_entry.best_move = best_move;
 			second_entry.flag = flag;
 			second_entry.evaluation = int16_t(evaluation);
+			second_entry.static_evaluation = int16_t(static_evaluation);
 			second_entry.age = age;
 		}
 	}
