@@ -511,19 +511,19 @@ struct Tuner
 				}
 
 				// doubled pawns
-				else if (doubled) {
+				if (doubled) {
 					mg_influences[MG_DOUBLED] += side * mg_phase;
 					eg_influences[EG_DOUBLED] += side * eg_phase;
 				}
 
 				// backward pawns
-				else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
+				if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
 					mg_influences[MG_BACKWARD] += side * mg_phase;
 					eg_influences[EG_BACKWARD] += side * eg_phase;
 				}
 
 				// reward chained pawns
-				if (chained) {
+				else if (chained) {
 					mg_influences[MG_CHAINED] += side * mg_phase;
 					eg_influences[EG_CHAINED] += side * eg_phase;
 				}

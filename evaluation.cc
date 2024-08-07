@@ -48,19 +48,19 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		}
 
 		// Doubled pawns
-		else if (doubled) {
+		if (doubled) {
 			info.mg_bonus[friendly] += mg_doubled_penalty;
 			info.eg_bonus[friendly] += eg_doubled_penalty;
 		}
 
 		// Backward pawns
-		else if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
+		if (!(supported || neighbored) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
 			info.mg_bonus[friendly] += mg_backward_penalty;
 			info.eg_bonus[friendly] += eg_backward_penalty;
 		}
 
 		// Pawn chain
-		if (chained) {
+		else if (chained) {
 			info.mg_bonus[friendly] += mg_chained_bonus;
 			info.eg_bonus[friendly] += eg_chained_bonus;
 		}
