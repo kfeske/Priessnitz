@@ -33,7 +33,6 @@ struct Search : Noncopyable
 	bool infinite_search = false;
 	unsigned soft_time_cap;
 	unsigned hard_time_cap;
-	unsigned search_time_increment;
 
 	Statistics statistics;
 	Heuristics heuristics;

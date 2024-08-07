@@ -395,7 +395,7 @@ void Search::start_search(Board &board)
 
 			// Stop here, if the allocated time for the move runs out.
 			// We continue searching, if we failed low.
-			if (time_management && current_depth > 1 && evaluation > alpha) {
+			if (time_management && current_depth > 1) {
 				double stable_best_move = (last_best_move_depth + 7 < current_depth) ? 0.9 : 1.2;
 				if (time_elapsed() >= soft_time_cap * stable_best_move) abort_search = true;
 			}
@@ -448,11 +448,12 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 		unsigned expected_time_left = time_left - move_overhead + increment * remaining_moves;
 
 		// The search can abort after an iteration, if the soft time cap has been crossed.
-		soft_time_cap = std::max(1U, unsigned(expected_time_left / remaining_moves * 0.6));
+		soft_time_cap = std::max(1U, expected_time_left / remaining_moves);
+		soft_time_cap = std::min(soft_time_cap, time_left - move_overhead);
+
 		// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
-		hard_time_cap = std::min(soft_time_cap * 5, expected_time_left / 5);
+		hard_time_cap = soft_time_cap * 5;
 		hard_time_cap = std::min(hard_time_cap, time_left - move_overhead);
-		search_time_increment = (hard_time_cap - soft_time_cap) / 40;
 
 		// Respond instantly in case of a single legal move.
 		if (move_list.size == 1)
