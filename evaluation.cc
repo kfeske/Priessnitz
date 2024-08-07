@@ -65,6 +65,23 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 		if (passed && !doubled)
 			info.passed_pawns |= 1ULL << square;
 	}
+
+	unsigned king_square = board.square(friendly, KING);
+
+	// Pawn Shelter
+	unsigned shelter_center = std::max(1U, std::min(6U, file_num(king_square)));
+	for (unsigned shelter_file = shelter_center - 1; shelter_file <= shelter_center + 1; shelter_file++) {
+		uint64_t shelter_pawns = board.pieces(friendly, PAWN) & file(shelter_file) & (forward_mask(friendly, king_square) | rank(king_square));
+		if (shelter_pawns) {
+			unsigned pawn_square = (friendly == WHITE) ? msb(shelter_pawns) : lsb(shelter_pawns);
+			unsigned king_distance = rank_distance(pawn_square, king_square);
+			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
+			bool king_file_pawn = shelter_file == file_num(king_square);
+			info.mg_bonus[friendly] += mg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
+			info.eg_bonus[friendly] += eg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
+		}
+	}
+
 }
 
 void Evaluation::evaluate_knights(Board &board, Color friendly)
@@ -238,20 +255,6 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
 	info.mg_bonus[friendly] += mg_king_mobility[safe_squares];
 	info.eg_bonus[friendly] += eg_king_mobility[safe_squares];
-
-	// Pawn Shelter
-	unsigned shelter_center = std::max(1U, std::min(6U, file_num(square)));
-	for (unsigned shelter_file = shelter_center - 1; shelter_file <= shelter_center + 1; shelter_file++) {
-		uint64_t shelter_pawns = board.pieces(friendly, PAWN) & file(shelter_file) & (forward_mask(friendly, square) | rank(square));
-		if (shelter_pawns) {
-			unsigned pawn_square = (friendly == WHITE) ? msb(shelter_pawns) : lsb(shelter_pawns);
-			unsigned king_distance = rank_distance(pawn_square, square);
-			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
-			bool king_file_pawn = shelter_file == file_num(square);
-			info.mg_bonus[friendly] += mg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
-			info.eg_bonus[friendly] += eg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
-		}
-	}
 
 	// Safe checks by enemy pieces
 	uint64_t safe = ~info.attacked[friendly] & ~board.pieces(enemy);

@@ -87,37 +87,40 @@ struct Board : Board_state
 
 	void add_piece(unsigned square, Piece piece)
 	{
+		Piece_type type = type_of(piece);
 		Color friendly = color_of(piece);
 	
-		set_bit(pieces_by_type[type_of(piece)], square);
+		set_bit(pieces_by_type[type], square);
 		set_bit(pieces_by_color[friendly], square);
 		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
 		board[square] = piece;
 		non_pawn_material[friendly] += non_pawn_value[piece];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
-		if (type_of(piece) == PAWN) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
+		if (type == PAWN || type == KING) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void remove_piece(unsigned square)
 	{
 		Piece piece = board[square];
+		Piece_type type = type_of(piece);
 		Color friendly = color_of(piece);
 	
-		pop_bit(pieces_by_type[type_of(piece)], square);
+		pop_bit(pieces_by_type[type], square);
 		pop_bit(pieces_by_color[friendly], square);
 		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
 		board[square] = NO_PIECE;
 		non_pawn_material[friendly] -= non_pawn_value[piece];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][square];
-		if (type_of(piece) == PAWN) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
+		if (type == PAWN || type == KING) zobrist.pawn_key ^= zobrist.piece_rand[piece][square];
 	}
 	
 	void push_piece_quiet(unsigned from, unsigned to)
 	{
 		Piece piece = board[from];
+		Piece_type type = type_of(piece);
 	
 		uint64_t mask = 1ULL << from | 1ULL << to;
-		pieces_by_type[type_of(piece)] ^= mask;
+		pieces_by_type[type] ^= mask;
 		pieces_by_color[color_of(piece)] ^= mask;
 		occ = pieces_by_color[WHITE] | pieces_by_color[BLACK];
 	
@@ -125,7 +128,7 @@ struct Board : Board_state
 		board[from] = NO_PIECE;
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][from];
 		zobrist.piece_side_key ^= zobrist.piece_rand[piece][to];
-		if (type_of(piece) == PAWN) {
+		if (type == PAWN || type == KING) {
 			zobrist.pawn_key ^= zobrist.piece_rand[piece][from];
 			zobrist.pawn_key ^= zobrist.piece_rand[piece][to];
 		}
