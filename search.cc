@@ -541,7 +541,7 @@ void Search::increment_history(Board &board, Move move, int bonus)
 {
 	int32_t &history_score = heuristics.history[board.board[move_from(move)]][move_to(move)];
 	// Saturate the counter, so that 16000 is not exceeded.
-	history_score += bonus - history_score * bonus / 16000;
+	history_score += bonus - history_score * abs(bonus) / 16000;
 }
 
 unsigned Statistics::hash_full(Transposition_table &tt)
