@@ -244,6 +244,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		hash_move = Move(tt_entry.best_move);
 	}
 
+	unsigned late_move_margin = 2 + depth * depth * 0.5;
+
 	// In the end, we decrement the history counters for bad quiet moves.
 	Move_list bad_quiets_searched;
 
@@ -263,7 +265,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			// Late Move Pruning
 			// Due to our move ordering, late moves are likely bad and not worth searching.
-			if (depth < 4 && move_count >= search_constants.LMP_MARGIN[depth])
+			if (move_count > late_move_margin)
 				skip_quiets = true;
 
 			// Futility Pruning

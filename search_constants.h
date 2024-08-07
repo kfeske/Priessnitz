@@ -8,10 +8,6 @@ struct Search_constants
 
 	int REVERSE_FUTILITY_MARGIN = 60;
 
-	int LMP_MARGIN[5] = {
-		0, 6, 11, 24, 24
-	};
-
 	int RAZOR_MARGIN = 400;
 
 	unsigned LATE_MOVE_REDUCTION[64][64];
