@@ -8,8 +8,15 @@
 struct Heuristics
 {
 	Move killer_move[2][64];
-	Move hash_move = INVALID_MOVE;
+	Move counter_move[16][64];
 	int32_t history[16][64];
+
+	Move counter(Board &board)
+	{
+		if (board.game_ply == 0) return INVALID_MOVE;
+		unsigned to = move_to(board.history[board.game_ply - 1].move);
+		return counter_move[board.board[to]][to];
+	}
 };
 
 enum Stage
@@ -20,6 +27,7 @@ enum Stage
 	GOOD_CAPTURES,
 	FIRST_KILLER,
 	SECOND_KILLER,
+	COUNTER_MOVE,
 	GENERATE_QUIETS,
 	QUIETS,
 	BAD_CAPTURES,
@@ -42,8 +50,8 @@ struct Move_orderer
 	Move hash_move;
 	Move first_killer;
 	Move second_killer;
+	Move counter_move;
 	Heuristics &heuristics;
-	unsigned ply;
 
 	// Picks the next move from the movelist that has the highest score.
 	Move next_best_move(Move_list &list)
@@ -115,9 +123,10 @@ struct Move_orderer
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
-				// Queen promotions can be killer moves.
+				// Queen promotions can be killer and counter moves.
 				if (move == first_killer)  first_killer  = INVALID_MOVE;
 				if (move == second_killer) second_killer = INVALID_MOVE;
+				if (move == counter_move)  counter_move  = INVALID_MOVE;
 
 				// Only captures with a positive see score are "Good captures".
 				if (see(board, move) < 0) {
@@ -140,14 +149,19 @@ struct Move_orderer
 				return next_best_move(move_list);
 		}
 
-		// We can still try the killer moves before generating the quiet moves.
+		// We can still try the killer and counter moves before generating the quiet moves.
 		if (stage == FIRST_KILLER) {
 			stage = SECOND_KILLER;
 			if (first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
 		}
 		if (stage == SECOND_KILLER) {
-			stage = GENERATE_QUIETS;
+			stage = COUNTER_MOVE;
 			if (second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
+		}
+		if (stage == COUNTER_MOVE) {
+			stage = GENERATE_QUIETS;
+			if (counter_move != hash_move && counter_move != first_killer && counter_move != second_killer &&
+			    board.pseudo_legal(counter_move)) return counter_move;
 		}
 
 		// Generate check evasions.
@@ -173,7 +187,7 @@ struct Move_orderer
 		if (stage == QUIETS) {
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
-				if (move == hash_move || move == first_killer || move == second_killer) continue;
+				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
 				return move;
 			}
 			stage = BAD_CAPTURES;
@@ -184,20 +198,20 @@ struct Move_orderer
 		if (stage == BAD_CAPTURES) {
 			while (position < bad_captures.size) {
 				Move move = next_best_move(bad_captures);
-				if (move == hash_move || move == first_killer || move == second_killer) continue;
+				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
 				return move;
 			}
 		}
 		return INVALID_MOVE;
 	}
 
-	Move_orderer(Move hash_move, Heuristics &heuristics, int ply)
+	Move_orderer(Board &board, Move hash_move, Heuristics &heuristics, int ply)
 	:
 		hash_move(hash_move),
 		first_killer( heuristics.killer_move[0][ply]),
 		second_killer(heuristics.killer_move[1][ply]),
-		heuristics(heuristics),
-		ply(ply)
+		counter_move(heuristics.counter(board)),
+		heuristics(heuristics)
 	{}
 };
 

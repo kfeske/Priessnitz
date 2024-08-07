@@ -41,7 +41,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	if (static_evaluation > alpha)
 		alpha = static_evaluation;
 
-	Move_orderer move_orderer { INVALID_MOVE, heuristics, 0 };
+	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
 	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
 
 	Move move;
@@ -115,11 +115,11 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	TT_flag flag = UPPERBOUND;
 
 	// updated in the tt.probe() function
-	tt.pv_move = INVALID_MOVE;
+	tt.best_move = INVALID_MOVE;
 
 	// Check for any transpositions at higher or equal depths
 	bool usable = tt.probe(board.zobrist.key, depth, alpha, beta);
-	if (usable && !pv_node && tt.pv_move != skip)
+	if (usable && !pv_node && tt.best_move != skip)
 		return tt.current_evaluation;
 
 
@@ -169,13 +169,13 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		futile = static_eval + futility_margin[depth] <= alpha;*/
 
 	// Internal Iterative Deepening
-	/*if (pv_node && depth >= 6 && tt.pv_move == INVALID_MOVE) {
+	/*if (pv_node && depth >= 6 && tt.best_move == INVALID_MOVE) {
 		search(board, depth - 2, ply, alpha, beta, true);
 		tt.probe(board.zobrist.key, depth, alpha, beta);
-		heuristics.hash_move = tt.pv_move;
+		heuristics.hash_move = tt.best_move;
 	}*/
 
-	Move_orderer move_orderer { tt.pv_move, heuristics, ply };
+	Move_orderer move_orderer { board, tt.best_move, heuristics, ply };
 	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
 	Move move;
 	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
@@ -218,7 +218,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		// Search the best looking move with a full alpha-beta-window and prove that all other moves are worse
 		// by searching them with a zero-width window centered around alpha, which is a lot faster.
 		if (move_count == 1) {
-			//if (move == tt.pv_move && depth >= 8 && move != skip && extension == 0) {
+			//if (move == tt.best_move && depth >= 8 && move != skip && extension == 0) {
 			//      board.unmake_move(move);
 			//      int singular_score = tt.current_evaluation - 130;
 
@@ -284,6 +284,11 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
 						heuristics.killer_move[0][ply] = move;
 					}
+					// The move can also be stored as a counter of the previous move, because the move refuted it.
+					if (board.game_ply > 0) {
+						unsigned to = move_to(board.history[board.game_ply - 1].move);
+						heuristics.counter_move[board.board[to]][to] = move;
+					}
 
 					// increment history score
 					heuristics.history[board.board[move_from(move)]][move_to(move)] += depth * depth;
@@ -329,7 +334,8 @@ unsigned Statistics::hash_full(Transposition_table &tt)
 {
 	unsigned hits = 0;
 	for (unsigned index = 0; index < 1000; index++) {
-		if (tt.entries[index].key != 0ULL) hits++;
+		TT_bucket &bucket = tt.buckets[index];
+		if (bucket.entries[0].key != 0ULL) hits++;
 	}
 	return hits;
 }
@@ -343,8 +349,8 @@ void Search::extract_pv_line(Board &board)
 	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
 		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY, INFINITY);
 		if (!hit) return;
-		std::cout << move_string(tt.pv_move) << " ";
-		temp_board.make_move(tt.pv_move);
+		std::cout << move_string(tt.best_move) << " ";
+		temp_board.make_move(tt.best_move);
 	}
 }
 

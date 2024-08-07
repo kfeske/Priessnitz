@@ -1,6 +1,7 @@
 #pragma once
 
 unsigned const DEFAULT_TT_SIZE = 128; // MB
+unsigned const BUCKET_SIZE = 2;
 
 struct TT_entry
 {
@@ -12,19 +13,35 @@ struct TT_entry
 	uint8_t age; // Could be combined with flag.
 };
 
+struct TT_bucket
+{
+	TT_entry entries[BUCKET_SIZE];
+};
+
 struct Transposition_table
 {
 	unsigned entry_count = (DEFAULT_TT_SIZE * 1024 * 1024) / sizeof(TT_entry);
-	TT_entry *entries;
+	unsigned bucket_count = entry_count / BUCKET_SIZE;
+	TT_bucket *buckets;
 	int current_evaluation = 0;
-	Move pv_move = INVALID_MOVE;
+	Move best_move = INVALID_MOVE;
+
+	TT_entry &fetch_entry(uint64_t key)
+	{
+		uint64_t index = key % bucket_count;
+		TT_bucket &bucket = buckets[index];
+		for (unsigned i = 0; i < BUCKET_SIZE; i++) {
+			TT_entry &entry = bucket.entries[i];
+			if (entry.key == key) return entry;
+		}
+		return bucket.entries[0];
+	}
 
 	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
 	{
-		uint64_t index = key % entry_count;
-		TT_entry &entry = entries[index];
+		TT_entry &entry = fetch_entry(key);
 		if (entry.key == key) {
-			pv_move = Move(entry.best_move);
+			best_move = Move(entry.best_move);
 			if (entry.depth >= depth) {
 
 				int evaluation = entry.evaluation;
@@ -52,27 +69,40 @@ struct Transposition_table
 
 	void store(uint64_t key, unsigned depth, int evaluation, Move best_move, TT_flag flag, unsigned age)
 	{
-		uint64_t index = key % entry_count;
-		TT_entry &entry = entries[index];
+		uint64_t index = key % bucket_count;
+		TT_bucket &bucket = buckets[index];
 
-		// Do not overwrite a more accurate entry
-		if (depth >= entry.depth || age != entry.age) {
-			entry.key = key;
-			entry.depth = depth;
-			entry.best_move = best_move;
-			entry.flag = flag;
-			entry.evaluation = int16_t(evaluation);
-			entry.age = age;
+		TT_entry &first_entry  = bucket.entries[0];
+		TT_entry &second_entry = bucket.entries[1];
+		if (depth >= first_entry.depth || age != first_entry.age) {
+			second_entry = first_entry;
+			first_entry.key = key;
+			first_entry.depth = depth;
+			first_entry.best_move = best_move;
+			first_entry.flag = flag;
+			first_entry.evaluation = int16_t(evaluation);
+			first_entry.age = age;
+		}
+		else {
+			second_entry.key = key;
+			second_entry.depth = depth;
+			second_entry.best_move = best_move;
+			second_entry.flag = flag;
+			second_entry.evaluation = int16_t(evaluation);
+			second_entry.age = age;
 		}
 	}
 
-	void resize(unsigned size)
+	void resize(unsigned size_mb)
 	{
-		entries = new TT_entry[size];
+		delete[] buckets;
+		entry_count = (size_mb * 1024 * 1024) / sizeof(TT_entry);
+		bucket_count = entry_count / BUCKET_SIZE;
+		buckets = new TT_bucket[bucket_count];
 	}
 
 	Transposition_table()
 	:
-		 entries(new TT_entry[entry_count])
+		 buckets(new TT_bucket[bucket_count])
 	{}
 };
