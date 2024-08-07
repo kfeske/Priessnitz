@@ -66,6 +66,12 @@ void UCI::go_command(std::istringstream &iss)
 		else if (parsed == "btime")
 			iss >> b_time;
 
+		else if (parsed == "winc")
+			iss >> w_inc;
+		
+		else if (parsed == "binc")
+			iss >> b_inc;
+
 		else if (parsed == "perft") {
 			unsigned depth;
 			iss >> depth;
@@ -99,7 +105,11 @@ void UCI::await_input()
 	std::istringstream iss { line };
 
 	while(iss >> parsed) {
-		if (parsed == "uci") std::cout << "uciok\n";
+		if (parsed == "uci") {
+			std::cout << "id name Priessnitz\n";
+			std::cout << "id author Kevin Feske\n";
+			std::cout << "uciok\n";
+		}
 		if (parsed == "ucinewgame") break;
 		if (parsed == "isready") std::cout << "readyok\n";
 		if (parsed == "position") fabricate_position(iss);
@@ -107,8 +117,4 @@ void UCI::await_input()
 		if (parsed == "go") go_command(iss);
 		if (parsed == "quit") quit = true;
 	}
-}
-UCI::UCI()
-{
-	board.set_startpos();
 }

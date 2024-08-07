@@ -2,7 +2,6 @@
 #include <iostream>
 
 enum Constants {
-	BOARD_SIZE = 8,
 	MAX_MOVES = 218,
 };
 
@@ -15,7 +14,7 @@ enum Square {
 	A3, B3, C3, D3, E3, F3, G3, H3,
 	A2, B2, C2, D2, E2, F2, G2, H2,
 	A1, B1, C1, D1, E1, F1, G1, H1,
-	SQ_NONE
+	NO_SQUARE
 };
 
 enum Rank : uint64_t {
@@ -121,12 +120,14 @@ static inline uint64_t file(unsigned square)
 	return FILE_A << index;
 }
 
-// used in search and move ordering, but not in the evaluation
-int const piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
-			100, 300, 320, 500, 900, 1000 };
+// used in search and move ordering, evaluation has its own values
+// Note: The weird zeros exist, because of the encoding of pieces.
+// Element 15 is NO_PIECE.
+int const piece_value[15] = { 100, 300, 320, 500, 900, 1000, 0, 0,
+			      100, 300, 320, 500, 900, 1000, 0 };
 
-int const non_pawn_value[14] = { 0, 300, 320, 500, 900, 0, 0, 0,
-			   0, 300, 320, 500, 900, 0 };
+int const non_pawn_value[15] = { 0, 300, 320, 500, 900, 0, 0, 0,
+			         0, 300, 320, 500, 900, 0, 0 };
 
 // directions are relative to whites' point of view
 enum Direction {
@@ -145,13 +146,13 @@ enum Direction {
 static inline uint64_t shift(uint64_t bitboard, Direction direction)
 {
 	switch(direction) {
-	case UP: return bitboard >> 8;
-	case DOWN: return bitboard << 8;
-	case LEFT:  return (bitboard & ~FILE_A) >> 1;
-	case RIGHT:  return (bitboard & ~FILE_H) << 1;
-	case UP_LEFT: return (bitboard & ~FILE_A) >> 9;
-	case UP_RIGHT: return (bitboard & ~FILE_H) >> 7;
-	case DOWN_LEFT: return (bitboard & ~FILE_A) << 7;
+	case UP: 	 return bitboard >> 8;
+	case DOWN: 	 return bitboard << 8;
+	case LEFT:  	 return (bitboard & ~FILE_A) >> 1;
+	case RIGHT:  	 return (bitboard & ~FILE_H) << 1;
+	case UP_LEFT: 	 return (bitboard & ~FILE_A) >> 9;
+	case UP_RIGHT: 	 return (bitboard & ~FILE_H) >> 7;
+	case DOWN_LEFT:  return (bitboard & ~FILE_A) << 7;
 	case DOWN_RIGHT: return (bitboard & ~FILE_H) << 9;
 	default: return 0ULL;
 	}
@@ -232,21 +233,6 @@ static inline unsigned file_num(unsigned square)
 {
 	// thanks to the 8 * 8 chess board, the last three bits denote the file.
 	return square & 7;
-}
-
-static inline bool edge(unsigned square, Direction d)
-{
-	switch(d) {
-	case UP: return (rank_num(square) == 0);
-	case DOWN: return (rank_num(square) == 7);
-	case RIGHT:  return (file_num(square) == 7);
-	case LEFT:  return (file_num(square) == 0);
-	case UP_RIGHT: return (rank_num(square) == 0 || file_num(square) == 7);
-	case DOWN_RIGHT: return (rank_num(square) == 7 || file_num(square) == 7);
-	case DOWN_LEFT: return (rank_num(square) == 7 || file_num(square) == 0);
-	case UP_LEFT: return (rank_num(square) == 0 || file_num(square) == 0);
-	default: return false;
-	}
 }
 
 // the castling rights for both sides fit in 4 bits

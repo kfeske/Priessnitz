@@ -99,7 +99,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 // beta is the best score, the opponent can guarantee in the sequence
 int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move)
 {
-	if ((statistics.search_nodes & 2047) == 0 && time_elapsed() >= max_time)
+	if ((statistics.search_nodes & 1024) == 0 && time_elapsed() >= max_time)
 	{
 		// Time's up!
 		abort_search = true;
@@ -113,6 +113,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	if (depth <= 0)
 		// we reached a leaf node, start the Quiescence Search
 		return quiescence_search(board, alpha, beta, 0);
+
+	//if (board.game_ply >= 10 && ply % 2 == 0 && board.pieces[B_QUEEN]) return -9999;
 
 	// Mate Distance Pruning
 	// If a forced mate was found, we do not need to search deeper than to where it was found, because we
@@ -405,6 +407,8 @@ void Search::start_search(Board &board)
 			int evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
+			if (abort_search) break;
+
 			// The returned evaluation was not inside the windows :/
 			// A costly re-search has to be done with a wider window.
 			if (evaluation <= alpha) {
@@ -429,10 +433,24 @@ void Search::start_search(Board &board)
 
 void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc)
 {
-	(void) w_inc;
-	(void) b_inc;
 	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
-	unsigned time_allocated = time_left / 25;
+
+	unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
+
+	unsigned move_overhead = 10;
+
+	// Assume the game will last another n moves on average. Of course, the game will likely last for more than
+	// these n moves, but this will make the engine spend more time in the deciding early stages of the game.
+	unsigned remaining_moves = 40;
+
+	// Add the total time for increments and make sure, we have a
+	// safety move overhead buffer, so that we never run out of time.
+	time_left = time_left - move_overhead + increment * remaining_moves;
+
+	// The engine will allocate enough time for the remaining moves
+	unsigned time_allocated = std::max(1U, (time_left / remaining_moves));
+
+
 	max_time = std::min(time_allocated, move_time);
 	start_search(board);
 }

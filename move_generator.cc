@@ -49,7 +49,7 @@ void Move_generator::generate_pawn_moves(Board &board, Color col, uint64_t targe
 	}
 
 	unsigned ep_square = board.history[board.game_ply].ep_sq;
-	if (ep_square != SQ_NONE) {
+	if (ep_square != NO_SQUARE) {
 
 		// non pinned en passants
 
@@ -309,7 +309,7 @@ void Move_generator::generate_all_moves(Board &board)
 	}
 
 	unsigned ep_square = board.history[board.game_ply].ep_sq;
-	if (ep_square != SQ_NONE) {
+	if (ep_square != NO_SQUARE) {
 
 		uint64_t ep_candidates = pawns & pawn_attacks(swap(friendly), ep_square);
 		while (ep_candidates) {

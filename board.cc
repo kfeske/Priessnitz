@@ -267,7 +267,7 @@ void Board::unmake_move(Move move)
 	zobrist.piece_side_key ^= zobrist.side_rand;
 	zobrist.key ^= zobrist.piece_side_key;
 	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
-	if (history[game_ply].ep_sq != SQ_NONE)
+	if (history[game_ply].ep_sq != NO_SQUARE)
 		zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
 
 	repetition = false;
@@ -282,8 +282,8 @@ unsigned Board::make_null_move()
 	zobrist.key ^= zobrist.side_rand;
 
 	unsigned ep = history[game_ply].ep_sq;
-	if (ep != SQ_NONE) {
-		history[game_ply].ep_sq = SQ_NONE;
+	if (ep != NO_SQUARE) {
+		history[game_ply].ep_sq = NO_SQUARE;
 		zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 	}
 
@@ -297,7 +297,7 @@ void Board::unmake_null_move(unsigned ep)
 	zobrist.piece_side_key ^= zobrist.side_rand;
 	zobrist.key ^= zobrist.side_rand;
 
-	if (ep != SQ_NONE) {
+	if (ep != NO_SQUARE) {
 		history[game_ply].ep_sq = ep;
 		zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 	}
@@ -348,7 +348,7 @@ bool Board::immediate_draw(unsigned ply_from_root)
 void Board::set_fenpos(std::string fen)
 {
 	reset(); // reset board to avoid overwrites
-	history[0] = UndoInfo();
+	history[0] = {};
 
 	zobrist.piece_side_key = 0ULL;
 	
@@ -427,7 +427,7 @@ void Board::set_fenpos(std::string fen)
 	}
 	zobrist.key = zobrist.piece_side_key;
 	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
-	if (history[game_ply].ep_sq != SQ_NONE)
+	if (history[game_ply].ep_sq != NO_SQUARE)
 		zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
 }
 
@@ -470,4 +470,9 @@ void print_board(Board &board)
 	str += "      A   B   C   D   E   F   G   H\n\n";
 	std::cerr << str;
 	std::cerr << "key " << board.zobrist.key << "\n";
+}
+
+Board::Board()
+{
+	set_startpos();
 }

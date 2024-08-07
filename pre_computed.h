@@ -109,10 +109,15 @@ struct Pre_computed
 
 extern Pre_computed const pre_computed;
 
+bool edge(unsigned square, Direction d);
+
 template <Color color>
 uint64_t generate_pawn_attacks(unsigned square);
+
 uint64_t generate_knight_attacks(unsigned square);
+
 uint64_t generate_king_attacks(unsigned square);
+
 uint64_t generate_sliding_attacks(Piece_type type, unsigned square, uint64_t occ);
 
 // Access sliding attacks for a given square and occupancy by lookup via magic numbers

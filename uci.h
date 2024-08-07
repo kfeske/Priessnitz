@@ -23,6 +23,4 @@ struct UCI
 	void go_command(std::istringstream &iss);
 
 	void await_input();
-
-	UCI();
 };

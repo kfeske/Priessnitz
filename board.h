@@ -21,33 +21,33 @@ struct Zobrist
 // stores essential position data that cannot be restored
 struct UndoInfo {
 	Piece captured = NO_PIECE;
-	uint8_t ep_sq = SQ_NONE; // save en passant square in case the last move was a double pawn push
+	uint8_t ep_sq = NO_SQUARE; // save en passant square in case the last move was a double pawn push
 	uint8_t castling_rights = NO_RIGHTS;
 	unsigned rule_50 = 0;
 };
 
 struct Board_state
 {
-	Piece board[64];
-	uint64_t pieces[15];
+	Piece board[64] {};
+	uint64_t pieces[15] {};
 
-	uint64_t color[2];
-	uint64_t occ;
+	uint64_t color[2] {};
+	uint64_t occ = 0ULL;
 
 	Color side_to_move = WHITE;
 
-	unsigned game_ply;
+	unsigned game_ply = 0;
 
-	UndoInfo history[1024];
-	uint64_t position_history[1024];
-	bool repetition;
+	UndoInfo history[1024] {};
+	uint64_t position_history[1024] {};
+	bool repetition = false;
 
-	int non_pawn_material[2];
+	int non_pawn_material[2] {};
 };
 
 struct Board : Board_state
 {
-	Zobrist zobrist;
+	Zobrist zobrist {};
 
 	uint64_t enemy(Color friendly);
 	uint64_t enemy_or_empty(Color friendly);
@@ -79,6 +79,8 @@ struct Board : Board_state
 	void set_fenpos(std::string fen);
 
 	void set_startpos();
+
+	Board();
 };
 
 std::string piece_string(Board &board, unsigned square);

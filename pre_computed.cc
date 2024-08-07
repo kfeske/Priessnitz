@@ -1,6 +1,21 @@
 #include "pre_computed.h"
 #include "utility.h"
 
+bool edge(unsigned square, Direction d)
+{
+	switch(d) {
+	case UP: 	 return (rank_num(square) == 0);
+	case DOWN: 	 return (rank_num(square) == 7);
+	case LEFT:  	 return (file_num(square) == 0);
+	case RIGHT:  	 return (file_num(square) == 7);
+	case UP_LEFT: 	 return (rank_num(square) == 0 || file_num(square) == 0);
+	case UP_RIGHT: 	 return (rank_num(square) == 0 || file_num(square) == 7);
+	case DOWN_LEFT:  return (rank_num(square) == 7 || file_num(square) == 0);
+	case DOWN_RIGHT: return (rank_num(square) == 7 || file_num(square) == 7);
+	default: return false;
+	}
+}
+
 // Precomputed attack data for the leaper pieces (Pawns, Knight, King)
 template <Color color>
 uint64_t generate_pawn_attacks(unsigned square)
