@@ -19,7 +19,7 @@ struct Heuristics
 	}
 };
 
-enum Stage
+enum class Main_stage
 {
 	// Normal ordering
 	TRANSPOSITION,
@@ -35,17 +35,13 @@ enum Stage
 	IN_CHECK_TRANSPOSITION,
 	GENERATE_IN_CHECKS,
 	IN_CHECKS,
-	// Quiescence Search ordering
-	QUIESCENCE_TRANSPOSITION,
-	GENERATE_QUIESCENCES,
-	QUIESCENCES
 };
 
-struct Move_orderer
+struct Main_move_orderer
 {
 	Move_list move_list {};    // careful, the array is uninitialized!
 	Move_list bad_captures {}; // careful, the array is uninitialized!
-	Stage stage = TRANSPOSITION;
+	Main_stage stage = Main_stage::TRANSPOSITION;
 	unsigned position = 0;
 	Move hash_move;
 	Move first_killer;
@@ -104,22 +100,22 @@ struct Move_orderer
 	Move next_move(Board &board, bool skip_quiets)
 	{
 		// The hash move is probably the best move, because we retrieved it by searching this position earlier.
-		if (stage == TRANSPOSITION) {
-			stage = GENERATE_CAPTURES;
+		if (stage == Main_stage::TRANSPOSITION) {
+			stage = Main_stage::GENERATE_CAPTURES;
 			if (board.pseudo_legal(hash_move)) return hash_move;
 		}
-		if (stage == IN_CHECK_TRANSPOSITION) {
-			stage = GENERATE_IN_CHECKS;
+		if (stage == Main_stage::IN_CHECK_TRANSPOSITION) {
+			stage = Main_stage::GENERATE_IN_CHECKS;
 			if (board.pseudo_legal(hash_move)) return hash_move;
 		}
 
 		// Generate captures and queen promotions
-		if (stage == GENERATE_CAPTURES) {
+		if (stage == Main_stage::GENERATE_CAPTURES) {
 			generate(board, move_list, CAPTURE_GEN);
 			score(board, CAPTURE_GEN);
-			stage = GOOD_CAPTURES;
+			stage = Main_stage::GOOD_CAPTURES;
 		}
-		if (stage == GOOD_CAPTURES) {
+		if (stage == Main_stage::GOOD_CAPTURES) {
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
@@ -135,44 +131,32 @@ struct Move_orderer
 				}
 				return move;
 			}
-			stage = FIRST_KILLER;
+			stage = Main_stage::FIRST_KILLER;
 		}
 
-		// Generate captures and queen promotions
-		if (stage == GENERATE_QUIESCENCES) {
-			generate(board, move_list, CAPTURE_GEN);
-			score(board, CAPTURE_GEN);
-			stage = QUIESCENCES;
-		}
-		if (stage == QUIESCENCES) {
-			while (position < move_list.size) {
-				Move move = next_best_move(move_list);
-				if (see(board, move) > 0 || promotion(move)) return move;
-			}
-		}
 
 		// We can still try the killer and counter moves before generating the quiet moves.
-		if (stage == FIRST_KILLER) {
-			stage = SECOND_KILLER;
+		if (stage == Main_stage::FIRST_KILLER) {
+			stage = Main_stage::SECOND_KILLER;
 			if (!skip_quiets && first_killer  != hash_move && board.pseudo_legal( first_killer)) return first_killer;
 		}
-		if (stage == SECOND_KILLER) {
-			stage = COUNTER_MOVE;
+		if (stage == Main_stage::SECOND_KILLER) {
+			stage = Main_stage::COUNTER_MOVE;
 			if (!skip_quiets && second_killer != hash_move && board.pseudo_legal(second_killer)) return second_killer;
 		}
-		if (stage == COUNTER_MOVE) {
-			stage = GENERATE_QUIETS;
+		if (stage == Main_stage::COUNTER_MOVE) {
+			stage = Main_stage::GENERATE_QUIETS;
 			if (!skip_quiets && counter_move != hash_move && counter_move != first_killer && counter_move != second_killer &&
 			    board.pseudo_legal(counter_move)) return counter_move;
 		}
 
 		// Generate check evasions.
-		if (stage == GENERATE_IN_CHECKS) {
+		if (stage == Main_stage::GENERATE_IN_CHECKS) {
 			generate(board, move_list, IN_CHECK_GEN);
 			score(board, IN_CHECK_GEN);
-			stage = IN_CHECKS;
+			stage = Main_stage::IN_CHECKS;
 		}
-		if (stage == IN_CHECKS) {
+		if (stage == Main_stage::IN_CHECKS) {
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move) continue;
@@ -181,25 +165,25 @@ struct Move_orderer
 		}
 
 		// Now, all quiet moves are generated.
-		if (stage == GENERATE_QUIETS) {
+		if (stage == Main_stage::GENERATE_QUIETS) {
 			if (!skip_quiets) {
 				generate(board, move_list, QUIET_GEN);
 				score(board, QUIET_GEN);
 			}
-			stage = QUIETS;
+			stage = Main_stage::QUIETS;
 		}
-		if (stage == QUIETS) {
+		if (stage == Main_stage::QUIETS) {
 			while (!skip_quiets && position < move_list.size) {
 				Move move = next_best_move(move_list);
 				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
 				return move;
 			}
-			stage = BAD_CAPTURES;
+			stage = Main_stage::BAD_CAPTURES;
 			position = 0; // We have a seperate list for bad captures.
 		}
 
 		// Finally, loop over the losing captures, they might still be some kind of sacrifice.
-		if (stage == BAD_CAPTURES) {
+		if (stage == Main_stage::BAD_CAPTURES) {
 			while (position < bad_captures.size) {
 				Move move = next_best_move(bad_captures);
 				if (move == hash_move || move == first_killer || move == second_killer || move == counter_move) continue;
@@ -209,7 +193,7 @@ struct Move_orderer
 		return INVALID_MOVE;
 	}
 
-	Move_orderer(Board &board, Move hash_move, Heuristics &heuristics, int ply)
+	Main_move_orderer(Board &board, Move hash_move, Heuristics &heuristics, int ply)
 	:
 		hash_move(hash_move),
 		first_killer( heuristics.killer_move[0][ply]),
@@ -219,50 +203,85 @@ struct Move_orderer
 	{}
 };
 
-/*static inline void rate_moves(Board &board, Heuristics &heuristics, Move_generator &move_generator, bool quiescence, unsigned ply)
+enum class Quiescence_stage
 {
-	for (unsigned n = 0; n < move_generator.size; n++) {
-		Scored_move &m = move_generator.move_list[n];
+	GENERATE_CAPTURES,
+	GOOD_CAPTURES,
+	GENERATE_IN_CHECKS,
+	IN_CHECKS
+};
 
-		// transposition table move
-		if (m.move == heuristics.hash_move) {
-			m.score += 30000;
-			continue;
+struct Quiescence_move_orderer
+{
+	Move_list move_list {}; // careful, the array is uninitialized!
+	Quiescence_stage stage = Quiescence_stage::GENERATE_CAPTURES;
+	unsigned position = 0;
+
+	// Picks the next move from the movelist that has the highest score.
+	Move next_best_move(Move_list &list)
+	{
+		unsigned best_index = position;
+		int best_score = list.moves[position].score;
+		for (unsigned i = position + 1; i < list.size; i++) {
+			Scored_move &m = list.moves[i];
+			if (m.score > best_score) {
+				best_score = m.score;
+				best_index = i;
+			}
 		}
+		std::swap(list.moves[position], list.moves[best_index]);
+		Move move = list.moves[position].move;
+		position++;
 
-		// MVV - LVA (most valuable victim, least valuable attacker)
-		else if (capture(m.move))
-			m.score += std::min(10 * piece_value[board.board[move_to(m.move)]] - piece_value[board.board[move_from(m.move)]], 29999);
+		return move;
+	}
 
-		else if (promotion(m.move)) m.score += 100;
-
-		else if (!quiescence) {
-
-			// primary killer move (non capture move that caused a beta cutoff)
-			if (m.move == heuristics.killer_move[0][ply]) m.score += 80;
-
-			// secondary killer move
-			else if (m.move == heuristics.killer_move[1][ply]) m.score += 75;
-
-			// if everything else fails, score history moves
-			else m.score += std::min((-30000000 + heuristics.history[board.board[move_from(m.move)]][move_to(m.move)]) >> 3, 74);
-			//if (std::min((-30000000 + heuristics.history[board.board[move_from(m.move)]][move_to(m.move)]) >> 3, 74) == 74)
-			//	std::cerr << "history overflow\n";
+	void score(Board &board, Gen_stage sort_type)
+	{
+		if (sort_type == CAPTURE_GEN) {
+			for (unsigned n = position; n < move_list.size; n++) {
+				Scored_move &scored_move = move_list.moves[n];
+				Move move = scored_move.move;
+				scored_move.score = 10 * piece_value[board.board[move_to(move)]] - piece_value[board.board[move_from(move)]];
+			}
+		}
+		if (sort_type == IN_CHECK_GEN) {
+			for (unsigned n = position; n < move_list.size; n++) {
+				Scored_move &scored_move = move_list.moves[n];
+				scored_move.score = 0;
+				Move move = scored_move.move;
+				if (capture(move)) {
+					scored_move.score = 10 * piece_value[board.board[move_to(move)]] - piece_value[board.board[move_from(move)]];
+				}
+			}
 		}
 	}
-}
-
-static inline Move next_move(Move_generator &move_generator, unsigned index)
-{
-	unsigned best_index = index;
-	int16_t best_score = move_generator.move_list[index].score;
-	for (unsigned n = index + 1; n < move_generator.size; n++) {
-		Scored_move &m = move_generator.move_list[n];
-		if (m.score > best_score) {
-			best_score = m.score;
-			best_index = n;
+	Move next_move(Board &board)
+	{
+		// Generate captures and queen promotions
+		if (stage == Quiescence_stage::GENERATE_CAPTURES) {
+			generate(board, move_list, CAPTURE_GEN);
+			score(board, CAPTURE_GEN);
+			stage = Quiescence_stage::GOOD_CAPTURES;
 		}
+		if (stage == Quiescence_stage::GOOD_CAPTURES) {
+			while (position < move_list.size) {
+				Move move = next_best_move(move_list);
+				if (see(board, move) > 0 || promotion(move)) return move;
+			}
+		}
+		// Generate check evasions.
+		if (stage == Quiescence_stage::GENERATE_IN_CHECKS) {
+			generate(board, move_list, IN_CHECK_GEN);
+			score(board, IN_CHECK_GEN);
+			stage = Quiescence_stage::IN_CHECKS;
+		}
+		if (stage == Quiescence_stage::IN_CHECKS) {
+			while (position < move_list.size) {
+				Move move = next_best_move(move_list);
+				return move;
+			}
+		}
+		return INVALID_MOVE;
 	}
-	std::swap(move_generator.move_list[index], move_generator.move_list[best_index]);
-	return move_generator.move_list[index].move;
-}*/
+};

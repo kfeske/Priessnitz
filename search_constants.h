@@ -6,9 +6,7 @@ struct Search_constants
 		0, 100, 200, 300, 400, 550, 650
 	};
 
-	int REVERSE_FUTILITY_MARGIN[10] = {
-		0, 60, 120, 180, 240, 300, 360, 420, 480, 540
-	};
+	int REVERSE_FUTILITY_MARGIN = 60;
 
 	int LMP_MARGIN[5] = {
 		0, 6, 11, 24, 24

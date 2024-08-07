@@ -63,12 +63,12 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 	TT_flag flag = UPPERBOUND;
 
 	// Generate winning captures and Queen promotions only. In check, generate all moves.
-	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
-	move_orderer.stage = (in_check) ? GENERATE_IN_CHECKS : GENERATE_QUIESCENCES;
+	Quiescence_move_orderer move_orderer {};
+	move_orderer.stage = (in_check) ? Quiescence_stage::GENERATE_IN_CHECKS : Quiescence_stage::GENERATE_CAPTURES;
 	int move_count = 0;
 
 	Move move;
-	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
+	while ((move = move_orderer.next_move(board)) != INVALID_MOVE) {
 		if (!board.legal(move)) continue;
 
 		move_count++;
@@ -171,7 +171,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	// Reverse Futility Pruning
 	// The position is really bad for the opponent by a big margin, pruning this node is probably safe
-	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - search_constants.REVERSE_FUTILITY_MARGIN[depth] >= beta)
+	if (!pv_node && !in_check && depth < 10 && !mate(beta) && static_eval - search_constants.REVERSE_FUTILITY_MARGIN * depth >= beta)
 		return beta;
 
 	// Null Move Pruning
@@ -196,6 +196,32 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		}
 	}
 
+	//if (!pv_node && !in_check && depth >= 5 && !mate(beta)) {
+
+	//	int prob_cut_beta = beta + 100;
+
+	//	Move_orderer move_orderer { board, INVALID_MOVE, heuristics, 0 };
+	//	move_orderer.stage = GENERATE_QUIESCENCES;
+
+	//	Move move;
+	//	while ((move = move_orderer.next_move(board, false)) != INVALID_MOVE) {
+	//		if (!board.legal(move)) continue;
+
+	//		board.make_move(move);
+
+	//		evaluation = -quiescence_search(board, -prob_cut_beta, -prob_cut_beta + 1, ply + 1);
+
+	//		if (evaluation >= prob_cut_beta)
+	//			evaluation = -search(board, depth - 4, ply + 1, -prob_cut_beta, -prob_cut_beta + 1, INVALID_MOVE, true);
+
+	//		board.unmake_move(move);
+
+	//		if (evaluation >= prob_cut_beta)
+	//			return prob_cut_beta;
+	//	}
+	//}
+
+
 	bool futile = false;
 	if (!pv_node && depth < 7 && !in_check)
 		futile = static_eval + search_constants.FUTILITY_MARGIN[depth] <= alpha;
@@ -210,8 +236,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 	// In the end, we decrement the history counters for bad quiet moves.
 	Move_list bad_quiets_searched;
 
-	Move_orderer move_orderer { board, hash_move, heuristics, ply };
-	move_orderer.stage = (in_check) ? IN_CHECK_TRANSPOSITION : TRANSPOSITION;
+	Main_move_orderer move_orderer { board, hash_move, heuristics, ply };
+	move_orderer.stage = (in_check) ? Main_stage::IN_CHECK_TRANSPOSITION : Main_stage::TRANSPOSITION;
 	Move move;
 	while ((move = move_orderer.next_move(board, skip_quiets)) != INVALID_MOVE) {
 		if (!board.legal(move) || move == skip) continue;
@@ -237,7 +263,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			// SEE Pruning
 			// Skip moves that lose material at low depths
-			if (move_orderer.stage > GOOD_CAPTURES && depth < 6 && !promotion(move) && see(board, move) < -20 * depth)
+			if (move_orderer.stage > Main_stage::GOOD_CAPTURES && depth < 6 && !promotion(move) && see(board, move) < -20 * depth)
 				continue;
 		}
 

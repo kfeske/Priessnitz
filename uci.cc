@@ -145,49 +145,9 @@ void UCI::setoption_command(std::istringstream &iss)
 		int &value = search.search_constants.FUTILITY_MARGIN[6];
 		iss >> value;
 	}
-	if (parsed == "RfpMargin1") {
+	if (parsed == "RfpMargin") {
 		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[1];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin2") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[2];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin3") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[3];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin4") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[4];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin5") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[5];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin6") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[6];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin7") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[7];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin8") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[8];
-		iss >> value;
-	}
-	if (parsed == "RfpMargin9") {
-		iss >> parsed; // value token
-		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN[9];
+		int &value = search.search_constants.REVERSE_FUTILITY_MARGIN;
 		iss >> value;
 	}
 	if (parsed == "LmpMargin1") {
