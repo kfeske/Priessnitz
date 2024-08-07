@@ -3,8 +3,6 @@
 
 #include <uci.h>
 
-//TranspositionTable<(500 * 1024 * 1024) / sizeof(TTEntry)> Search::tt = {};
-
 int main()
 {
 	static UCI uci {};

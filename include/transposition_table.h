@@ -17,7 +17,6 @@ struct TranspositionTable
 
 	bool probe(uint64_t key, unsigned depth, int alpha, int beta)
 	{
-		pv_move = INVALID_MOVE;
 		uint64_t index = key % size;
 		TTEntry &entry = entries[index];
 		if (entry.key == key) {
@@ -26,21 +25,27 @@ struct TranspositionTable
 
 				int evaluation = entry.evaluation;
 
+				// correct the mate scores, as we store mates using the distance to the node, they were found in
+				// in case of a transposition, we want to know, how far the mate is
 				if (evaluation > 31000)
 					evaluation += depth;
 				if (evaluation < -31000)
 					evaluation -= depth;
 
+				// we have an exact score for that position. Great!
+				// (that means, we searched all moves and received a new best move)
 				if (entry.flag == EXACT) {
 					current_evaluation = evaluation;
 					return true;
 				}
+				// this value is too high for us to be concered about, it will cause a beta-cutoff
 				if (entry.flag == LOWERBOUND && evaluation >= beta) {
-					current_evaluation = evaluation;
+					current_evaluation = beta;
 					return true;
 				}
+				// this value is too low, we will not exceed alpha in the search
 				else if (entry.flag == UPPERBOUND && evaluation <= alpha) {
-					current_evaluation = evaluation;
+					current_evaluation = alpha;
 					return true;
 				}
 			}
@@ -52,11 +57,14 @@ struct TranspositionTable
 	{
 		uint64_t index = key % size;
 		TTEntry &entry = entries[index];
-		if (entry.depth > depth) return;
+		if (entry.depth > depth) return; // do not overwrite a more accurate entry
 		entry.key = key;
 		entry.depth = depth;
 		entry.best_move = best_move;
 		entry.flag = flag;
+
+		// correct the mate scores, as we store mates using the distance to the node, they were found in
+		// in case of a transposition, we want to know, how far the mate is
 		if (evaluation > 31000)
 			evaluation -= depth;
 		if (evaluation < -31000)

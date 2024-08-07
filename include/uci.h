@@ -56,7 +56,6 @@ struct UCI
 
 	void go_command(std::istringstream &iss)
 	{
-		search.reset();
 		std::string parsed {};
 		while(iss >> parsed) {
 
@@ -76,7 +75,6 @@ struct UCI
 			}
 		}
 		search.start_search(board);
-		std::cout << "bestmove " << move_string(Move(search.best_move)) << "\n";
 	}
 
 	void await_input()

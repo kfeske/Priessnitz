@@ -5,13 +5,13 @@
 
 struct Heuristics// : Noncopyable
 {
-	PSQT psqt {};
+	PSQT psqt;
 	Move killer_move[2][64];
 	int history_move[16][64];
 	//Move pv_table[64][64];
 	//unsigned pv_lenght[64];
 	//Move previous_pv_line[64];
-	//Move pv_move = INVALID_MOVE;
+	Move hash_move = INVALID_MOVE;
 };
 
 #include <move_ordering.h>
@@ -33,9 +33,9 @@ struct Search
 	long cutoffspv = 0;
 	//long tt_cutoffs = 0;
 
-	Heuristics heuristics {};
+	Heuristics heuristics;
 
-	//static TranspositionTable<(500 * 1024 * 1024) / sizeof(TTEntry)> tt;
+	TranspositionTable<(64 * 1024 * 1024) / sizeof(TTEntry)> tt;
 
 	double time_start;
 	bool abort_search;
@@ -54,6 +54,7 @@ struct Search
 		cutoffspv = 0;
 		//tt_cutoffs = 0;
 		heuristics = {};
+		for (TTEntry &entry : tt.entries) entry = {};
 	}
 
 	int qsearch(Board &board, int alpha, int beta, unsigned ply)
@@ -106,18 +107,6 @@ struct Search
 			return 0;
 		}
 
-		/*uint64_t z_key = 0ULL;
-		for (unsigned square = 0; square <= 63; square++) {
-			z_key ^= board.zobrist.piece_rand[board.board[square]][square];
-		}
-		if (board.side_to_move == BLACK)
-			z_key ^= board.zobrist.side_rand;
-		if (board.history[board.game_ply].ep_sq != SQ_NONE)
-			z_key ^= board.zobrist.ep_rand[file(board.history[board.game_ply].ep_sq)];
-		z_key ^= board.zobrist.castling_rand[board.history[board.game_ply].castling_rights];
-		if (z_key != board.zobrist.key)
-			tt_cutoffs++;*/
-
 		Move best_move_this_node = INVALID_MOVE;
 		int evaluation;
 		bool in_check = board.in_check();
@@ -125,8 +114,6 @@ struct Search
 		// ply describes how far we are from the root of the search tree
 		unsigned ply_from_root = current_depth - depth;
 		//heuristics.pv_lenght[ply] = ply;
-		//TTEntryFlag flag = UPPERBOUND;
-
 
 		if (depth == 0) {
 			nodes_searched++;
@@ -134,11 +121,19 @@ struct Search
 			return qsearch(board, alpha, beta, 0);
 		}
 
-		// check for any transpositions
-		/*if (tt.probe(board.zobrist.key, depth, alpha, beta))
+		// if no move exceeds alpha, we do not have an exact evaluation,
+		// we only know that none of our moves can improve it. It can still be stored as an UPPERBOUND though!
+		TTEntryFlag flag = UPPERBOUND;
+
+		tt.pv_move = INVALID_MOVE;
+
+		// check for any transpositions at higher or equal depths
+		if (ply_from_root > 0 && tt.probe(board.zobrist.key, depth, alpha, beta))
 			return tt.current_evaluation;
-		heuristics.pv_move = tt.pv_move;
-		*/
+
+		// in case of a transposition at a lower depth, we can still use the best move in our move ordering
+		heuristics.hash_move = tt.pv_move;
+
 		// Null Move Pruning
 		// if there is a beta cutoff even if we skip our turn (permitting the opponent to play two moves in a row),
 		// the position is so terrible for the opponent that we can just prune the whole branch
@@ -161,17 +156,19 @@ struct Search
 		MoveGenerator move_generator {};
 		move_generator.generate_all_moves(board);
 
+		// game over
 		if (move_generator.size == 0) {
 			if (in_check) return -mate_score - depth;
 			else return 0;
 		}
-
 		if (board.repetition || board.history[board.game_ply].rule_50 >= 100)
 			return 0;
 
+		// score each move depending on how good it looks
 		rate_moves(board, heuristics, move_generator, best_move, false, ply_from_root);
 
 		for (unsigned n = 0; n < move_generator.size; n++) {
+
 			Move move = next_move(move_generator, n);
 
 			board.make_move(move);
@@ -204,12 +201,16 @@ struct Search
 			if (abort_search) return 0;
 
 			if (evaluation >= beta) {
-				// Beta cutoff. There is a better line for the opponent
-				// we know the opponent can get at least beta, so a branch that evaluates to more than beta
-				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
-				// where he can get at least beta
 
-				//flag = LOWERBOUND;
+				// Beta cutoff. There is a better line for the opponent.
+				// We know the opponent can get at least beta, so a branch that evaluates to more than beta
+				// is irrelevant to search, since a better alternative for the opponent has alrady been found,
+				// where he can get at least beta.
+
+
+				// we have not looked at every move, since we pruned this node. That means, we do not have an exact evaluation,
+				// we only know that it is good enough to cause a beta-cutoff. It can still be stored as a LOWERBOUND though!
+				tt.store(board.zobrist.key, depth, alpha, best_move_this_node, LOWERBOUND);
 
 				if (flags_of(move) != CAPTURE) {
 					// this is a killer move - Store it!
@@ -226,7 +227,7 @@ struct Search
 				// found a better move
 				alpha = evaluation;
 				best_move_this_node = move;
-				//flag = EXACT;
+				flag = EXACT;
 
 				// remember principle variation (sequence of best moves)
 				//heuristics.pv_table[ply][ply] = move;
@@ -243,7 +244,7 @@ struct Search
 			}
 		}
 
-		//tt.store(board.zobrist.key, depth, best_evaluation, best_move_this_node, flag);
+		tt.store(board.zobrist.key, depth, alpha, best_move_this_node, flag);
 
 		best_move_this_iteration = best_move_this_node;
 		return alpha;
@@ -254,10 +255,6 @@ struct Search
 		int evaluation = 0;
 		int final_evaluation = 0;
 		abort_search = false;
-		//memset(heuristics.killer_move, INVALID_MOVE, sizeof(heuristics.killer_move));
-		//memset(heuristics.pv_table, INVALID_MOVE, sizeof(heuristics.pv_table));
-		//tt = {};
-		//tt_cutoffs = 0;
 
 		time_start = SDL_GetTicks();
 		int nodes_previous_iteration;
@@ -292,6 +289,8 @@ struct Search
 
 		std::cerr << "cut offs pv " << cutoffspv << " / " << cutoffs << "\n";
 		std::cerr << "info total nodes " << total_nodes << "\n";
+		std::cout << "bestmove " << move_string(best_move) << "\n";
+		reset(); // make sure to clear all search data to avoid them affecting the next search
 		return final_evaluation;
 	}
 };

@@ -18,19 +18,21 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 		Scored_move &m = move_generator.move_list[n];
 		MoveFlags flags = flags_of(m.move);
 		//PieceType pt = type_of(board.board[move_from(m.move)]);
-		// same move as principle variation move of previous iteration (iterative deepening)
 
+		// same move as principle variation move of previous iteration (iterative deepening)
 		if (m.move == pv_move) {
 			m.score += 30000;
 			continue;
 		}
 
 		// transposition table move
-		//if (move == heuristics.pv_move)
-		//	return 10000;
+		else if (m.move == heuristics.hash_move) {
+			m.score += 10000;
+			continue;
+		}
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
-		if (flags == CAPTURE)
+		else if (flags == CAPTURE)
 			m.score += 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]);
 
 		// a promotion is likely to be a good idea
