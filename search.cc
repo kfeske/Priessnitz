@@ -220,8 +220,10 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 			board.unmake_move(move);
 
-			if (evaluation >= probcut_beta)
+			if (evaluation >= probcut_beta) {
+				tt.store(board.zobrist.key, depth, beta, move, static_eval, LOWERBOUND, age);
 				return probcut_beta;
+			}
 		}
 	}
 
