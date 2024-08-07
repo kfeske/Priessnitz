@@ -47,7 +47,12 @@ enum Indicies {
 	MG_ROOK_HALF_OPEN_FILE = EG_ROOK_OPEN_FILE + 1,
 	EG_ROOK_HALF_OPEN_FILE = MG_ROOK_HALF_OPEN_FILE + 1,
 
-	MG_KNIGHT_MOBILITY = EG_ROOK_HALF_OPEN_FILE + 1,
+	MG_KNIGHT_OUTPOST 	    = EG_ROOK_HALF_OPEN_FILE + 1,
+	EG_KNIGHT_OUTPOST 	    = MG_KNIGHT_OUTPOST + 1,
+	MG_KNIGHT_OUTPOST_SUPPORTED = EG_KNIGHT_OUTPOST + 1,
+	EG_KNIGHT_OUTPOST_SUPPORTED = MG_KNIGHT_OUTPOST_SUPPORTED + 1,
+
+	MG_KNIGHT_MOBILITY = EG_KNIGHT_OUTPOST_SUPPORTED + 1,
 	EG_KNIGHT_MOBILITY = MG_KNIGHT_MOBILITY + 9,
 	MG_BISHOP_MOBILITY = EG_KNIGHT_MOBILITY + 9,
 	EG_BISHOP_MOBILITY = MG_BISHOP_MOBILITY + 14,
@@ -70,7 +75,7 @@ enum Indicies {
 enum Tuning_params {
 	NUM_TRAINING_POSITIONS = 6500000, // number of training positions
 	NUM_TEST_POSITIONS = 653653,      // number of test positions
-	NUM_TABLES = 45,		  // number of tables to be tuned (eg. pawn piece square table)
+	NUM_TABLES = 49,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
 	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
@@ -113,6 +118,7 @@ struct Tuner
 					   MG_BACKWARD, EG_BACKWARD, MG_CHAINED, EG_CHAINED,
 					   MG_DOUBLE_BISHOP, EG_DOUBLE_BISHOP,
 					   MG_ROOK_OPEN_FILE, EG_ROOK_OPEN_FILE, MG_ROOK_HALF_OPEN_FILE, EG_ROOK_HALF_OPEN_FILE,
+					   MG_KNIGHT_OUTPOST, EG_KNIGHT_OUTPOST, MG_KNIGHT_OUTPOST_SUPPORTED, EG_KNIGHT_OUTPOST_SUPPORTED,
 					   MG_KNIGHT_MOBILITY, EG_KNIGHT_MOBILITY, MG_BISHOP_MOBILITY, EG_BISHOP_MOBILITY, MG_ROOK_MOBILITY, EG_ROOK_MOBILITY,
 					   MG_QUEEN_MOBILITY,  EG_QUEEN_MOBILITY,  MG_KING_MOBILITY,   EG_KING_MOBILITY,
 			     	      	   RING_POTENCY, ZONE_POTENCY, RING_PRESSURE, ZONE_PRESSURE, PAWN_SHIELD,
@@ -169,6 +175,11 @@ struct Tuner
 		case EG_ROOK_OPEN_FILE:      return eval.eg_rook_open_file;
 		case MG_ROOK_HALF_OPEN_FILE: return eval.mg_rook_half_open_file;
 		case EG_ROOK_HALF_OPEN_FILE: return eval.eg_rook_half_open_file;
+
+		case MG_KNIGHT_OUTPOST:	return eval.mg_knight_outpost;
+		case EG_KNIGHT_OUTPOST: return eval.eg_knight_outpost;
+		case MG_KNIGHT_OUTPOST_SUPPORTED: return eval.mg_knight_outpost_supported;
+		case EG_KNIGHT_OUTPOST_SUPPORTED: return eval.eg_knight_outpost_supported;
 
 		case MG_KNIGHT_MOBILITY: return eval.mg_knight_mobility[pos];
 		case EG_KNIGHT_MOBILITY: return eval.eg_knight_mobility[pos];
@@ -337,6 +348,10 @@ struct Tuner
 		std::cerr << "\nint mg_rook_half_open_file = " << int_weight(MG_ROOK_HALF_OPEN_FILE) << ";\n";
 		std::cerr <<   "int eg_rook_half_open_file = " << int_weight(EG_ROOK_HALF_OPEN_FILE) << ";\n";
 
+		std::cerr << "\nint mg_knight_outpost = "           << int_weight(MG_KNIGHT_OUTPOST) << ";\n";
+		std::cerr <<   "int eg_knight_outpost = "	    << int_weight(EG_KNIGHT_OUTPOST) << ";\n";
+		std::cerr << "\nint mg_knight_outpost_supported = " << int_weight(MG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
+		std::cerr <<   "int eg_knight_outpost_supported = " << int_weight(EG_KNIGHT_OUTPOST_SUPPORTED) << ";\n";
 	}
 
 	// this functions sets the result of a game; 0 for black win, 0.5 for a draw and 1 for white win
@@ -406,8 +421,8 @@ struct Tuner
 			switch (type) {
 			case PAWN:
 				{
-				uint64_t friendly_pawns = board.pieces[piece_of(friendly, PAWN)];
-				uint64_t enemy_pawns = board.pieces[piece_of(enemy, PAWN)];
+				uint64_t friendly_pawns = board.pieces(friendly, PAWN);
+				uint64_t enemy_pawns = board.pieces(enemy, PAWN);
 				unsigned forward = (friendly == WHITE) ? UP : DOWN;
 				uint64_t adjacent_files = isolated_pawn_mask(file_num(square));
 
@@ -460,11 +475,24 @@ struct Tuner
 				unsigned safe_squares = pop_count(attacks & ~board.all_pawn_attacks(swap(friendly)));
 				influences[MG_KNIGHT_MOBILITY + safe_squares] += side * mg_phase;
 				influences[EG_KNIGHT_MOBILITY + safe_squares] += side * eg_phase;
+
+				if (1ULL << square & outpost_mask(friendly) &&
+				    !(pawn_threat_mask(friendly, square) & board.pieces(enemy, PAWN))) {
+					if (pawn_attacks(enemy, square) & board.pieces(friendly, PAWN)) {
+						influences[MG_KNIGHT_OUTPOST_SUPPORTED] += side * mg_phase;
+						influences[EG_KNIGHT_OUTPOST_SUPPORTED] += side * eg_phase;
+					}
+					else {
+						influences[MG_KNIGHT_OUTPOST] += side * mg_phase;
+						influences[EG_KNIGHT_OUTPOST] += side * eg_phase;
+					}
+
+				}
 				continue;
 				}
 			case BISHOP:
 				{
-				uint64_t ray_blockers = board.occ & ~board.pieces[piece_of(friendly, QUEEN)];
+				uint64_t ray_blockers = board.occ & ~board.pieces(friendly, QUEEN);
 				uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
 				extract_king_safety(sample, piece, attacks, enemy);
 
@@ -475,7 +503,7 @@ struct Tuner
 				}
 			case ROOK:
 				{
-				uint64_t ray_blockers = board.occ & ~(board.pieces[piece_of(friendly, QUEEN)] | board.pieces[piece_of(friendly, ROOK)]);
+				uint64_t ray_blockers = board.occ & ~(board.pieces(friendly, QUEEN) | board.pieces(friendly, ROOK));
 				uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
 				extract_king_safety(sample, piece, attacks, enemy);
 
@@ -484,8 +512,8 @@ struct Tuner
 				influences[EG_ROOK_MOBILITY + safe_squares] += side * eg_phase;
 
 				uint64_t rook_file = file(square);
-				if (!(rook_file & board.pieces[piece_of(friendly, PAWN)])) {
-					if (!(rook_file & board.pieces[piece_of(enemy, PAWN)])) {
+				if (!(rook_file & board.pieces(friendly, PAWN))) {
+					if (!(rook_file & board.pieces(enemy, PAWN))) {
 						influences[MG_ROOK_OPEN_FILE] += side * mg_phase;
 						influences[EG_ROOK_OPEN_FILE] += side * eg_phase;
 					}
@@ -514,7 +542,7 @@ struct Tuner
 				influences[MG_KING_MOBILITY + safe_squares] += side * mg_phase;
 				influences[EG_KING_MOBILITY + safe_squares] += side * eg_phase;
 
-				uint64_t shield_pawns = board.pieces[piece_of(friendly, PAWN)] & pawn_shield(friendly, square);
+				uint64_t shield_pawns = board.pieces(friendly, PAWN) & pawn_shield(friendly, square);
 				while (shield_pawns) {
 					unsigned pawn_square = pop_lsb(shield_pawns);
 					unsigned shield_square = rank_distance(square, pawn_square) * 2 + file_distance(square, pawn_square);
@@ -525,11 +553,11 @@ struct Tuner
 			}
 		}
 		// bishop pair
-		if (pop_count(board.pieces[W_BISHOP]) >= 2) {
+		if (pop_count(board.pieces(WHITE, BISHOP)) >= 2) {
 			influences[MG_DOUBLE_BISHOP] += mg_phase;
 			influences[EG_DOUBLE_BISHOP] += eg_phase;
 		}
-		if (pop_count(board.pieces[B_BISHOP]) >= 2) {
+		if (pop_count(board.pieces(BLACK, BISHOP)) >= 2) {
 			influences[MG_DOUBLE_BISHOP] -= mg_phase;
 			influences[EG_DOUBLE_BISHOP] -= eg_phase;
 		}

@@ -219,7 +219,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 		bool quiet_move = !capture(move) && !promotion(move);
 
-		//// Forward Pruning at low depths
+		// Forward Pruning at low depths
 		if (!in_check && move_count > 1 && !mate(alpha)) {
 
 			// Late Move Pruning

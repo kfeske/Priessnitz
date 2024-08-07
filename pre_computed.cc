@@ -164,8 +164,8 @@ Pre_computed generate_lookup()
 			}
 		}
 	}
+	// Evaluation tables
 	for (unsigned square = 0; square < 64; square++) {
-		// Evaluation tables
 
 		// The file of the square, and the two adjacent files
 		uint64_t adjacent_mask = file(square);
@@ -188,7 +188,12 @@ Pre_computed generate_lookup()
 		// A pawn is isolated, if there are no pawns on the neighbor files
 		p.isolated_pawn_mask[file_num(square)] = adjacent_mask & ~file(square);
 
+		// Mask of the left and right neighbor squares
 		p.neighbor_mask[square] = adjacent_mask & rank(square) & ~(1ULL << square);
+		
+		// Used to check if an opponent pawn might easily attack the square
+		p.pawn_threat_mask[WHITE][square] = white_forward_mask & adjacent_mask & ~file(square);
+		p.pawn_threat_mask[BLACK][square] = black_forward_mask & adjacent_mask & ~file(square);
 
 		// The king zone squares are the squares, the king can reach plus three squares in the enemy direction
 		if (square >= 24) p.king_zone[WHITE][square] = p.king_attacks[square - 24] | 1ULL << (square - 24);
@@ -198,6 +203,9 @@ Pre_computed generate_lookup()
 		if (square >= 8)  p.pawn_shield[WHITE][square] = p.king_attacks[square - 8] | 1ULL << (square - 8);
 		if (square <= 55) p.pawn_shield[BLACK][square] = p.king_attacks[square + 8] | 1ULL << (square + 8);
 	}
+	p.outpost_mask[WHITE] = RANK_5 | RANK_6 | RANK_7;
+	p.outpost_mask[BLACK] = RANK_4 | RANK_3 | RANK_2;
+
 	return p;
 }
 

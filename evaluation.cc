@@ -83,6 +83,20 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 		mg_bonus[friendly] += mg_knight_psqt[relative_square] + mg_piece_value[KNIGHT];
 		eg_bonus[friendly] += eg_knight_psqt[relative_square] + eg_piece_value[KNIGHT];
 
+		// Knight outpost
+		if (1ULL << square & outpost_mask(friendly) &&
+		    !(pawn_threat_mask(friendly, square) & board.pieces(enemy, PAWN))) {
+			if (pawn_attacks(enemy, square) & board.pieces(friendly, PAWN)) {
+				mg_bonus[friendly] += mg_knight_outpost_supported;
+				eg_bonus[friendly] += eg_knight_outpost_supported;
+			}
+			else {
+				mg_bonus[friendly] += mg_knight_outpost;
+				eg_bonus[friendly] += eg_knight_outpost;
+			}
+
+		}
+
 		// Attack on the enemy king
 		uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
 		note_king_attacks(KNIGHT, attacks, friendly);
