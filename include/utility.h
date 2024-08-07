@@ -108,45 +108,11 @@ PieceType type_of(Piece p)
 	return PieceType(p & 0b111);
 }
 
-enum Value : int {
-	PAWN_MG = 82,  PAWN_EG = 94,
-	KNIGHT_MG = 337, KNIGHT_EG = 281,
-	BISHOP_MG = 365, BISHOP_EG = 297,
-	ROOK_MG = 477,  ROOK_EG = 512,
-	QUEEN_MG = 1025, QUEEN_EG = 936
-};
+int piece_value[14] = { 100, 300, 320, 500, 900, 1000, 0, 0,
+			100, 300, 320, 500, 900, 1000 };
 
-enum Phase {
-	MIDGAME, ENDGAME,
-};
-
-Value piece_value(Piece pc, Phase ph)
-{
-	switch(pc) {
-	case W_PAWN:   return (ph == MIDGAME) ? Value( PAWN_MG)   : Value( PAWN_EG);
-	case B_PAWN:   return (ph == MIDGAME) ? Value(-PAWN_MG)   : Value(-PAWN_EG);
-	case W_KNIGHT: return (ph == MIDGAME) ? Value( KNIGHT_MG) : Value( KNIGHT_EG);
-	case B_KNIGHT: return (ph == MIDGAME) ? Value(-KNIGHT_MG) : Value(-KNIGHT_EG);
-	case W_BISHOP: return (ph == MIDGAME) ? Value( BISHOP_MG) : Value( BISHOP_EG);
-	case B_BISHOP: return (ph == MIDGAME) ? Value(-BISHOP_MG) : Value(-BISHOP_EG);
-	case W_ROOK:   return (ph == MIDGAME) ? Value( ROOK_MG)   : Value( ROOK_EG);
-	case B_ROOK:   return (ph == MIDGAME) ? Value(-ROOK_MG)   : Value(-ROOK_EG);
-	case W_QUEEN:  return (ph == MIDGAME) ? Value( QUEEN_MG)  : Value( QUEEN_EG);
-	case B_QUEEN:  return (ph == MIDGAME) ? Value(-QUEEN_MG)  : Value(-QUEEN_EG);
-	default: return Value(0);
-	}
-}
-
-Value non_pawn_value(Piece pc)
-{
-	switch(type_of(pc)) {
-	case KNIGHT: return KNIGHT_MG;
-	case BISHOP: return BISHOP_MG;
-	case ROOK:   return ROOK_MG;
-	case QUEEN:  return QUEEN_MG;
-	default: return Value(0);
-	}
-}
+int non_pawn_value[14] = { 0, 300, 320, 500, 900, 0, 0, 0,
+			   0, 300, 320, 500, 900, 0 };
 
 enum Direction {
 	NORTH = -8,

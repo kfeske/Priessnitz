@@ -7,18 +7,6 @@ struct Heuristics
 	int32_t history[16][64];
 };
 
-int value(Piece p)
-{
-	switch(p) {
-	case W_PAWN:   case B_PAWN:   return PAWN_MG;
-	case W_KNIGHT: case B_KNIGHT: return KNIGHT_MG;
-	case W_BISHOP: case B_BISHOP: return BISHOP_MG;
-	case W_ROOK:   case B_ROOK:   return ROOK_MG;
-	case W_QUEEN:  case B_QUEEN:  return QUEEN_MG;
-	default: return 0;
-	}
-}
-
 void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_generator, bool quiescence, unsigned ply)
 {
 	for (unsigned n = 0; n < move_generator.size; n++) {
@@ -31,12 +19,8 @@ void rate_moves(Board &board, Heuristics &heuristics, MoveGenerator &move_genera
 		}
 
 		// MVV - LVA (most valuable victim, least valuable attacker)
-		else if (capture(m.move)) {
-			//if (see(board, m.move) >= 0)
-			//	m.score += std::min(5000 + 10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]), 29999);
-			//else
-				m.score += std::min(10 * value(board.board[move_to(m.move)]) - value(board.board[move_from(m.move)]), 29999);
-		}
+		else if (capture(m.move))
+			m.score += std::min(10 * piece_value[board.board[move_to(m.move)]] - piece_value[board.board[move_from(m.move)]], 29999);
 
 		else if (promotion(m.move)) m.score += 100;
 

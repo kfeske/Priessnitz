@@ -104,7 +104,7 @@ struct Board : Board_state
 		set_bit(color[c], square);
 		occ = color[WHITE] | color[BLACK];
 		board[square] = p;
-		non_pawn_material[c] += non_pawn_value(p);
+		non_pawn_material[c] += non_pawn_value[p];
 		zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
 	}
 
@@ -117,7 +117,7 @@ struct Board : Board_state
 		pop_bit(color[c], square);
 		occ = color[WHITE] | color[BLACK];
 		board[square] = NO_PIECE;
-		non_pawn_material[c] -= non_pawn_value(p);
+		non_pawn_material[c] -= non_pawn_value[p];
 		zobrist.piece_side_key ^= zobrist.piece_rand[p][square];
 	}
 
@@ -466,7 +466,7 @@ struct Board : Board_state
 				Piece pc = Piece(p);
 				unsigned square = pop_lsb(bb);
 				board[square] = pc;
-				non_pawn_material[color_of(pc)] += non_pawn_value(pc);
+				non_pawn_material[color_of(pc)] += non_pawn_value[pc];
 				zobrist.piece_side_key ^= zobrist.piece_rand[pc][square];
 			}
 		}

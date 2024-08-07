@@ -123,18 +123,18 @@ struct Tuner
 	int table_value(Indicies table_index, unsigned pos)
 	{
 		switch (table_index) {
-		case MG_PAWN_PSQT: return eval.psqt.midgame[W_PAWN][pos];
-		case MG_KNIGHT_PSQT: return eval.psqt.midgame[W_KNIGHT][pos];
-		case MG_BISHOP_PSQT: return eval.psqt.midgame[W_BISHOP][pos];
-		case MG_ROOK_PSQT: return eval.psqt.midgame[W_ROOK][pos];
-		case MG_QUEEN_PSQT: return eval.psqt.midgame[W_QUEEN][pos];
-		case MG_KING_PSQT: return eval.psqt.midgame[W_KING][pos];
-		case EG_PAWN_PSQT: return eval.psqt.endgame[W_PAWN][pos];
-		case EG_KNIGHT_PSQT: return eval.psqt.endgame[W_KNIGHT][pos];
-		case EG_BISHOP_PSQT: return eval.psqt.endgame[W_BISHOP][pos];
-		case EG_ROOK_PSQT: return eval.psqt.endgame[W_ROOK][pos];
-		case EG_QUEEN_PSQT: return eval.psqt.endgame[W_QUEEN][pos];
-		case EG_KING_PSQT: return eval.psqt.endgame[W_KING][pos];
+		case MG_PAWN_PSQT: return eval.mg_pawn_psqt[pos];
+		case MG_KNIGHT_PSQT: return eval.mg_knight_psqt[pos];
+		case MG_BISHOP_PSQT: return eval.mg_bishop_psqt[pos];
+		case MG_ROOK_PSQT: return eval.mg_rook_psqt[pos];
+		case MG_QUEEN_PSQT: return eval.mg_queen_psqt[pos];
+		case MG_KING_PSQT: return eval.mg_king_psqt[pos];
+		case EG_PAWN_PSQT: return eval.eg_pawn_psqt[pos];
+		case EG_KNIGHT_PSQT: return eval.eg_knight_psqt[pos];
+		case EG_BISHOP_PSQT: return eval.eg_bishop_psqt[pos];
+		case EG_ROOK_PSQT: return eval.eg_rook_psqt[pos];
+		case EG_QUEEN_PSQT: return eval.eg_queen_psqt[pos];
+		case EG_KING_PSQT: return eval.eg_king_psqt[pos];
 		case MG_PASSED_PAWN: return eval.mg_passed_bonus[pos];
 		case EG_PASSED_PAWN: return eval.eg_passed_bonus[pos];
 		case MG_ISOLATED: return eval.mg_isolated_penalty;
@@ -220,21 +220,108 @@ struct Tuner
 		}
 	}
 
+	int int_weight(unsigned index)
+	{
+		return std::round(weights[index]);
+	}
+
+	void print_int_weight(unsigned index)
+	{
+		std::cerr << int_weight(index) << ", ";
+	}
+
+	void print_64_field(Indicies index)
+	{
+		for (unsigned i = 0; i < 64; i++) {
+			if (i % 8 == 0) std::cerr << "\n	";
+			print_int_weight(index + i);
+		}
+		std::cerr << "\n};\n";
+	}
+
 	void print_weights()
 	{
-		Indicies previous_table = END_INDEX;
 		std::cerr << "\ncurrent weights:\n";
-		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
 
-			Indicies table = table_of(i);
-			if (table != previous_table) {
-				previous_table = table;
-				print_table_name(table);
-			}
+		std ::cerr << "int mg_piece_value[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_VALUES + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_piece_value[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_VALUES + i);
+		std::cerr << "};\n";
 
-			std::cerr << int(weights[i]) << ", ";
-			if (table >= MG_PAWN_PSQT && table <= EG_PASSED_PAWN && (i + 13) % 8 == 0) std::cerr << "\n";
-		}
+		std::cerr << "\nint mg_pawn_psqt[64] = {";
+		print_64_field(MG_PAWN_PSQT);
+		std::cerr << "int mg_knight_psqt[64] = {";
+		print_64_field(MG_KNIGHT_PSQT);
+		std::cerr << "int mg_bishop_psqt[64] = {";
+		print_64_field(MG_BISHOP_PSQT);
+		std::cerr << "int mg_rook_psqt[64] = {";
+		print_64_field(MG_ROOK_PSQT);
+		std::cerr << "int mg_queen_psqt[64] = {";
+		print_64_field(MG_QUEEN_PSQT);
+		std::cerr << "int mg_king_psqt[64] = {";
+		print_64_field(MG_KING_PSQT);
+		std::cerr << "int eg_pawn_psqt[64] = {";
+		print_64_field(EG_PAWN_PSQT);
+		std::cerr << "int eg_knight_psqt[64] = {";
+		print_64_field(EG_KNIGHT_PSQT);
+		std::cerr << "int eg_bishop_psqt[64] = {";
+		print_64_field(EG_BISHOP_PSQT);
+		std::cerr << "int eg_rook_psqt[64] = {";
+		print_64_field(EG_ROOK_PSQT);
+		std::cerr << "int eg_queen_psqt[64] = {";
+		print_64_field(EG_QUEEN_PSQT);
+		std::cerr << "int eg_king_psqt[64] = {";
+		print_64_field(EG_KING_PSQT);
+
+		std::cerr << "\nint ring_attack_potency[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(RING_POTENCY + i);
+		std::cerr << "};\n";
+		std::cerr << "int zone_attack_potency[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(ZONE_POTENCY + i);
+		std::cerr << "};\n";
+
+		std::cerr << "\nint ring_pressure_weight[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(RING_PRESSURE + i);
+		std::cerr << "};\n";
+		std::cerr << "int zone_pressure_weight[8] = { ";
+		for (unsigned i = 0; i < 8; i++) print_int_weight(ZONE_PRESSURE + i);
+		std::cerr << "};\n";
+
+		std::cerr << "\nint mg_average_mobility[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_AVERAGE_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_average_mobility[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_AVERAGE_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int mg_mobility_weight[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_MOBILITY + i);
+		std::cerr << "};\n";
+		std::cerr << "int eg_mobility_weight[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_MOBILITY + i);
+		std::cerr << "};\n";
+
+		std::cerr << "\nint mg_isolated_penalty = " << int_weight(MG_ISOLATED) << ";\n";
+		std::cerr <<   "int eg_isolated_penalty = " << int_weight(EG_ISOLATED) << ";\n";
+
+		std::cerr << "\nint mg_doubled_penalty = " << int_weight(MG_DOUBLED) << ";\n";
+		std::cerr <<   "int eg_doubled_penalty = " << int_weight(EG_DOUBLED) << ";\n";
+
+		std::cerr << "\nint mg_backward_penalty = " << int_weight(MG_BACKWARD) << ";\n";
+		std::cerr <<   "int eg_backward_penalty = " << int_weight(EG_BACKWARD) << ";\n";
+
+		std::cerr << "\nint mg_chained_bonus = " << int_weight(MG_CHAINED) << ";\n";
+		std::cerr <<   "int eg_chained_bonus = " << int_weight(EG_CHAINED) << ";\n";
+
+		std::cerr << "\nint mg_passed_bonus[64] = { ";
+		print_64_field(MG_PASSED_PAWN);
+		std::cerr <<   "int eg_passed_bonus[64] = { ";
+		print_64_field(EG_PASSED_PAWN);
+
+		std::cerr << "\nint mg_double_bishop = " << int_weight(MG_DOUBLE_BISHOP) << ";\n";
+		std::cerr <<   "int eg_double_bishop = " << int_weight(EG_DOUBLE_BISHOP) << ";\n";
+
 	}
 
 	// this functions sets the result of a game; 0 for black win, 0.5 for a draw and 1 for white win

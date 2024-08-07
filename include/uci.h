@@ -56,13 +56,26 @@ struct UCI
 
 	void go_command(std::istringstream &iss)
 	{
+		unsigned move_time = 999999;
+		unsigned w_time = 999999;
+		unsigned b_time = 999999;
+		unsigned w_inc = 0;
+		unsigned b_inc = 0;
+
 		std::string parsed {};
 		while(iss >> parsed) {
 
 			if (parsed == "depth")
 				iss >> search.max_depth;
+
 			else if (parsed == "movetime")
-				iss >> search.max_time;
+				iss >> move_time;
+
+			else if (parsed == "wtime")
+				iss >> w_time;
+
+			else if (parsed == "btime")
+				iss >> b_time;
 
 			else if (parsed == "perft") {
 				unsigned depth;
@@ -85,7 +98,7 @@ struct UCI
 				return;
 			}
 		}
-		search.start_search(board);
+		search.think(board, move_time, w_time, b_time, w_inc, b_inc);
 	}
 
 	void await_input()

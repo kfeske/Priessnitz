@@ -86,7 +86,7 @@ struct Search : Noncopyable
 
 			// Delta Pruning
 			// if this move is unlikely to be a good capture, because it will not improve alpha enough, it is pruned
-			int gain = abs(piece_value(board.board[move_to(move)], MIDGAME));
+			int gain = abs(piece_value[board.board[move_to(move)]]);
 			if (static_evaluation + gain + 200 <= alpha && !in_check && !promotion(move))
 				continue;
 
@@ -408,5 +408,15 @@ struct Search : Noncopyable
 		std::cerr << "info total nodes " << total_nodes << "\n";
 		std::cout << "bestmove " << move_string(best_root_move) << "\n";
 		reset(); // make sure to clear all search data to avoid them affecting the next search
+	}
+
+	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc)
+	{
+		(void) w_inc;
+		(void) b_inc;
+		unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
+		unsigned time_allocated = time_left / 25;
+		max_time = std::min(time_allocated, move_time);
+		start_search(board);
 	}
 };
