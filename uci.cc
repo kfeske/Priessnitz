@@ -45,10 +45,12 @@ void UCI::fabricate_position(std::istringstream &iss)
 
 void UCI::go_command(std::istringstream &iss)
 {
+	search.time_management = false;
+	search.fixed_time = false;
 	search.max_depth = 63;
-	unsigned move_time = INFINITY;
-	unsigned w_time = INFINITY;
-	unsigned b_time = INFINITY;
+	unsigned move_time = 0;
+	unsigned w_time = 0;
+	unsigned b_time = 0;
 	unsigned w_inc = 0;
 	unsigned b_inc = 0;
 
@@ -58,14 +60,20 @@ void UCI::go_command(std::istringstream &iss)
 		if (parsed == "depth")
 			iss >> search.max_depth;
 
-		else if (parsed == "movetime")
+		else if (parsed == "movetime") {
 			iss >> move_time;
+			search.fixed_time = true;
+		}
 
-		else if (parsed == "wtime")
+		else if (parsed == "wtime") {
 			iss >> w_time;
+			search.time_management = true;
+		}
 
-		else if (parsed == "btime")
+		else if (parsed == "btime") {
 			iss >> b_time;
+			search.time_management = true;
+		}
 
 		else if (parsed == "winc")
 			iss >> w_inc;

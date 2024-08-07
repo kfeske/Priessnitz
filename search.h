@@ -26,9 +26,13 @@ struct Search : Noncopyable
 	int16_t root_evaluation;
 
 	unsigned max_depth = 63;
-	double max_time = 999999;
 	unsigned current_depth;
-	bool time_management;
+	bool fixed_time = false;
+	bool time_management = false;;
+	bool infinite_search = false;
+	unsigned soft_time_cap;
+	unsigned hard_time_cap;
+	unsigned search_time_increment;
 
 	Statistics statistics;
 	Heuristics heuristics;

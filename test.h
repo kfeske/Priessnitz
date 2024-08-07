@@ -7,10 +7,10 @@ void test_position(Board &board, Search &search, std::string position)
 {
 	board.set_fenpos(position);
 	std::cerr << "3 seconds:\n";
-	search.max_time = 3000;
+	search.hard_time_cap = 3000;
 	search.start_search(board);
 	std::cerr << "10 seconds:\n";
-	search.max_time = 10000;
+	search.hard_time_cap = 10000;
 	search.start_search(board);
 }
 

@@ -79,7 +79,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move skip, bool allow_null_move)
 {
 	(void) allow_null_move;
-	if ((statistics.search_nodes & 1024) == 0 && max_time != INFINITY && time_elapsed() >= max_time)
+	if ((fixed_time || time_management) && (statistics.search_nodes & 1024) == 0 && time_elapsed() >= hard_time_cap)
 	{
 		// Time's up!
 		abort_search = true;
@@ -284,7 +284,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 						heuristics.killer_move[1][ply] = heuristics.killer_move[0][ply];
 						heuristics.killer_move[0][ply] = move;
 					}
-					// The move can also be stored as a counter of the previous move, because the move refuted it.
+					// The move can also be stored as a counter, because it refuted the previous move.
 					if (board.game_ply > 0) {
 						unsigned to = move_to(board.history[board.game_ply - 1].move);
 						heuristics.counter_move[board.board[to]][to] = move;
@@ -329,52 +329,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 
 	return alpha;
 }
-
-unsigned Statistics::hash_full(Transposition_table &tt)
-{
-	unsigned hits = 0;
-	for (unsigned index = 0; index < 1000; index++) {
-		TT_bucket &bucket = tt.buckets[index];
-		if (bucket.entries[0].key != 0ULL) hits++;
-	}
-	return hits;
-}
-
-// The best sequence of moves can be extracted from the hash table.
-void Search::extract_pv_line(Board &board)
-{
-	Board temp_board = board;
-	temp_board.make_move(best_root_move);
-	std::cout << move_string(best_root_move) << " ";
-	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
-		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY, INFINITY);
-		if (!hit) return;
-		std::cout << move_string(tt.best_move) << " ";
-		temp_board.make_move(tt.best_move);
-	}
-}
-
-void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
-{
-	unsigned nodes = statistics.search_nodes + statistics.quiescence_nodes;
-	if (current_depth > 1) statistics.branching_factor = nodes / double(nodes_previous_iteration) + 0.0001;
-
-	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed();
-	std::cout << " nodes " << nodes << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
-	std::cout << " branching " << statistics.branching_factor << " hashfull " << statistics.hash_full(tt);
-	std::cout << " pv ";
-	extract_pv_line(board);
-	std::cout << "\n";
-}
-
-void Search::plot_final_info(unsigned total_nodes)
-{
-	std::cerr << "cut offs " << statistics.cutoffs << " pv " << double(statistics.cutoffspv) / double(statistics.cutoffs) << "\n";
-	std::cerr << "null cuts " << statistics.null_cuts << "\n";
-	std::cerr << "info total nodes " << total_nodes << "\n";
-	std::cout << "bestmove " << move_string(best_root_move) << "\n";
-}
-
 
 void Search::start_search(Board &board)
 {
@@ -422,6 +376,10 @@ void Search::start_search(Board &board)
 			int evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
+			if (time_management && evaluation <= alpha && time_elapsed() >= soft_time_cap) {
+				soft_time_cap = time_elapsed() + search_time_increment;
+			}
+			if (time_management && time_elapsed() >= soft_time_cap) abort_search = true;
 			if (abort_search) break;
 
 			// The returned evaluation was not inside the windows :/
@@ -452,13 +410,11 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 {
 	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
 
-	time_management = time_left != INFINITY;
-	bool time_limit = move_time != INFINITY;
-
-	Move_list move_list;
-	generate_legal(board, move_list);
-
 	if (time_management) {
+
+		Move_list move_list;
+		generate_legal(board, move_list);
+
 		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
 
 		unsigned move_overhead = 10;
@@ -471,20 +427,65 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 		// safety move overhead buffer, so that we never run out of time.
 		time_left = time_left - move_overhead + increment * remaining_moves;
 
-		// Allocate enough time for the remaining moves.
-		unsigned time_allocated = std::max(1U, (time_left / remaining_moves));
+		soft_time_cap = std::max(1U, unsigned(time_left / remaining_moves * 0.6));
+		hard_time_cap = std::min(soft_time_cap * 5, time_left / 2);
+		search_time_increment = (hard_time_cap - soft_time_cap) / 40;
 
 		// Respond instantly in case of a single legal move.
 		if (move_list.size == 1)
-			max_time = 1;
+			hard_time_cap = 1;
 
-		else if (time_limit)
-			max_time = std::min(time_allocated, move_time);
-		else
-			max_time = time_allocated;
+		else if (fixed_time)
+			hard_time_cap = std::min(hard_time_cap, move_time);
 	}
-	else
-		max_time = move_time;
+	else if (fixed_time)
+		hard_time_cap = move_time;
 
 	start_search(board);
 }
+
+unsigned Statistics::hash_full(Transposition_table &tt)
+{
+	unsigned hits = 0;
+	for (unsigned index = 0; index < 1000; index++) {
+		TT_bucket &bucket = tt.buckets[index];
+		if (bucket.entries[0].key != 0ULL) hits++;
+	}
+	return hits;
+}
+
+// The best sequence of moves can be extracted from the hash table.
+void Search::extract_pv_line(Board &board)
+{
+	Board temp_board = board;
+	temp_board.make_move(best_root_move);
+	std::cout << move_string(best_root_move) << " ";
+	for (unsigned depth = current_depth - 1; depth > 0; depth--) {
+		bool hit = tt.probe(temp_board.zobrist.key, depth, -INFINITY, INFINITY);
+		if (!hit) return;
+		std::cout << move_string(tt.best_move) << " ";
+		temp_board.make_move(tt.best_move);
+	}
+}
+
+void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
+{
+	unsigned nodes = statistics.search_nodes + statistics.quiescence_nodes;
+	if (current_depth > 1) statistics.branching_factor = nodes / double(nodes_previous_iteration) + 0.0001;
+
+	std::cout << "info depth " << current_depth << " score cp " << root_evaluation << " time " << time_elapsed();
+	std::cout << " nodes " << nodes << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
+	std::cout << " branching " << statistics.branching_factor << " hashfull " << statistics.hash_full(tt);
+	std::cout << " pv ";
+	extract_pv_line(board);
+	std::cout << "\n";
+}
+
+void Search::plot_final_info(unsigned total_nodes)
+{
+	std::cerr << "cut offs " << statistics.cutoffs << " pv " << double(statistics.cutoffspv) / double(statistics.cutoffs) << "\n";
+	std::cerr << "null cuts " << statistics.null_cuts << "\n";
+	std::cerr << "info total nodes " << total_nodes << "\n";
+	std::cout << "bestmove " << move_string(best_root_move) << "\n";
+}
+
