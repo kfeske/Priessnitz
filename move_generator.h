@@ -43,6 +43,11 @@ struct Move_list
 	{
 		moves[size++].move = move;
 	}
+
+	void add(Scored_move scored_move)
+	{
+		moves[size++] = scored_move;
+	}
 	
 	Move_list()
 	{

@@ -124,7 +124,7 @@ struct Main_move_orderer
 
 				// Only captures with a positive see score are "Good captures".
 				if (see(board, move) < 0) {
-					bad_captures.add(move);
+					bad_captures.add(move_list.moves[position - 1]);
 					continue;
 				}
 				return move;

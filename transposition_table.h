@@ -86,7 +86,9 @@ struct Transposition_table
 	Transposition_table()
 	:
 		 buckets(new TT_bucket[bucket_count])
-	{}
+	{
+		 clear();
+	}
 };
 
 unsigned const DEFAULT_PAWN_HASH_SIZE = 32; // MB
@@ -128,8 +130,15 @@ struct Pawn_hash_table
 		entry.passed_pawns = passed_pawns;
 	}
 
+	void clear()
+	{
+		memset(&entries[0], 0, entry_count * sizeof(Pawn_hash_entry));
+	}
+
 	Pawn_hash_table()
 	:
 		entries(new Pawn_hash_entry[entry_count])
-	{}
+	{
+		clear();
+	}
 };
