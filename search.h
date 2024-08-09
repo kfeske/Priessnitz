@@ -41,7 +41,7 @@ struct Search : Noncopyable
 	unsigned age;
 	Transposition_table tt;
 
-	std::chrono::time_point<std::chrono::_V2::system_clock, std::chrono::duration<long int, std::ratio<1, 1000000000>>> time_start;
+	std::chrono::time_point<std::chrono::_V2::high_resolution_clock> time_start;
 	bool abort_search;
 
 	void reset();

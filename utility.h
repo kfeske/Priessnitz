@@ -269,8 +269,15 @@ enum TT_flag {
 
 static inline uint64_t random_64()
 {
-	uint64_t ran = rand();
-	return ran << 32 | rand();
+	//Xorshift
+
+	static uint64_t seed = 1070372ull;
+
+	seed ^= seed >> 12;
+	seed ^= seed << 25;
+	seed ^= seed >> 27;
+	
+	return seed * 2685821657736338717ull;
 }
 
 // bit stuff

@@ -15,8 +15,6 @@
 
 void Zobrist::populate()
 {
-	srandom(9);
-
 	// a chess position consists of...
 
 	// ...piece positions

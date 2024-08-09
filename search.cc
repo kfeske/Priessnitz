@@ -26,7 +26,7 @@ void Search::reset()
 
 double Search::time_elapsed()
 {
-	auto time_end = std::chrono::high_resolution_clock::now();
+	std::chrono::time_point<std::chrono::_V2::high_resolution_clock> time_end = std::chrono::high_resolution_clock::now();
 	return std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 }
 
