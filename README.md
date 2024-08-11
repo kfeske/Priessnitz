@@ -1,6 +1,6 @@
 ## Priessnitz
 
-Priessnitz is a free UCI chess engine. It does not include its own graphical interface, but any UCI compatible GUI (eg. [Cute Chess](https://github.com/cutechess/cutechess), [Arena](http://www.playwitharena.de/)) will work.
+Priessnitz is a free UCI chess engine. It does not include its own graphical interface but any UCI compatible GUI (e.g., [Cute Chess](https://github.com/cutechess/cutechess), [Arena](http://www.playwitharena.de/)) will work.
 
 ## Inspiration
 
@@ -24,4 +24,4 @@ Priessnitz would not exist.
 
 ## Issues
 
-If you find any bugs or have any questions, please let me know!
+If you find any bugs or have any questions, feel free to contact me at kevin.feske@gmail.com
