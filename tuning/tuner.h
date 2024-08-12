@@ -959,8 +959,8 @@ struct Tuner
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
 
 				if (pos % 100000 == 0) std::cerr << "position " << pos << "\n";
-				std::string fen;
-				std::string result;
+				std::string fen {};
+				std::string result {};
 				while (true) {
 					file >> input;
 					if (input == "[0.0]" || input == "[0.5]" || input == "[1.0]") {

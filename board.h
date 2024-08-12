@@ -174,11 +174,13 @@ struct Board : Board_state
 
 	void set_fenpos(std::string fen);
 
+	std::string fen();
+
 	void set_startpos();
 
 	Board();
 };
 
-std::string piece_string(Board &board, unsigned square);
+std::string piece_string(Piece piece);
 
 void print_board(Board &board);

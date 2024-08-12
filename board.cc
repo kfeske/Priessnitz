@@ -491,26 +491,76 @@ void Board::set_fenpos(std::string fen)
 	update_checkers_and_pinners();
 }
 
+std::string Board::fen()
+{
+	std::ostringstream oss;
+	unsigned empty_count = 0;
+	
+	for (unsigned rank = 0; rank < 8; rank++) {
+		for (unsigned file = 0; file < 8; file++) {
+			unsigned square = rank * 8 + file;
+			if (board[square] == NO_PIECE) empty_count++;
+			else {
+				if (empty_count != 0) oss << empty_count;
+				empty_count = 0;
+				oss << piece_string(board[square]);
+			}
+		}
+		if (empty_count != 0) {
+			oss << empty_count;
+			empty_count = 0;
+		}
+		if (rank != 7) oss << "/";
+	}
+	
+	oss << ((side_to_move == WHITE) ? " w " : " b ");
+
+	if (history[game_ply].castling_rights & WHITE_OO)
+		oss << "K";
+	if (history[game_ply].castling_rights & WHITE_OOO)
+		oss << "Q";
+	if (history[game_ply].castling_rights & BLACK_OO)
+		oss << "k";
+	if (history[game_ply].castling_rights & BLACK_OOO)
+		oss << "q";
+	if (!history[game_ply].castling_rights)
+		oss << "-";
+
+	unsigned ep_square = history[game_ply].ep_sq;
+	if (ep_square != NO_SQUARE) {
+		unsigned file = file_num(ep_square);
+		unsigned rank = 8 - rank_num(ep_square);
+		oss << " " << char(file + 'a') << rank << " ";
+	}
+	else oss << " - ";
+
+	oss << history[game_ply].rule_50 << " " << game_ply;
+
+	return oss.str();
+}
+
 void Board::set_startpos()
 {
 	set_fenpos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
-std::string piece_string(Board &board, unsigned square)
+std::string piece_string(Piece piece)
 {
-	uint64_t square_bb = 1ULL << square;
-	if (board.pieces(WHITE, PAWN)   & square_bb) return "P";
-	if (board.pieces(BLACK, PAWN)   & square_bb) return "p";
-	if (board.pieces(WHITE, KNIGHT) & square_bb) return "N";
-	if (board.pieces(BLACK, KNIGHT) & square_bb) return "n";
-	if (board.pieces(WHITE, BISHOP) & square_bb) return "B";
-	if (board.pieces(BLACK, BISHOP) & square_bb) return "b";
-	if (board.pieces(WHITE, ROOK)   & square_bb) return "R";
-	if (board.pieces(BLACK, ROOK)   & square_bb) return "r";
-	if (board.pieces(WHITE, QUEEN)  & square_bb) return "Q";
-	if (board.pieces(BLACK, QUEEN)  & square_bb) return "q";
-	if (board.pieces(WHITE, KING)   & square_bb) return "K";
-	if (board.pieces(BLACK, KING)   & square_bb) return "k";
+	switch (piece) {
+	case W_PAWN:   return "P";
+	case W_KNIGHT: return "N";
+	case W_BISHOP: return "B";
+	case W_ROOK:   return "R";
+	case W_QUEEN:  return "Q";
+	case W_KING:   return "K";
+	case B_PAWN:   return "p";
+	case B_KNIGHT: return "n";
+	case B_BISHOP: return "b";
+	case B_ROOK:   return "r";
+	case B_QUEEN:  return "q";
+	case B_KING:   return "k";
+	case NO_PIECE: return " ";
+	}
 	return " ";
 }
 
@@ -522,14 +572,15 @@ void print_board(Board &board)
 		str += "  " + std::to_string(8 - rank) + " ";
 		for (unsigned file = 0; file < 8; file++) {
 			unsigned square = rank * 8 + file;
-			str += "| " + piece_string(board, square) + " ";
+			str += "| " + piece_string(board.board[square]) + " ";
 
 		}
 		str += "|\n    +---+---+---+---+---+---+---+---+\n";
 	}
 	str += "      A   B   C   D   E   F   G   H\n\n";
 	std::cerr << str;
-	std::cerr << "key " << board.zobrist.key << "\n";
+	std::cerr << "Fen " << board.fen() << "\n";
+	std::cerr << "Key " << board.zobrist.key << "\n";
 }
 
 Board::Board()
