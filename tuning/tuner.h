@@ -1178,7 +1178,7 @@ struct Tuner
 	{
 		print_weights();
 
-		for (unsigned iteration = 0; iteration < 20000; iteration++) {
+		for (unsigned iteration = 0; iteration < 450; iteration++) {
 			std::cerr << "iteration " << iteration << "\n";
 			for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 				compute_gradients(batch);
