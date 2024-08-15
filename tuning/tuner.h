@@ -117,15 +117,12 @@ enum Indicies {
 };
 
 enum Tuning_params {
-	//NUM_TRAINING_POSITIONS = 6500000, // number of training positions
-	//NUM_TEST_POSITIONS = 653653,      // number of test positions
-	//NUM_TRAINING_POSITIONS = 5000,
-	//NUM_TEST_POSITIONS = 0,
-	NUM_TRAINING_POSITIONS = 7153653,
+	//NUM_TRAINING_POSITIONS = 7153653,
+	NUM_TRAINING_POSITIONS = 9999740,
 	NUM_TEST_POSITIONS = 0,
 	NUM_TABLES = 86,		  // number of tables to be tuned (eg. pawn piece square table)
 	NUM_WEIGHTS = END_INDEX,          // values to be tuned
-	BATCH_SIZE = 7153653	          // how much the training set is split for computational efficiency
+	BATCH_SIZE = 1000	          // how much the training set is split for computational efficiency
 };
 
 double random_double()
@@ -197,7 +194,7 @@ struct Tuner
 
 	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
 	double const TINY_NUMBER = 0.00000001;   // difference quotient step size
-	double const LEARN_RATE = 10;	 	 // step size
+	double const LEARN_RATE = 1;	 	 // step size
 
 	Board board {};
 	Evaluation eval {};
@@ -953,7 +950,7 @@ struct Tuner
 	{
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
-		file.open("lichess-big3-resolved.book");
+		file.open("training_data.epd");
 		if (file.is_open()) {
 			std::string input;
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
