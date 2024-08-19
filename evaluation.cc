@@ -7,10 +7,13 @@
 
 void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
 {
-	if (attacks & info.king_ring[!friendly]) {
-		info.mg_king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
-		info.eg_king_ring_pressure[!friendly] += eg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
-		info.king_ring_attackers[!friendly]++;
+	uint64_t zone_attacks = attacks & info.king_ring[!friendly];
+	if (zone_attacks) {
+		//info.mg_king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
+		//info.eg_king_ring_pressure[!friendly] += eg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
+		info.king_attackers[!friendly]++;
+		info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+		info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[type];
 	}
 }
 
@@ -282,10 +285,22 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	info.eg_bonus[friendly] += eg_safe_queen_check  * queen_checks;
 	
 	// Evaluate king safety based on the number of attacks near the king
-	int mg_pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
-	info.mg_bonus[friendly] -= info.mg_king_ring_pressure[friendly] * mg_pressure_weight / 100;
-	int eg_pressure_weight = eg_king_ring_pressure_weight[std::min(info.king_ring_attackers[friendly], 7)];
-	info.eg_bonus[friendly] -= info.eg_king_ring_pressure[friendly] * eg_pressure_weight / 100;
+	//int mg_pressure_weight = mg_king_ring_pressure_weight[std::min(info.king_attackers[friendly], 7)];
+	//info.mg_bonus[friendly] -= info.mg_king_ring_pressure[friendly] * mg_pressure_weight / 100;
+	//int eg_pressure_weight = eg_king_ring_pressure_weight[std::min(info.king_attackers[friendly], 7)];
+	//info.eg_bonus[friendly] -= info.eg_king_ring_pressure[friendly] * eg_pressure_weight / 100;
+
+	// Only consider king safety, when we have at least two attackers or one attacker when they have a queen
+	if (info.king_attackers[friendly] > (1 - pop_count(board.pieces(enemy, QUEEN)))) {
+
+		int mg_king_danger = info.mg_king_attackers_weight[friendly] * info.king_attackers[friendly] +
+				     mg_king_zone_attack_count_weight * info.king_zone_attacks[friendly] +
+				     mg_king_danger_no_queen_weight * !board.pieces(enemy, QUEEN) +
+				     mg_king_danger_offset;
+
+		mg_king_danger = std::max(0, mg_king_danger);
+		info.mg_bonus[friendly] -= mg_king_danger * mg_king_danger / 4096;
+	}
 }
 
 void Evaluation::evaluate_passed_pawns(Board &board, Color friendly)

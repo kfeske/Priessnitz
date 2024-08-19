@@ -221,7 +221,7 @@ bool test(Tuner &tuner)
 		double tuner_eval = tuner.evaluate(sample);
 
 		// is the evaluation correct?
-		if (fabs(tuner_eval - correct_eval) > 5) {
+		if (fabs(tuner_eval - correct_eval) > 2) {
 			std::cerr << "error in position " << position << ", where correct " << correct_eval << " and tuner " << tuner_eval << "\n";
 			error = true;
 		}
@@ -233,7 +233,7 @@ bool test(Tuner &tuner)
 
 	tuner.compute_gradients(0);
 	for (unsigned grad = 0; grad < NUM_WEIGHTS; grad++) {
-		if (fabs(approximated[grad] - tuner.gradients[grad]) > 0.01) {
+		if (fabs(approximated[grad] - tuner.gradients[grad]) > 0.001) {
 			std::cerr << "gradient error in weight " << grad << ": approx " << approximated[grad] << " comp " << tuner.gradients[grad] << "\n";
 			error = true;
 		}

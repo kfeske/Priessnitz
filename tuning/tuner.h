@@ -90,12 +90,17 @@ enum Indicies {
 	MG_MINOR_THREATENED_BY_MAJOR = EG_QUEEN_THREATENED_BY_LESSER + 1,
 	EG_MINOR_THREATENED_BY_MAJOR = MG_MINOR_THREATENED_BY_MAJOR + 1,
 
-	MG_KING_RING_POTENCY = EG_MINOR_THREATENED_BY_MAJOR + 1,
-	EG_KING_RING_POTENCY = MG_KING_RING_POTENCY + 6,
-	MG_KING_RING_PRESSURE = EG_KING_RING_POTENCY + 6,
-	EG_KING_RING_PRESSURE = MG_KING_RING_PRESSURE + 8,
+	//MG_KING_RING_POTENCY = EG_MINOR_THREATENED_BY_MAJOR + 1,
+	//EG_KING_RING_POTENCY = MG_KING_RING_POTENCY + 6,
+	//MG_KING_RING_PRESSURE = EG_KING_RING_POTENCY + 6,
+	//EG_KING_RING_PRESSURE = MG_KING_RING_PRESSURE + 8,
+	MG_KING_ATTACKER_WEIGHT = EG_MINOR_THREATENED_BY_MAJOR + 1,
+	MG_KING_ZONE_ATTACK_COUNT_WEIGHT = MG_KING_ATTACKER_WEIGHT + 6,
+	MG_KING_DANGER_NO_QUEEN_WEIGHT = MG_KING_ZONE_ATTACK_COUNT_WEIGHT + 1,
+	MG_KING_DANGER_OFFSET = MG_KING_DANGER_NO_QUEEN_WEIGHT + 1,
 
-	MG_SAFE_KNIGHT_CHECK = EG_KING_RING_PRESSURE + 8,
+	//MG_SAFE_KNIGHT_CHECK = EG_KING_RING_PRESSURE + 8,
+	MG_SAFE_KNIGHT_CHECK = MG_KING_DANGER_OFFSET + 1,
 	EG_SAFE_KNIGHT_CHECK = MG_SAFE_KNIGHT_CHECK + 1,
 	MG_SAFE_BISHOP_CHECK = EG_SAFE_KNIGHT_CHECK + 1,
 	EG_SAFE_BISHOP_CHECK = MG_SAFE_BISHOP_CHECK + 1,
@@ -111,13 +116,13 @@ enum Indicies {
 
 	PAWN_COUNT_SCALE_OFFSET = CENTER_CONTROL + 1,
 	PAWN_COUNT_SCALE_WEIGHT = PAWN_COUNT_SCALE_OFFSET + 1,
-	LONE_MINOR_SCALE = PAWN_COUNT_SCALE_WEIGHT + 1,
 
-	END_INDEX = LONE_MINOR_SCALE + 1
+	END_INDEX = PAWN_COUNT_SCALE_WEIGHT + 1
 };
 
 enum Tuning_params {
 	//NUM_TRAINING_POSITIONS = 7153653,
+	//NUM_TRAINING_POSITIONS = 2000,
 	NUM_TRAINING_POSITIONS = 9999740,
 	NUM_TEST_POSITIONS = 0,
 	NUM_TABLES = 86,		  // number of tables to be tuned (eg. pawn piece square table)
@@ -149,10 +154,11 @@ struct Sample
 	Indicies *eg_influence_index {};
 
 	// Useful for king evaluation
-	uint8_t ring_attackers[2] {};
-	uint8_t ring_attacks[15] {};
-	uint8_t zone_attackers[2] {};
-	uint8_t zone_attacks[15] {};
+	bool consider_king_safety[2] {};
+	uint8_t king_attacker_count[2] {};
+	uint8_t king_attackers[2][6] {};
+	uint8_t king_zone_attack_count[2] {};
+	bool no_queen[2] {};
 
 	// Needed for endgame scaling
 	double scale = 0; // updated during training in evaluate()
@@ -183,7 +189,8 @@ struct Tuner
 					   MG_MINOR_THREATENED_BY_PAWN, EG_MINOR_THREATENED_BY_PAWN, MG_MINOR_THREATENED_BY_MINOR, EG_MINOR_THREATENED_BY_MINOR,
 					   MG_ROOK_THREATENED_BY_LESSER, EG_ROOK_THREATENED_BY_LESSER, MG_QUEEN_THREATENED_BY_LESSER, EG_QUEEN_THREATENED_BY_LESSER,
 					   MG_MINOR_THREATENED_BY_MAJOR, EG_MINOR_THREATENED_BY_MAJOR,
-			     	      	   MG_KING_RING_POTENCY, EG_KING_RING_POTENCY, MG_KING_RING_PRESSURE, EG_KING_RING_PRESSURE,
+			     	      	   //MG_KING_RING_POTENCY, EG_KING_RING_POTENCY, MG_KING_RING_PRESSURE, EG_KING_RING_PRESSURE,
+					   MG_KING_ATTACKER_WEIGHT, MG_KING_ZONE_ATTACK_COUNT_WEIGHT, MG_KING_DANGER_NO_QUEEN_WEIGHT, MG_KING_DANGER_OFFSET,
 					   MG_SAFE_KNIGHT_CHECK, EG_SAFE_KNIGHT_CHECK, MG_SAFE_BISHOP_CHECK, EG_SAFE_BISHOP_CHECK,
 					   MG_SAFE_ROOK_CHECK, EG_SAFE_ROOK_CHECK, MG_SAFE_QUEEN_CHECK, EG_SAFE_QUEEN_CHECK,
 					   MG_PAWN_SHELTER, EG_PAWN_SHELTER,
@@ -283,13 +290,17 @@ struct Tuner
 		case EG_ROOK_THREATENED_BY_LESSER: return eval.eg_rook_threatened_by_lesser;
 		case MG_QUEEN_THREATENED_BY_LESSER: return eval.mg_queen_threatened_by_lesser;
 		case EG_QUEEN_THREATENED_BY_LESSER: return eval.eg_queen_threatened_by_lesser;
-		case MG_MINOR_THREATENED_BY_MAJOR: return eval.mg_queen_threatened_by_lesser;
-		case EG_MINOR_THREATENED_BY_MAJOR: return eval.eg_queen_threatened_by_lesser;
+		case MG_MINOR_THREATENED_BY_MAJOR: return eval.mg_minor_threatened_by_major;
+		case EG_MINOR_THREATENED_BY_MAJOR: return eval.eg_minor_threatened_by_major;
 
-		case MG_KING_RING_POTENCY:  return eval.mg_king_ring_attack_potency[pos];
-		case EG_KING_RING_POTENCY:  return eval.eg_king_ring_attack_potency[pos];
-		case MG_KING_RING_PRESSURE: return eval.mg_king_ring_pressure_weight[pos];
-		case EG_KING_RING_PRESSURE: return eval.eg_king_ring_pressure_weight[pos];
+		//case MG_KING_RING_POTENCY:  return eval.mg_king_ring_attack_potency[pos];
+		//case EG_KING_RING_POTENCY:  return eval.eg_king_ring_attack_potency[pos];
+		//case MG_KING_RING_PRESSURE: return eval.mg_king_ring_pressure_weight[pos];
+		//case EG_KING_RING_PRESSURE: return eval.eg_king_ring_pressure_weight[pos];
+		case MG_KING_ATTACKER_WEIGHT: return eval.mg_king_attacker_weight[pos];
+		case MG_KING_ZONE_ATTACK_COUNT_WEIGHT: return eval.mg_king_zone_attack_count_weight;
+		case MG_KING_DANGER_NO_QUEEN_WEIGHT: return eval.mg_king_danger_no_queen_weight;
+		case MG_KING_DANGER_OFFSET: return eval.mg_king_danger_offset;
 
 		case MG_SAFE_KNIGHT_CHECK: return eval.mg_safe_knight_check;
 		case EG_SAFE_KNIGHT_CHECK: return eval.eg_safe_knight_check;
@@ -391,18 +402,25 @@ struct Tuner
 		std::cerr << "int eg_king_psqt[64] = {";
 		print_64_field(EG_KING_PSQT);
 
-		std::cerr << "\nint mg_king_ring_attack_potency[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_KING_RING_POTENCY + i);
+		//std::cerr << "\nint mg_king_ring_attack_potency[6] = { ";
+		//for (unsigned i = 0; i < 6; i++) print_int_weight(MG_KING_RING_POTENCY + i);
+		//std::cerr << "};\n";
+		//std::cerr << "int eg_king_ring_attack_potency[6] = { ";
+		//for (unsigned i = 0; i < 6; i++) print_int_weight(EG_KING_RING_POTENCY + i);
+		//std::cerr << "};\n";
+		//std::cerr << "\nint mg_king_ring_pressure_weight[8] = { ";
+		//for (unsigned i = 0; i < 8; i++) print_int_weight(MG_KING_RING_PRESSURE + i);
+		//std::cerr << "};\n";
+		//std::cerr << "int eg_king_ring_pressure_weight[8] = { ";
+		//for (unsigned i = 0; i < 8; i++) print_int_weight(EG_KING_RING_PRESSURE + i);
+		//std::cerr << "};\n";
+
+		std::cerr << "\nint mg_king_attacker_weight[6] = { ";
+		for (unsigned i = 0; i < 6; i++) print_int_weight(MG_KING_ATTACKER_WEIGHT + i);
 		std::cerr << "};\n";
-		std::cerr << "int eg_king_ring_attack_potency[6] = { ";
-		for (unsigned i = 0; i < 6; i++) print_int_weight(EG_KING_RING_POTENCY + i);
-		std::cerr << "};\n";
-		std::cerr << "\nint mg_king_ring_pressure_weight[8] = { ";
-		for (unsigned i = 0; i < 8; i++) print_int_weight(MG_KING_RING_PRESSURE + i);
-		std::cerr << "};\n";
-		std::cerr << "int eg_king_ring_pressure_weight[8] = { ";
-		for (unsigned i = 0; i < 8; i++) print_int_weight(EG_KING_RING_PRESSURE + i);
-		std::cerr << "};\n";
+		std::cerr << "\nint mg_king_zone_attack_count_weight = " << int_weight(MG_KING_ZONE_ATTACK_COUNT_WEIGHT) << ";\n";
+		std::cerr << "\nint mg_king_danger_no_queen_weight = " << int_weight(MG_KING_DANGER_NO_QUEEN_WEIGHT) << ";\n";
+		std::cerr << "\nint mg_king_danger_offset = " << int_weight(MG_KING_DANGER_OFFSET) << ";\n";
 
 		std::cerr << "\nint mg_safe_knight_check = " << int_weight(MG_SAFE_KNIGHT_CHECK) << ";\n";
 		std::cerr <<   "int eg_safe_knight_check = " << int_weight(EG_SAFE_KNIGHT_CHECK) << ";\n";
@@ -573,8 +591,9 @@ struct Tuner
 		uint64_t ring = king_ring_mask(enemy_king_square);
 		uint64_t ring_attacks = attacks & ring;
 		if (ring_attacks) {
-			sample.ring_attacks[piece] += pop_count(ring_attacks);
-			if (sample.ring_attackers[color_of(piece)] < 7) sample.ring_attackers[color_of(piece)]++;
+			sample.king_zone_attack_count[enemy] += pop_count(ring_attacks);
+			sample.king_attacker_count[enemy]++;
+			sample.king_attackers[enemy][type_of(piece)]++;
 		}
 	}
 
@@ -919,6 +938,12 @@ struct Tuner
 		uint64_t black_center_attacks = ~attacked[WHITE] & attacked[BLACK] & CENTER;
 		mg_influences[CENTER_CONTROL] = (double(pop_count(white_center_attacks)) - double(pop_count(black_center_attacks))) * mg_phase / 128;
 
+		sample.no_queen[WHITE] = !board.pieces(WHITE, QUEEN);
+		sample.no_queen[BLACK] = !board.pieces(BLACK, QUEEN);
+		sample.consider_king_safety[WHITE] = sample.king_attacker_count[WHITE] > (1 - pop_count(board.pieces(BLACK, QUEEN)));
+		sample.consider_king_safety[BLACK] = sample.king_attacker_count[BLACK] > (1 - pop_count(board.pieces(WHITE, QUEEN)));
+
+
 		// To reduce memory usage, all influences that are 0 will not be stored, because they are irrelevent.
 		for (unsigned i = 0; i < NUM_WEIGHTS; i++) {
 			if (mg_influences[i] != 0) sample.mg_influence_length++;
@@ -951,6 +976,7 @@ struct Tuner
 		std::cerr << "loading training data..." << "\n";
 		std::ifstream file;
 		file.open("training_data.epd");
+		//file.open("lichess-big3-resolved.book");
 		if (file.is_open()) {
 			std::string input;
 			for (unsigned pos = 0; pos < NUM_TRAINING_POSITIONS + NUM_TEST_POSITIONS; pos++) {
@@ -992,11 +1018,12 @@ struct Tuner
 			weights[EG_VALUES + i] = values[i];
 		}
 
-		double attack_potency[6] = { 0, 10, 30, 30, 80, 0 };
-		for (unsigned i = 0; i < 6; i++) {
-			weights[MG_KING_RING_POTENCY + i] = attack_potency[i];
-			weights[EG_KING_RING_POTENCY + i] = attack_potency[i];
-		}
+		//double attack_potency[6] = { 0, 10, 30, 30, 80, 0 };
+		//for (unsigned i = 0; i < 6; i++) {
+		//	weights[MG_KING_RING_POTENCY + i] = attack_potency[i];
+		//	weights[EG_KING_RING_POTENCY + i] = attack_potency[i];
+		//}
+		weights[MG_KING_DANGER_OFFSET] = 40;
 		weights[CENTER_CONTROL] = 300;
 	}
 
@@ -1006,25 +1033,36 @@ struct Tuner
 			weights[w] = load_weight(w);
 	}
 
-	template <Color color>
-	double mg_king_ring_pressure(Sample &sample)
-	{
-		double pressure = 0;
-		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-			pressure += weights[MG_KING_RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
-		}
+	//template <Color color>
+	//double mg_king_ring_pressure(Sample &sample)
+	//{
+	//	double pressure = 0;
+	//	for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+	//		pressure += weights[MG_KING_RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
+	//	}
 
-		return pressure / 100;
-	}
-	template <Color color>
-	double eg_king_ring_pressure(Sample &sample)
-	{
-		double pressure = 0;
-		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-			pressure += weights[EG_KING_RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
-		}
+	//	return pressure / 100;
+	//}
+	//template <Color color>
+	//double eg_king_ring_pressure(Sample &sample)
+	//{
+	//	double pressure = 0;
+	//	for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+	//		pressure += weights[EG_KING_RING_POTENCY + type] * sample.ring_attacks[piece_of(color, type)];
+	//	}
 
-		return pressure / 100;
+	//	return pressure / 100;
+	//}
+	double compute_king_danger(Sample &sample, Color friendly) {
+		double attackers_weight = 0.0;
+		for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+			attackers_weight += sample.king_attackers[friendly][type] * weights[MG_KING_ATTACKER_WEIGHT + type];
+		}
+		double king_danger = attackers_weight * sample.king_attacker_count[friendly] +
+			          weights[MG_KING_ZONE_ATTACK_COUNT_WEIGHT] * sample.king_zone_attack_count[friendly] +
+				  weights[MG_KING_DANGER_NO_QUEEN_WEIGHT] * sample.no_queen[swap(friendly)] +
+				  weights[MG_KING_DANGER_OFFSET];
+		return std::fmax(0.0, king_danger);
 	}
 
 	double scale_factor(Sample &sample, double eg_evaluation)
@@ -1046,11 +1084,21 @@ struct Tuner
 		for (unsigned i = 0; i < sample.eg_influence_length; i++)
 			sample.eg_evaluation += sample.eg_influence[i] * weights[sample.eg_influence_index[i]];
 
-		// king safety is a bit tricky, because two different weights affect each other
-		mg_evaluation        += mg_king_ring_pressure<WHITE>(sample) * weights[MG_KING_RING_PRESSURE + sample.ring_attackers[WHITE]] * sample.phase;
-		sample.eg_evaluation += eg_king_ring_pressure<WHITE>(sample) * weights[EG_KING_RING_PRESSURE + sample.ring_attackers[WHITE]] * (1 - sample.phase);
-		mg_evaluation 	     -= mg_king_ring_pressure<BLACK>(sample) * weights[MG_KING_RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
-		sample.eg_evaluation -= eg_king_ring_pressure<BLACK>(sample) * weights[EG_KING_RING_PRESSURE + sample.ring_attackers[BLACK]] * (1 - sample.phase);
+		// king safety is a bit more tricky
+		//mg_evaluation        += mg_king_ring_pressure<WHITE>(sample) * weights[MG_KING_RING_PRESSURE + sample.ring_attackers[WHITE]] * sample.phase;
+		//sample.eg_evaluation += eg_king_ring_pressure<WHITE>(sample) * weights[EG_KING_RING_PRESSURE + sample.ring_attackers[WHITE]] * (1 - sample.phase);
+		//mg_evaluation 	     -= mg_king_ring_pressure<BLACK>(sample) * weights[MG_KING_RING_PRESSURE + sample.ring_attackers[BLACK]] * sample.phase;
+		//sample.eg_evaluation -= eg_king_ring_pressure<BLACK>(sample) * weights[EG_KING_RING_PRESSURE + sample.ring_attackers[BLACK]] * (1 - sample.phase);
+
+		if (sample.consider_king_safety[WHITE]) {
+			double white_king_danger = compute_king_danger(sample, WHITE);
+			mg_evaluation -= white_king_danger * white_king_danger / 4096.0 * sample.phase;
+		}
+
+		if (sample.consider_king_safety[BLACK]) {
+			double black_king_danger = compute_king_danger(sample, BLACK);
+			mg_evaluation += black_king_danger * black_king_danger / 4096.0 * sample.phase;
+		}
 
 		sample.scale = scale_factor(sample, sample.eg_evaluation / (1 - sample.phase));
 		return mg_evaluation + sample.eg_evaluation * sample.scale / 128;
@@ -1145,28 +1193,56 @@ struct Tuner
 
 			// King safety always needs extra work, because two parameters affect each other
 
-			// king ring pressure weights
-			unsigned mg_white_ring_index = MG_KING_RING_PRESSURE + sample.ring_attackers[WHITE];
-			gradients[mg_white_ring_index] += mg_king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
-			unsigned eg_white_ring_index = EG_KING_RING_PRESSURE + sample.ring_attackers[WHITE];
-			gradients[eg_white_ring_index] += eg_king_ring_pressure<WHITE>(sample) * partial_derivative * (1 - sample.phase) * sample.scale / 128;
+			//// king ring pressure weights
+			//unsigned mg_white_ring_index = MG_KING_RING_PRESSURE + sample.ring_attackers[WHITE];
+			//gradients[mg_white_ring_index] += mg_king_ring_pressure<WHITE>(sample) * partial_derivative * sample.phase;
+			//unsigned eg_white_ring_index = EG_KING_RING_PRESSURE + sample.ring_attackers[WHITE];
+			//gradients[eg_white_ring_index] += eg_king_ring_pressure<WHITE>(sample) * partial_derivative * (1 - sample.phase) * sample.scale / 128;
 
-			unsigned mg_black_ring_index = MG_KING_RING_PRESSURE + sample.ring_attackers[BLACK];
-			gradients[mg_black_ring_index] -= mg_king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
-			unsigned eg_black_ring_index = EG_KING_RING_PRESSURE + sample.ring_attackers[BLACK];
-			gradients[eg_black_ring_index] -= eg_king_ring_pressure<BLACK>(sample) * partial_derivative * (1 - sample.phase) * sample.scale / 128;
+			//unsigned mg_black_ring_index = MG_KING_RING_PRESSURE + sample.ring_attackers[BLACK];
+			//gradients[mg_black_ring_index] -= mg_king_ring_pressure<BLACK>(sample) * partial_derivative * sample.phase;
+			//unsigned eg_black_ring_index = EG_KING_RING_PRESSURE + sample.ring_attackers[BLACK];
+			//gradients[eg_black_ring_index] -= eg_king_ring_pressure<BLACK>(sample) * partial_derivative * (1 - sample.phase) * sample.scale / 128;
 
-			for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
-				// Ring attack potency
-				double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
-				gradients[MG_KING_RING_POTENCY + type] += white_ring_attacks * weights[mg_white_ring_index] / 100 * partial_derivative * sample.phase;
-				gradients[EG_KING_RING_POTENCY + type] += white_ring_attacks * weights[eg_white_ring_index] / 100 *
-					partial_derivative * (1 - sample.phase) * sample.scale / 128;
-				double black_ring_attacks = sample.ring_attacks[piece_of(BLACK, type)];
-				gradients[MG_KING_RING_POTENCY + type] -= black_ring_attacks * weights[mg_black_ring_index] / 100 * partial_derivative * sample.phase;
-				gradients[EG_KING_RING_POTENCY + type] -= black_ring_attacks * weights[eg_black_ring_index] / 100 * 
-					partial_derivative * (1 - sample.phase) * sample.scale / 128;
+			//for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+			//	// Ring attack potency
+			//	double white_ring_attacks = sample.ring_attacks[piece_of(WHITE, type)];
+			//	gradients[MG_KING_RING_POTENCY + type] += white_ring_attacks * weights[mg_white_ring_index] / 100 * partial_derivative * sample.phase;
+			//	gradients[EG_KING_RING_POTENCY + type] += white_ring_attacks * weights[eg_white_ring_index] / 100 *
+			//		partial_derivative * (1 - sample.phase) * sample.scale / 128;
+			//	double black_ring_attacks = sample.ring_attacks[piece_of(BLACK, type)];
+			//	gradients[MG_KING_RING_POTENCY + type] -= black_ring_attacks * weights[mg_black_ring_index] / 100 * partial_derivative * sample.phase;
+			//	gradients[EG_KING_RING_POTENCY + type] -= black_ring_attacks * weights[eg_black_ring_index] / 100 * 
+			//		partial_derivative * (1 - sample.phase) * sample.scale / 128;
+			//}
+
+			// King safety
+			if (sample.consider_king_safety[WHITE]) {
+				for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+					gradients[MG_KING_ATTACKER_WEIGHT + type] -= 2 * sample.king_attacker_count[WHITE] * sample.king_attackers[WHITE][type] *
+						compute_king_danger(sample, WHITE) / 4096 * partial_derivative * sample.phase;
+				}
+				gradients[MG_KING_ZONE_ATTACK_COUNT_WEIGHT] -= 2 * sample.king_zone_attack_count[WHITE] *
+					compute_king_danger(sample, WHITE) / 4096 * partial_derivative * sample.phase;
+
+				gradients[MG_KING_DANGER_NO_QUEEN_WEIGHT] -= 2 * sample.no_queen[BLACK] * compute_king_danger(sample, WHITE) / 4096 * partial_derivative * sample.phase;
+
+				gradients[MG_KING_DANGER_OFFSET] -= 2.0 * (compute_king_danger(sample, WHITE)) / 4096.0 * partial_derivative * sample.phase;
 			}
+			if (sample.consider_king_safety[BLACK]) {
+			
+				for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN }) {
+					gradients[MG_KING_ATTACKER_WEIGHT + type] += 2 * sample.king_attacker_count[BLACK] * sample.king_attackers[BLACK][type] *
+						compute_king_danger(sample, BLACK) / 4096 * partial_derivative * sample.phase;
+				}
+				gradients[MG_KING_ZONE_ATTACK_COUNT_WEIGHT] += 2 * sample.king_zone_attack_count[BLACK] *
+					compute_king_danger(sample, BLACK) / 4096 * partial_derivative * sample.phase;
+
+				gradients[MG_KING_DANGER_NO_QUEEN_WEIGHT] += 2 * sample.no_queen[WHITE] * compute_king_danger(sample, BLACK) / 4096 * partial_derivative * sample.phase;
+
+				gradients[MG_KING_DANGER_OFFSET] += 2.0 * (compute_king_danger(sample, BLACK)) / 4096.0 * partial_derivative * sample.phase;
+			}
+
 			// Endgame scaling
 			gradients[PAWN_COUNT_SCALE_OFFSET] += sample.eg_evaluation / 128 * partial_derivative;
 			gradients[PAWN_COUNT_SCALE_WEIGHT] += sample.pawn_count[sample.strong_side] * sample.eg_evaluation / 128 * partial_derivative;
