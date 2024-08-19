@@ -121,6 +121,13 @@ void UCI::setoption_command(std::istringstream &iss)
 		iss >> size;
 		search.tt.resize(size);
 	}
+	if (parsed == "Move") {
+		iss >> parsed;
+		if (parsed == "Overhead") {
+			iss >> parsed; // value token
+			iss >> search.move_overhead;
+		}
+	}
 	if (parsed == "FpMargin") {
 		iss >> parsed; // value token
 		int &value = search.search_constants.FUTILITY_MARGIN;
@@ -152,6 +159,7 @@ void UCI::await_input()
 			std::cout << "id author Kevin Feske\n\n";
 			std::cout << "option name Hash type spin default 128 min 1 max 1048576\n";
 			std::cout << "option name Threads type spin default 1 min 1 max 1\n";
+			std::cout << "option name Move Overhead type spin default 10 min 0 max 10000\n";
 			std::cout << "uciok\n";
 		}
 		if (parsed == "setoption") setoption_command(iss);

@@ -1,7 +1,14 @@
 #include "tuner.h"
 #include "test.h"
+#include "trace.h"
 
 bool const use_default_weights = true;
+
+Trace &trace()
+{
+	static Trace t {};
+	return t;
+}
 
 int main()
 {

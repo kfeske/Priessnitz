@@ -3,6 +3,7 @@
 #include "utility.h"
 #include "pre_computed.h"
 #include "board.h"
+#include "trace.h"
 
 
 void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
@@ -114,6 +115,7 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 			if (pawn_attacks(enemy, square) & board.pieces(friendly, PAWN)) {
 				info.mg_bonus[friendly] += mg_knight_outpost_supported;
 				info.eg_bonus[friendly] += eg_knight_outpost_supported;
+				trace_increment_knight_count(square);
 			}
 			else {
 				info.mg_bonus[friendly] += mg_knight_outpost;

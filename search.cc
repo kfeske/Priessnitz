@@ -471,26 +471,18 @@ void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b
 
 		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
 
-		// Safety move overhead buffer to avoid losing on time
-		unsigned move_overhead = 10;
 
 		// Sudden death time control
 		if (!moves_to_go) {
 
-			// The search can abort after an iteration, if the soft time cap has been crossed.
 			// We always use a fraction of the remaining time, which means, we spend more time in the early game.
 			soft_time_cap = (time_left - move_overhead) / 40 + increment;
-
-			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
 			hard_time_cap = soft_time_cap * 5;
 		}
 		// X time for Y moves
 		else {
-			// The search can abort after an iteration, if the soft time cap has been crossed.
 			// We try to equally distribute the time for the remaining moves.
 			soft_time_cap = (time_left - move_overhead) / (moves_to_go + 5) + increment;
-
-			// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
 			hard_time_cap = soft_time_cap * 5;
 		}
 

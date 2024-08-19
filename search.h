@@ -31,8 +31,15 @@ struct Search : Noncopyable
 	bool fixed_time = false;
 	bool time_management = false;;
 	bool infinite_search = false;
+
+	// The search can abort after an iteration, if the soft time cap has been crossed.
 	unsigned soft_time_cap;
+
+	// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
 	unsigned hard_time_cap;
+
+	// Safety move overhead buffer to avoid losing on time
+	unsigned move_overhead = 10;
 
 	Statistics statistics;
 	Heuristics heuristics;
