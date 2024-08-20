@@ -5,19 +5,6 @@
 #include "board.h"
 #include "trace.h"
 
-
-void Evaluation::note_king_attacks(Piece_type type, uint64_t attacks, Color friendly)
-{
-	uint64_t zone_attacks = attacks & info.king_ring[!friendly];
-	if (zone_attacks) {
-		//info.mg_king_ring_pressure[!friendly] += mg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
-		//info.eg_king_ring_pressure[!friendly] += eg_king_ring_attack_potency[type] * pop_count(attacks & info.king_ring[!friendly]);
-		info.king_attackers[!friendly]++;
-		info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
-		info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[type];
-	}
-}
-
 void Evaluation::evaluate_pawns(Board &board, Color friendly)
 {
 	Color enemy = swap(friendly);
@@ -128,7 +115,12 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 		info.attacked_by_piece[friendly][KNIGHT] |= attacks;
 
 		// Attack on the enemy king
-		note_king_attacks(KNIGHT, attacks, friendly);
+		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
+		if (zone_attacks) {
+			info.king_attackers[!friendly]++;
+			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[KNIGHT];
+		}
 
 		// Mobility
 		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
@@ -159,7 +151,12 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 		info.attacked_by_piece[friendly][BISHOP] |= attacks;
 
 		// Attack on the enemy king
-		note_king_attacks(BISHOP, attacks, friendly);
+		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
+		if (zone_attacks) {
+			info.king_attackers[!friendly]++;
+			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[BISHOP];
+		}
 
 		// Mobility
 		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
@@ -194,7 +191,12 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 		info.attacked_by_piece[friendly][ROOK] |= attacks;
 
 		// Attack on the enemy king
-		note_king_attacks(ROOK, attacks, friendly);
+		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
+		if (zone_attacks) {
+			info.king_attackers[!friendly]++;
+			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[ROOK];
+		}
 
 		// Mobility
 		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
@@ -241,7 +243,12 @@ void Evaluation::evaluate_queens(Board &board, Color friendly)
 		info.attacked_by_piece[friendly][QUEEN] |= attacks;
 
 		// Attack on the enemy king
-		note_king_attacks(QUEEN, attacks, friendly);
+		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
+		if (zone_attacks) {
+			info.king_attackers[!friendly]++;
+			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[QUEEN];
+		}
 
 		// Mobility
 		unsigned safe_squares = pop_count(attacks & ~info.attacked_by_piece[enemy][PAWN]);
