@@ -591,7 +591,7 @@ struct Tuner
 		uint64_t ring = king_ring_mask(enemy_king_square);
 		uint64_t ring_attacks = attacks & ring;
 		if (ring_attacks) {
-			sample.king_zone_attack_count[enemy] += pop_count(ring_attacks);
+			sample.king_zone_attack_count[enemy] += pop_count(attacks & piece_attacks(KING, enemy_king_square, 0ULL));
 			sample.king_attacker_count[enemy]++;
 			sample.king_attackers[enemy][type_of(piece)]++;
 		}

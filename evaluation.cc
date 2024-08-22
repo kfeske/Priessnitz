@@ -118,7 +118,7 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
 		if (zone_attacks) {
 			info.king_attackers[!friendly]++;
-			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.king_zone_attacks[!friendly] += pop_count(attacks & info.attacked_by_piece[enemy][KING]);
 			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[KNIGHT];
 		}
 
@@ -154,7 +154,7 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
 		if (zone_attacks) {
 			info.king_attackers[!friendly]++;
-			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.king_zone_attacks[!friendly] += pop_count(attacks & info.attacked_by_piece[enemy][KING]);
 			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[BISHOP];
 		}
 
@@ -194,7 +194,7 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
 		if (zone_attacks) {
 			info.king_attackers[!friendly]++;
-			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.king_zone_attacks[!friendly] += pop_count(attacks & info.attacked_by_piece[enemy][KING]);
 			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[ROOK];
 		}
 
@@ -246,7 +246,7 @@ void Evaluation::evaluate_queens(Board &board, Color friendly)
 		uint64_t zone_attacks = attacks & info.king_ring[!friendly];
 		if (zone_attacks) {
 			info.king_attackers[!friendly]++;
-			info.king_zone_attacks[!friendly] += pop_count(zone_attacks);
+			info.king_zone_attacks[!friendly] += pop_count(attacks & info.attacked_by_piece[enemy][KING]);
 			info.mg_king_attackers_weight[!friendly] += mg_king_attacker_weight[QUEEN];
 		}
 
