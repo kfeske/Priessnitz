@@ -114,9 +114,15 @@ static inline void record_safe_rook_check(  Color friendly, unsigned count) { tr
 static inline void record_safe_queen_check( Color friendly, unsigned count) { trace().safe_queen_check[friendly]  += count; }
 
 static inline void record_king_attacker_weight(Color friendly, Piece_type type) { trace().king_attacker_weight[friendly][type]++; }
-static inline void record_adjust_king_attacker_weights(Color friendly, unsigned attackers) {
+static inline void record_adjust_king_attacker_weights(Color friendly, unsigned attackers)
+{
 	for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN })
 		trace().king_attacker_weight[friendly][type] *= attackers;
+}
+static inline void record_clear_attacker_weights(Color friendly)
+{
+	for (Piece_type type : { KNIGHT, BISHOP, ROOK, QUEEN })
+		trace().king_attacker_weight[friendly][type] = 0;
 }
 static inline void record_king_zone_attack_count_weight(Color friendly, unsigned count) { trace().king_zone_attack_count_weight[friendly] += count; }
 static inline void record_king_danger_no_queen_weight(Color friendly, bool no_queen) { trace().king_danger_no_queen_weight[friendly] += no_queen; }

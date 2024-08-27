@@ -211,11 +211,6 @@ struct Parameters
 
 		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.mg_pawn_shelter[0][0][0], &eval.eg_pawn_shelter[0][0][0]);
 
-		_add(NORMAL, "safe_knight_check = ", 1, 0, &t.safe_knight_check[0], &eval.mg_safe_knight_check, &eval.eg_safe_knight_check);
-		_add(NORMAL, "safe_bishop_check = ", 1, 0, &t.safe_bishop_check[0], &eval.mg_safe_bishop_check, &eval.eg_safe_bishop_check);
-		_add(NORMAL, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.mg_safe_rook_check,   &eval.eg_safe_rook_check);
-		_add(NORMAL, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.mg_safe_queen_check,  &eval.eg_safe_queen_check);
-
 		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0],
 				&eval.mg_king_attacker_weight[0], &eval.eg_king_attacker_weight[0]);
 
@@ -223,6 +218,12 @@ struct Parameters
 				&eval.mg_king_zone_attack_count_weight, &eval.eg_king_zone_attack_count_weight);
 		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0],
 				&eval.mg_king_danger_no_queen_weight, &eval.eg_king_danger_no_queen_weight);
+
+		_add(KING_DANGER, "safe_knight_check = ", 1, 0, &t.safe_knight_check[0], &eval.mg_safe_knight_check, &eval.eg_safe_knight_check);
+		_add(KING_DANGER, "safe_bishop_check = ", 1, 0, &t.safe_bishop_check[0], &eval.mg_safe_bishop_check, &eval.eg_safe_bishop_check);
+		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.mg_safe_rook_check,   &eval.eg_safe_rook_check);
+		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.mg_safe_queen_check,  &eval.eg_safe_queen_check);
+
 		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.mg_king_danger_offset, &eval.eg_king_danger_offset);
 
 		_add(NORMAL, "center_control = ", 1, 0, &t.center_control[0],     &eval.mg_center_control,     &eval.eg_center_control);
