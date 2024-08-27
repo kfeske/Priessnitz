@@ -1,240 +1,74 @@
-// checks, if the evaluations are computed correctly
-
-std::string test_positions[200] = {
-	"5r2/p4pk1/2pb4/8/1p2rN2/4p3/PPPB4/3K4 w - - 0 3",
-	"r2q1rk1/3n1p2/2pp3p/1pb1p1p1/p3P3/P1NP1N1P/RPP2PP1/5QK1 b - - 0 2",
-	"rn2r2k/p1R4p/4bp2/8/1Q6/6P1/1P3P1P/6K1 w - - 0 1",
-	"1r4k1/6p1/7p/4p3/R7/3rPNP1/1b3P1P/5RK1 b - - 0 1",
-	"1nn3kr/1R1p2pp/5p2/N1p5/3PP3/3B4/P1P2PPP/R5K1 b - - 0 3",
-	"6k1/1p2b1pp/p4p2/4pb2/1P1pN3/P2P1P1P/2r3P1/1R3NK1 w - - 0 1",
-	"rn1q2k1/ppp2ppp/3p1n2/2bb4/8/5NP1/PPP1NPBP/R4RK1 w - - 0 1",
-	"3r1rk1/pR3pbp/2p1pnp1/4q3/2P4P/P3P1P1/2Q2PB1/2B2RK1 b - - 0 4",
-	"3b4/5k2/6r1/3pP3/p1pP1p1p/P1P2P1P/1PR3P1/6K1 b - - 0 1",
-	"r2q1rk1/ppp1npbp/4b1p1/1P3nN1/2Pp4/3P4/PB1NBPPP/R2QR1K1 b - - 0 1",
-	"8/k7/n3n1p1/R1p1P2p/2PP3r/4K3/8/8 w - - 0 1",
-	"r3kb1Q/p2qn3/1pp3p1/3p4/3P1B2/2N5/PPP2PPP/4R1K1 w - - 0 1",
-	"8/4n3/2k3p1/5p1p/Pp3P1P/1P3KP1/3r4/8 w - - 0 1",
-	"6k1/1p4pp/1r4b1/1p2N3/8/7P/1P3PP1/6K1 w - - 0 3",
-	"8/7k/4R3/4p2b/4P3/2r2P2/4BK2/8 b - - 0 1",
-	"6k1/8/3R3P/6K1/4r2P/8/8/8 b - - 0 1",
-	"7k/8/3p3P/2nP2p1/2P5/P1b1rP2/K5P1/3R1B1R b - - 0 1",
-	"r4rk1/ppq3pp/4p3/2b2p1Q/P7/1bP3P1/1P3P1P/R1B2RK1 w - - 0 1",
-	"r2q1rk1/p3b3/1p1p1p1B/2pPp2n/2P1P1P1/P2B1N2/1P1Q1P2/R4RK1 b - - 0 1",
-	"8/pp3kpp/5p2/3P4/5P1P/1P4K1/3r4/2r5 w - - 0 1",
-	"rn2kr2/pp4bp/2ppBqn1/3P1p1Q/8/2N1B2P/PPP2P2/R3K2R w KQq - 0 1",
-	"8/1b2k3/p3Pp1p/5Pp1/4p1P1/3B4/P4K1P/8 w - - 0 1",
-	"8/4k3/4p1p1/8/8/7R/5PK1/r7 w - - 0 1",
-	"2rqr1k1/pp2p1bp/3p2p1/3Pn3/nPP4p/3R1P2/P1NBB2P/5R1K w - - 0 1",
-	"2b5/8/8/3p4/3k4/1K6/8/4B3 w - - 0 2",
-	"r4k1r/5pbp/p7/1p4PN/3P3P/4n3/PP3P2/1K2R2R b - - 0 1",
-	"r4k2/5ppp/p3p3/1p6/3P4/8/PP3PPP/R4RK1 w - - 0 2",
-	"2r3k1/2p1R1p1/p1p3r1/2N5/5pp1/PP4P1/1P3B2/6K1 b - - 0 1",
-	"2r1r1k1/pp1n1ppp/4bn2/3p2B1/P4Q2/2qB1N1P/2P1RPP1/4R1K1 w - - 0 1",
-	"r2q1rk1/p1p3bp/3p2p1/1p1PpRB1/1P4n1/P1PPP2P/R3B1P1/6K1 b - - 0 1",
-	"4k3/3r1p2/p1pPp1p1/1pP3P1/1P6/P7/4K3/7R b - - 0 1",
-	"8/8/3P1R2/5b2/1PK2k2/8/8/4b3 w - - 0 1",
-	"1r1q1rk1/1p1bbp1p/p1nppn2/6B1/2P1P3/1NN5/PP1QBPPP/2RR2K1 b - - 0 1",
-	"r1b3k1/pp5p/n4rp1/3p4/8/PP3N2/4RPPP/RN4K1 w - - 0 5",
-	"2r1knnr/2q1b1pp/5p2/p1p1pPP1/P3P3/1Pp1BN1P/2P2Q2/3R1BK1 w - - 0 3",
-	"8/1k6/1p6/1P2K3/5P2/2R5/8/8 w - - 0 1",
-	"8/8/5N2/8/8/5k2/6p1/6K1 w - - 0 1",
-	"8/8/5P1k/4B1p1/p7/5K2/P7/5b2 w - - 0 1",
-	"2k5/ppp2p1p/2n1r3/7q/8/1PBP3P/P1PQ2P1/R1K5 w - - 0 1",
-	"8/4k3/4P2P/5P1K/p7/P7/8/8 b - - 0 1",
-	"r2qr1k1/1np1bppp/p2p1n2/1p2p2b/1P2P3/2PPRN1P/P1B2PP1/R1BQ1NK1 b - - 0 1",
-	"5RQ1/8/8/1P5k/p3b3/8/6PK/2r5 w - - 0 2",
-	"1r2r1k1/4ppbp/p2p2p1/2pP1Q1n/P1P5/1PB2B1P/5PP1/1R3RK1 w - - 0 1",
-	"2kr3r/pp2bppp/4p3/n7/3P1P2/2PBP2P/PP1B4/2KR3R w - - 0 1",
-	"2b3k1/Np2rpbp/6p1/2p5/2P1n3/1B1RP1BP/PP3PP1/6K1 b - - 0 1",
-	"3r1k1r/2q2pp1/p3pb2/2p4p/N1P5/2PP1PP1/4Q2P/4RRK1 b - - 0 1",
-	"rn1k3r/4npp1/1pp1p2p/p2pPP1P/3P4/qN1P2N1/P2Q2P1/R4RK1 w - - 0 1",
-	"k7/5p2/PK6/8/2R5/2P2r2/8/8 b - - 0 1",
-	"r3r1k1/1bB3pp/3P4/p2p1PQ1/2q3P1/P1p5/1PP4P/5RK1 w - - 0 1",
-	"3r1k2/pp2rp2/2p4p/3p2N1/6n1/3P4/PPP2PPP/4R1K1 w - - 0 1",
-	"8/3nk3/p4p1B/1p1K1P1P/1P4P1/P7/8/8 w - - 0 1",
-	"r1b1k2r/pp2pp1p/1n2n1p1/2p5/2P5/2P1B1P1/P2NPPBP/3R1RK1 b kq - 0 1",
-	"5rk1/3b1pp1/Q3p2p/2q1P3/1rpp1P2/8/P1P3PP/R2N1R1K b - - 0 3",
-	"4k2r/3b3p/2p1q3/8/5B2/4PNpP/6P1/3Q1RK1 w - - 0 1",
-	"3r1rk1/pp4qp/5pp1/2p1p3/2P3RP/P2P4/1P1Q1PP1/4R1K1 w - - 0 1",
-	"4k3/8/pr6/6R1/6p1/6P1/P6P/K7 b - - 0 1",
-	"4r1k1/3n2b1/B5pp/3Ppp2/8/5N1P/5PP1/2R1R1K1 b - - 0 2",
-	"r2q1rk1/1b2ppbp/pp4p1/2p1B1N1/2P5/1Q1B1N2/P4PPP/1R2R1K1 b - - 0 1",
-	"8/5k2/p2K2p1/1p5p/2b4P/P4P2/6P1/4B3 w - - 0 1",
-	"R7/8/8/7p/5P2/1K4k1/8/8 w - - 0 1",
-	"rnb4r/ppp1k3/2q2p1p/5p2/2p4Q/2N5/PPP3PP/R4R1K w - - 0 1",
-	"8/8/2K1Q3/6N1/7k/8/3p4/8 w - - 0 1",
-	"8/1R2b1k1/pB4p1/4p3/1P5P/P6n/7P/4K3 b - - 0 1",
-	"b5k1/6P1/1P6/4R3/7P/4p3/6PK/3r4 b - - 0 2",
-	"4rr2/1p3p1p/p4k2/5p2/2P4P/1P1RP3/P1N1K1P1/8 w - - 0 1",
-	"8/4p3/p7/3P2k1/3Qp3/1K6/8/8 b - - 0 1",
-	"2r1r1k1/1p3pbp/b4np1/p2B4/P2q1N2/1PN5/1Q3PPP/R3R1K1 w - - 0 2",
-	"5r1b/kb2r2p/3ppN2/1q6/p1n1P3/P1P2QPB/1P3R1P/K2R4 w - - 0 1",
-	"rnQ5/4b2p/p2p1pr1/4k2B/4P3/8/2P3PP/5RK1 w - - 0 1",
-	"2rr1b2/5p2/p5kp/1pnp1Np1/n5P1/P1P1BP2/1PR4P/3RNK2 w - - 0 1",
-	"r3qrk1/ppp2ppp/3n4/2bP4/5Pn1/1BP2N2/PP1NQ1PP/R1B4K w - - 0 1",
-	"8/3k4/Pb5p/1P4p1/8/4p2P/4K3/8 w - - 0 1",
-	"2kr2nr/ppp2ppp/8/q2Pp3/2P5/5N2/PP3PPP/R2Q1RK1 b - - 0 2",
-	"2k4r/p2n1pp1/q3p3/7p/2p1PN1P/2Pp2P1/3P1QB1/5RK1 w - - 0 1",
-	"1br2r1k/pp2n1p1/7p/8/3q1P2/3BpPPN/P5K1/R7 w - - 0 1",
-	"1r6/8/6p1/2pk1p1p/P4R1P/P2K1PP1/8/8 w - - 0 1",
-	"r1b3R1/p5Rp/1p1p4/2p3Pk/5K2/6P1/PPP5/8 b - - 0 1",
-	"5r1k/p5pp/8/2p5/P3BP2/2P3P1/1P3PK1/8 b - - 0 1",
-	"3r1rk1/ppq2ppp/2n5/3ppP2/4B3/2P2P2/PP4PP/RN2QRK1 w - - 0 2",
-	"5rk1/1p3ppp/8/p1pn4/5Q2/3P3P/PPP1r1P1/R4RK1 w - - 0 2",
-	"rn2k2r/pp3ppp/3ppn2/8/7N/P2P4/1qPBQPPP/R3K2R w KQkq - 0 3",
-	"4rrk1/p4ppp/8/4p3/2P5/2P5/P4PPP/5RK1 w - - 0 1",
-	"2r5/pp3p2/2b1pk1p/8/4P3/3B4/PP1R2PP/6K1 b - - 0 1",
-	"8/1p2bp2/pk1p1n2/2p3r1/P3P3/2NP1B1r/1PP1NP2/R3K3 w - - 0 3",
-	"8/7B/b3kp1p/Pp6/1P3Pp1/8/7P/2K5 w - - 0 1",
-	"4R3/5k1p/8/3p4/3P2p1/p7/3K2PP/8 w - - 0 1",
-	"6r1/1r4q1/1p1k1p2/2p1pP1p/2P1P2B/1R1Pb1PP/QR5K/8 b - - 0 1",
-	"rnb2rk1/pp2ppbp/6p1/6Bn/1PBPq2P/N7/P2KN3/R2Q3R w - - 0 2",
-	"8/8/1K2kp2/1P3p1p/3Rb3/4B1P1/r4P2/8 w - - 0 1",
-	"r3r1k1/pp1nq1bp/2p1b1p1/3ppp2/4P3/1PPP1NPP/P1N2P2/R2QRBK1 b - - 0 1",
-	"8/4K2P/6P1/7R/2q5/4k3/8/8 b - - 0 1",
-	"5r2/2p2rb1/1p1p2pk/pP1Pp2p/P1P1R1P1/7P/5P1B/5RK1 w - - 0 1",
-	"8/1p1k4/5P1N/2K5/4p3/8/8/8 b - - 0 1",
-	"1r4k1/8/2p3pQ/r2pP3/2pP4/6KP/1P4P1/1R6 b - - 0 1",
-	"6k1/8/r5p1/r5p1/6R1/7P/3R4/6K1 w - - 0 1",
-	"r2q1rk1/pp1nb1pp/2p3p1/3p2P1/5P1n/2PP3B/PP5P/RNB2R1K w - - 0 1",
-	"8/6p1/4k1p1/pp5p/5PP1/PP1K3P/8/8 w - - 0 1",
-	"q3r1k1/1p2bppp/2p5/3pP3/1P4P1/2B1P2P/2Q2P2/5RK1 b - - 0 3",
-	"4r1k1/5p2/3p1npb/3P3p/1q6/1P1Q1P2/6PP/1R5K w - - 0 2",
-	"5Q2/8/4k2p/7q/8/2B5/8/2K5 w - - 0 1",
-	"4r3/8/2q4p/2k5/3R4/p3Q2P/1p4PK/8 w - - 0 1",
-	"3N4/7B/8/4k2K/8/5P1P/8/2q3r1 w - - 0 1",
-	"4k3/8/2R5/pp1K4/8/r1P5/8/8 w - - 0 1",
-	"1r6/8/p7/P1Ppk3/6p1/4P3/K4R2/8 w - - 0 3",
-	"8/pp2k2p/2r1p3/5p2/P2Pp2P/4K1P1/1P3P2/4R3 b - - 0 1",
-	"4r2k/p3r3/5b1p/P1pBnp2/2P5/6BP/4RPP1/3R3K b - - 0 1",
-	"4r3/ppn4p/4kpbN/5N2/PR4P1/1P5P/5PK1/8 b - - 0 2",
-	"8/3k4/3b2R1/2p1pp2/2P5/2N1P2P/1p4P1/6K1 b - - 0 1",
-	"r1b1k2r/1pp5/p2p1n1p/3P1pp1/2P5/2PNP3/P3BPPP/R3K2R b KQkq - 0 1",
-	"6k1/1br2pp1/4p2p/4q3/RP5N/6PP/5P2/5BK1 w - - 0 1",
-	"8/rr2b2k/2p3pp/3pP3/P1pP4/2N4P/1P4P1/R4R1K w - - 0 1",
-	"1r4k1/pp3p1p/6p1/3b4/8/qP2PPP1/P2R1KBP/8 w - - 0 1",
-	"2br1k2/2p2ppp/p1pq4/1p2p3/4P1P1/1P1PQP2/2P2RKP/1R6 b - - 0 1",
-	"3r2k1/4np2/7p/1prp2PP/8/P3P3/1P1R1PQK/3R4 b - - 0 2",
-	"5rk1/p1p2p1p/6p1/2p5/4P1R1/P1R5/5r1P/1K6 b - - 0 1",
-	"q4r1k/5ppp/pp6/2nb1N2/8/1P3P2/P4QPP/3R1BK1 b - - 0 1",
-	"r1b2rk1/pp3pbp/1qnpp1p1/2p5/2B1PPn1/2NP1N2/PPPB2PP/1R1Q1R1K b - - 0 1",
-	"8/3b4/1k1b1pp1/3P3p/2P1P2P/5KP1/R7/8 b - - 0 1",
-	"8/8/p7/P1Pr1k2/5pp1/1K6/7P/8 w - - 0 1",
-	"r3k2r/ppp1nppp/1b2q3/nP2N3/8/2PP4/P4PPP/RNBQR1K1 w kq - 0 2",
-	"3r1rk1/ppp1qppp/3b2b1/8/4n3/1B3Q1R/PB2NPPP/3R2K1 w - - 0 1",
-	"1r4k1/1pp2ppp/pnn5/5P2/5P2/B1P5/P1QPr2P/1R3R1K w - - 0 1",
-	"r5qr/ppp3k1/1bnpb1n1/4p2p/2N1P1pP/2P3B1/PPQ1BPP1/3R1RK1 w - - 0 1",
-	"4k3/1R6/4n1p1/8/4P3/1b3P2/5K2/3q4 b - - 0 1",
-	"5qk1/7p/r5p1/1p1P2n1/bP6/b4P1P/N7/1R3BBK w - - 0 1",
-	"8/8/5K1P/3k2B1/1r6/3b1P2/p7/4R3 w - - 0 1",
-	"8/5N2/8/6p1/P5P1/2R4P/3k2K1/rq6 w - - 0 1",
-	"8/4k3/5p1p/2N4P/3r1P2/6P1/2R5/6K1 b - - 0 1",
-	"8/8/2N3pk/2p5/4r2p/5K1P/6P1/8 b - - 0 1",
-	"2rq3k/7p/6r1/2np1p2/p4P2/2PPP1P1/2R1Q2K/1R2B3 b - - 0 1",
-	"r5k1/2q1bppp/1pP1pn2/4N3/1pBP4/6N1/1P3PPP/1QR3K1 b - - 0 1",
-	"7k/4r1p1/7p/K2Q4/8/8/2q5/8 w - - 0 1",
-	"8/1b1Nbpkp/6p1/pp2P3/8/P2RP1PP/8/2r2BK1 b - - 0 1",
-	"5bkB/1q3p2/r2p3p/1p6/1P3rp1/8/1QP1R1PK/4R3 w - - 0 1",
-	"r3k2r/p1pp1p1p/6p1/4b3/1pP5/1P1B1P2/P4P1P/R1K4R w kq - 0 1",
-	"4Rb1k/2q2rpp/8/p3Pr1P/2B2PQ1/1P6/P5R1/7K w - - 0 1",
-	"r3r3/1q2bppk/2n1p1p1/p2p4/1PpP3P/PQB1PBP1/2R2P1K/R7 w - - 0 1",
-	"1n6/4k1b1/pp1N2pp/4p3/P3N3/2P4P/1P2KPP1/8 w - - 0 1",
-	"8/p6p/r7/5kp1/2R5/5K1P/8/8 w - - 0 1",
-	"8/8/4k1p1/3r2Pp/p1p4P/2P2K2/1P3P2/8 w - - 0 1",
-	"4r1k1/6pp/p7/1pp1p1R1/3pP3/P2n2B1/6PP/7K w - - 0 1",
-	"r2qnrk1/3n1pp1/4p1b1/ppp3Pp/2pPPB1P/P1Q2PN1/1P2B3/3RK2R b K - 0 1",
-	"1r6/N4p2/4bk2/8/3P2p1/2K3P1/P1P1BPP1/R7 w - - 0 1",
-	"r7/p1pbkpbp/5n2/6p1/3P1p2/2N5/PPP3PP/R1BQ2K1 w - - 0 4",
-	"r1b1r1k1/ppp2ppp/8/N2p4/3N3q/2PQP3/PP4PP/2KR1B1R b - - 0 1",
-	"r4k2/1b1p1r1p/pn2p3/5p2/8/7Q/PbPRN1PP/3R2K1 w - - 0 2",
-	"r3k1nr/pp4bp/2bqppp1/2pp4/5P2/1PB1PNQ1/P1PP2PP/RN2K2R b KQkq - 0 1",
-	"8/8/P6R/1p1p1kp1/3P2r1/8/8/3K4 w - - 0 1",
-	"r4rk1/5pp1/pPp1bq1p/2Pp4/3P4/3BP1P1/2Q2PP1/R3K2R w KQ - 0 2",
-	"8/3k4/P2p4/8/3r4/5p1p/8/R3K3 b - - 0 1",
-	"4R3/3B1pkp/6p1/2r1P3/P7/6P1/1P2PK1P/8 b - - 0 1",
-	"5r2/p3qpk1/1p1r1n1p/2p2PpP/2P5/2QBP3/nB1P2R1/5RK1 w - - 0 1",
-	"4R3/Q4p2/6kp/3pP1p1/2rB1p2/5P2/6PK/8 b - - 0 1",
-	"r3k2r/1b1nbpp1/p2p3p/1p1P4/1P6/P3BN1P/4BPP1/2RQK2R b Kkq - 0 1",
-	"r2r2k1/4pp1p/1pp3pb/p1p4n/4P2P/1P1P1P2/PBP1NP2/1K1RR3 b - - 0 1",
-	"8/8/5p2/4k1r1/6n1/3QP3/6P1/5K2 w - - 0 1",
-	"r2q3r/p2p1kpp/1pnbb3/2p5/8/3B4/PPP2PPP/R1BQR1K1 w - - 0 1",
-	"5R2/r3k1p1/6q1/n1Pp4/1Q2n2p/P3B2P/6P1/R5K1 w - - 0 1",
-	"r6k/1pq4p/1R1p1p2/2p1p3/2PbP1P1/r2P3P/Q6B/1R5K w - - 0 1",
-	"3qr1k1/1p1nb1p1/p2rbp2/4p3/P1P5/1N2BP2/1P1QB1KP/R2R4 w - - 0 1",
-	"1r2k1nr/pppq1ppp/3p4/4p1b1/2Q1P3/2P5/PP1P1PPP/nNBK1R2 w - - 0 1",
-	"r1r3k1/ppRbq1pp/4pn2/1P1p4/3N4/6PB/P1Q1PP1P/5RK1 b - - 0 1",
-	"1r3rk1/4ppbp/pp1q2p1/2pP4/2P1P3/1PN2Q2/P5PP/4RRK1 b - - 0 1",
-	"r2q4/p1p2kpr/3bbn1p/1B6/3P3P/P1N2Q2/1P1P1PP1/R1B2RK1 w - - 0 1",
-	"1k6/1P4R1/7r/K7/8/1P6/8/8 b - - 0 1",
-	"8/p2r3k/2R1p1r1/1p2Pp2/3P1P1B/6pP/PP4P1/3R2K1 w - - 0 1",
-	"2r2k2/1p3p1p/p1r1pp1b/P6b/2pP4/1P2R2P/3N1PP1/2R3K1 w - - 0 1",
-	"8/1p6/p1p5/2P2k2/P3p3/1PP1P3/4K3/2B5 b - - 0 1",
-	"3r2k1/5pp1/6p1/8/5P2/6K1/N6P/8 b - - 0 4",
-	"8/6k1/5p2/7p/4RP1P/8/5r2/3K4 b - - 0 1",
-	"rnb2k2/ppp3np/4p1pB/4q3/2P5/2NB4/PP4PP/R2Q3K w - - 0 1",
-	"r6r/pp1k2pp/1npqpn2/6N1/P3P1Q1/2N4P/1PP2PP1/R3K2R w KQ - 0 1",
-	"8/7R/5P2/3k4/4p1K1/2r5/8/8 b - - 0 1",
-	"1r2kb1r/ppp2p1p/3p4/5p2/8/1P2P3/P1PN1PPP/3R1RK1 w - - 0 1",
-	"2b1r1k1/1p3pbp/2p3p1/2n1n3/1qPN4/rPN1B1PP/3Q2B1/1R2R1K1 w - - 0 2",
-	"1q3bk1/Rb3pp1/1p2p2p/1nn1P3/1BP4P/1N3P2/4B1P1/6K1 w - - 0 1",
-	"5k2/2R2n2/6p1/6Pp/8/1K6/8/8 w - - 0 1",
-	"r3k2r/1pp1n1pp/2pq1p2/p1b1p3/P3P1b1/1NP2N2/1P2QPPP/R1B2RK1 b kq - 0 1",
-	"2r3k1/q3bp2/4bnp1/4p3/1p2P2p/1N2RQ1P/P3N1P1/K3R3 b - - 0 1",
-	"2r2k2/5pp1/1p4np/pPp5/8/4P3/1P1R1PPP/3R1K2 w - - 0 1",
-	"8/5pk1/2N4p/3pPP2/PP1P1K2/8/7r/1q6 b - - 0 2",
-	"r7/5pk1/4p1p1/P2pK3/6r1/8/1R2R3/8 w - - 0 1",
-	"rnb2rk1/ppp2pp1/1b1p4/6Np/2BP4/1QP2P2/P5PP/RN3RK1 b - - 0 1",
-	"r2r2k1/1bq1bppp/ppnppn2/8/P1B1PB2/5N2/NP1RQPPP/3R2K1 b - - 0 1",
-	"8/8/7p/3n1k2/8/3N2K1/8/8 w - - 0 1",
-	"5r2/p5kp/Bn2R1p1/3p1p2/8/1P5P/P4PP1/6K1 b - - 0 2",
-	"1r3r1k/pp6/5bp1/3R3p/1P6/P6B/5PP1/1R4K1 b - - 0 1",
-	"1r4k1/p5pp/2B2pN1/2n5/8/1P4P1/P4P1P/2R2RK1 b - - 0 1",
-	"1rnqr1k1/p4pbn/R5p1/3p1b1p/3Pp3/1PN1P1PP/1BQ2PBK/5RN1 b - - 0 1",
-	"6k1/ppq3bp/1np3p1/3nr1B1/4N3/1B6/PPP2PPP/3QR1K1 b - - 0 1",
-	"3r1q2/1b1pk1b1/n1p1ppQ1/pp6/3PP3/P1PB1N2/1PK5/R6R b - - 0 1",
-	"5R2/8/2p5/p1P1p3/P3P2k/1r3p2/3K4/8 w - - 0 1",
-	"5rk1/6p1/Rp2p2p/8/4P2B/2b5/1r3PPP/5R1K w - - 0 1",
-	"6nk/2R4p/5b2/8/1P3p2/8/5N1P/2K5 w - - 0 2",
-	"r7/pp2p2p/6k1/6p1/8/8/PPP5/1K3B2 b - - 0 2",
-	"3r2k1/1q2p2p/ppn1b1p1/3p4/P2P3b/1PP5/NB1QB1PP/5RK1 b - - 0 1",
-	"r4rk1/p1p2p2/1p1p4/4pb1q/3b4/P1NP3P/1PP3P1/RQ3R1K w - - 0 1",
-	"2r2rk1/pb2qpp1/1pp1pn1p/8/3P4/2P1Q2N/PPB2PPP/3RR1K1 b - - 0 1",
-	"4b3/8/p4KpB/1p1k3p/1Pp4P/P1P2P2/8/8 w - - 0 1",
-	"6r1/7p/2p3k1/2Np1p2/8/1P2P1BP/P2P1RP1/7K b - - 0 3",
-};
+#include <tuner.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 bool test(Tuner &tuner)
 {
-	tuner.eval.tempo_bonus = 0;
-	std::cerr << "checking evaluations...\n";
-	// load the weights from the engine evaluation function
-	for (unsigned w = 0; w < NUM_WEIGHTS; w++)
-		tuner.weights[w] = tuner.load_weight(w);
-
+	tuner.eval.use_pawn_hash_table = false;
 	bool error = false;
-	for (unsigned position = 0; position < 200; position++) {
-		Sample &sample = tuner.training_set.at(position);
-		tuner.board.set_fenpos(test_positions[position]);
-		double correct_eval = tuner.eval.evaluate(tuner.board);
-		if (tuner.board.side_to_move == BLACK) correct_eval *= -1;
 
-		double tuner_eval = tuner.evaluate(sample);
+	tuner.eval.tempo_bonus = 0;
+	std::cerr << "checking evaluations and gradients...\n";
+	tuner.engine_weights();
 
-		// is the evaluation correct?
-		if (fabs(tuner_eval - correct_eval) > 2) {
-			std::cerr << "error in position " << position << ", where correct " << correct_eval << " and tuner " << tuner_eval << "\n";
-			error = true;
+	std::vector<Sample> verify_set {};
+	std::vector<std::string> verify_positions {};
+
+	std::ifstream file;
+	file.open("training_data.epd");
+	if (file.is_open()) {
+		std::string input;
+		for (unsigned pos = 0; pos < 100000; pos++) {
+
+			std::string fen {};
+			std::string result {};
+			while (true) {
+				file >> input;
+				if (input == "[0.0]" || input == "[0.5]" || input == "[1.0]") {
+					result = input;
+					break;
+				}
+				fen += input + " ";
+			}
+
+			Sample sample { tuner.outcome(result) };
+			tuner.board.set_fenpos(fen);
+			tuner.extract_features(sample);
+			verify_set.emplace_back(sample);
+
+			double correct_eval = tuner.eval.evaluate(tuner.board);
+			if (tuner.board.side_to_move == BLACK) correct_eval *= -1;
+			double tuner_eval = tuner.evaluate(sample);
+
+			// is the evaluation correct?
+			if (fabs(tuner_eval - correct_eval) > 2) {
+				std::cerr << "error in position " << pos <<
+					", where correct " << correct_eval << " and tuner " << tuner_eval << "\n";
+				error = true;
+			}
 		}
 	}
-	tuner.approximate_gradients(0);
-	double approximated[NUM_WEIGHTS];
-	for (unsigned grad = 0; grad < NUM_WEIGHTS; grad++)
-		approximated[grad] = tuner.gradients[grad];
 
-	tuner.compute_gradients(0);
-	for (unsigned grad = 0; grad < NUM_WEIGHTS; grad++) {
-		if (fabs(approximated[grad] - tuner.gradients[grad]) > 0.001) {
-			std::cerr << "gradient error in weight " << grad << ": approx " << approximated[grad] << " comp " << tuner.gradients[grad] << "\n";
+	// Do the approximated and computed gradients match?
+	tuner.approximate_gradients(verify_set, 0);
+	Parameters approximated_parameters = tuner.parameters;
+
+	tuner.compute_gradients(verify_set, 0);
+	for (unsigned grad = 0; grad < tuner.parameters.list.size(); grad++) {
+		double approximated = approximated_parameters.mg_gradient(grad);
+		double computed = tuner.parameters.mg_gradient(grad);
+		if (fabs(approximated - computed) > 0.000000001) {
+			std::cerr << "gradient error in mg " << tuner.parameters.terms[tuner.parameters.list[grad].term_index].name
+				  << ": approx " << approximated << " comp " << computed << "\n";
+			error = true;
+		}
+
+		approximated = approximated_parameters.eg_gradient(grad);
+		computed = tuner.parameters.eg_gradient(grad);
+		if (fabs(approximated - computed) > 0.000000001) {
+			std::cerr << "gradient error in eg " << tuner.parameters.terms[tuner.parameters.list[grad].term_index].name
+				  << ": approx " << approximated << " comp " << computed << "\n";
 			error = true;
 		}
 	}

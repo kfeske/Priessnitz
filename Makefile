@@ -1,7 +1,7 @@
 MAKEFLAGS += -j8
 test:
 
-CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -march=native
+CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -I. -march=native
 #CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3
 
 OBJECTS := main.o pre_computed.o search.o board.o evaluation.o move_generator.o uci.o

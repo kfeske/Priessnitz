@@ -1,6 +1,6 @@
 #include "tuner.h"
 #include "test.h"
-#include "trace.h"
+#include <trace.h>
 
 bool const use_default_weights = true;
 
@@ -13,7 +13,7 @@ Trace &trace()
 int main()
 {
 	static Tuner tuner {};
-	//if (!test(tuner)) return 1;
+	if (!test(tuner)) return 1;
 	if (use_default_weights) {
 		std::cerr << "loading default weights...\n";
 		tuner.default_weights();
