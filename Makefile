@@ -2,6 +2,8 @@ MAKEFLAGS += -j8
 test:
 
 CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -flto -I.
+
+NATIVEFLAGS = -march=native
 BMI2FLAGS   = -march=x86-64 -mpopcnt -msse -msse2 -mssse3 -msse4.1 -mavx2 -mbmi -mbmi2
 AVX2FLAGS   = -march=x86-64 -mpopcnt -msse -msse2 -mssse3 -msse4.1 -mavx2 -mbmi
 POPCNTFLAGS = -march=x86-64 -mpopcnt
@@ -9,10 +11,10 @@ POPCNTFLAGS = -march=x86-64 -mpopcnt
 OBJECTS := main.o pre_computed.o search.o board.o evaluation.o move_generator.o uci.o
 
 priessnitz: Makefile $(OBJECTS)
-	g++ $(OBJECTS) -o priessnitz $(CXXFLAGS)
+	g++ $(OBJECTS) -o priessnitz $(CXXFLAGS) $(NATIVEFLAGS)
 
 %.o: %.cc
-	g++ -c $< -o $@ $(CXXFLAGS)
+	g++ -c $< -o $@ $(CXXFLAGS) $(NATIVEFLAGS)
 
 -include *.d
 
