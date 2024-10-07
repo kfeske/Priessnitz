@@ -236,23 +236,15 @@ struct Parameters
 	}
 };
 
-enum Tuning_params {
-	//NUM_TRAINING_POSITIONS = 7153653,
-	//NUM_TRAINING_POSITIONS = 2000,
-	NUM_TRAINING_POSITIONS = 9999740,
-	NUM_TEST_POSITIONS = 0,
-	BATCH_SIZE = 1000
-};
-
 // A single position and the game result
 struct Sample
 {
 	double outcome;
 
 	// Stores, how much a weight influences the evaluation of a position
-	unsigned normal_influence_length = 0;
-	int *normal_influence {};
-	unsigned *normal_influence_index {};
+	uint8_t normal_influence_length = 0;
+	int8_t *normal_influence {};
+	uint16_t *normal_influence_index {};
 
 	unsigned king_danger_influence_length = 0;
 	unsigned *king_danger_white_influence {};
@@ -264,13 +256,24 @@ struct Sample
 
 	// Drawish endgame scaling
 	double scale_factor = 0;
+
+	// Current evaluation of the position from the evaluation function of the engine
+	int evaluation = 0;
+};
+
+enum Tuning_params {
+	NUM_TRAINING_POSITIONS = 30000000,
+	NUM_TEST_POSITIONS = 2485879,
+	BATCH_SIZE = 3000
 };
 
 struct Tuner
 {
-	double const SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
+	double SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
 	double const TINY_NUMBER = 0.00001;   // difference quotient step size
 	double const LEARN_RATE = 1;	 	 // step size
+
+	std::string TRAINING_DATA_PATH = "tmp2.epd";
 
 	Board board {};
 	Evaluation eval {};
@@ -315,6 +318,10 @@ struct Tuner
 	double cost_derivative(Sample &sample, double sigmoid);
 
 	double average_cost(std::vector<Sample> &set);
+
+	double engine_evaluation_error();
+
+	void find_optimal_scaling();
 
 	void apply_gradients();
 
