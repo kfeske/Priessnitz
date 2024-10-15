@@ -216,6 +216,7 @@ struct Parameters
 		_add(NORMAL, "rook_on_seventh = ",     1, 0, &t.rook_on_seventh[0],     &eval.mg_rook_on_seventh,     &eval.eg_rook_on_seventh);
 
 		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.mg_pawn_shelter[0][0][0], &eval.eg_pawn_shelter[0][0][0]);
+		_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.mg_pawn_storm[0][0][0],   &eval.eg_pawn_storm[0][0][0]);
 
 		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0],
 				&eval.mg_king_attacker_weight[0], &eval.eg_king_attacker_weight[0]);
@@ -281,7 +282,7 @@ struct Tuner
 {
 	double SCALING = 3.45387764 / 400; // Scaling constant for our evaluation function 
 					   // (basically to transform centipawns to win/loss/draw probability). Used in sigmoid function
-	double const TINY_NUMBER = 0.0001;
+	double const TINY_NUMBER = 0.00001;
 	double const LEARN_RATE = 0.001; // Step size for the optimizer.
 
 	std::string TRAINING_DATA_PATH = "lichess-big3-resolved.book";

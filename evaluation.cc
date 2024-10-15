@@ -76,16 +76,28 @@ void Evaluation::evaluate_pawns(Board &board, Color friendly)
 	// Pawn Shelter
 	unsigned shelter_center = std::max(1U, std::min(6U, file_num(king_square)));
 	for (unsigned shelter_file = shelter_center - 1; shelter_file <= shelter_center + 1; shelter_file++) {
-		uint64_t shelter_pawns = board.pieces(friendly, PAWN) & file(shelter_file) & (forward_mask(friendly, king_square) | rank(king_square));
+		uint64_t shelter_mask = file(shelter_file) & (forward_mask(friendly, king_square) | rank(king_square));
+		uint64_t shelter_pawns = board.pieces(friendly, PAWN) & shelter_mask;
 		if (shelter_pawns) {
 			unsigned pawn_square = (friendly == WHITE) ? msb(shelter_pawns) : lsb(shelter_pawns);
-			unsigned king_distance = rank_distance(pawn_square, king_square);
+			unsigned rank = rank_num(normalize_square[friendly][pawn_square]);
 			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
 			bool king_file_pawn = shelter_file == file_num(king_square);
-			info.mg_bonus[friendly] += mg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
-			info.eg_bonus[friendly] += eg_pawn_shelter[king_file_pawn][edge_distance][king_distance];
-			record_pawn_shelter(friendly, king_file_pawn, edge_distance, king_distance);
+			info.mg_bonus[friendly] += mg_pawn_shelter[king_file_pawn][edge_distance][rank];
+			info.eg_bonus[friendly] += eg_pawn_shelter[king_file_pawn][edge_distance][rank];
+			record_pawn_shelter(friendly, king_file_pawn, edge_distance, rank);
 		}
+		/*uint64_t storm_pawns = board.pieces(enemy, PAWN) & shelter_mask;
+		if (storm_pawns) {
+			unsigned pawn_square = (friendly == WHITE) ? msb(storm_pawns) : lsb(storm_pawns);
+			unsigned king_distance = rank_distance(pawn_square, king_square);
+			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
+			Direction forward = (board.side_to_move == WHITE) ? UP : DOWN;
+			bool blocked = board.board[pawn_square - forward] == piece_of(friendly, PAWN);
+			info.mg_bonus[friendly] += mg_pawn_storm[blocked][edge_distance][king_distance];
+			info.eg_bonus[friendly] += eg_pawn_storm[blocked][edge_distance][king_distance];
+			//record_pawn_storm(friendly, blocked, edge_distance, king_distance);
+		}*/
 	}
 
 }

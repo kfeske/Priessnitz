@@ -44,6 +44,7 @@ struct Trace {
 	unsigned rook_on_seventh[2] {};
 
 	unsigned pawn_shelter[2][2][4][8] {};
+	unsigned pawn_storm[2][2][4][8] {};
 
 	unsigned safe_knight_check[2] {};
 	unsigned safe_bishop_check[2] {};
@@ -107,6 +108,7 @@ static inline void record_rook_half_open_file(Color friendly) { trace().rook_hal
 static inline void record_rook_on_seventh(    Color friendly) { trace().rook_on_seventh[friendly]++; }
 
 static inline void record_pawn_shelter(Color friendly, bool king_file, unsigned edge_dist, unsigned king_dist) { trace().pawn_shelter[friendly][king_file][edge_dist][king_dist]++; }
+static inline void record_pawn_storm(Color friendly, bool blocked, unsigned edge_dist, unsigned king_dist) { trace().pawn_storm[friendly][blocked][edge_dist][king_dist]++; }
 
 static inline void record_safe_knight_check(Color friendly, unsigned count) { trace().safe_knight_check[friendly] += count; }
 static inline void record_safe_bishop_check(Color friendly, unsigned count) { trace().safe_bishop_check[friendly] += count; }

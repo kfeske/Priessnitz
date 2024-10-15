@@ -39,6 +39,7 @@ static inline void record_rook_half_open_file(Color ) {}
 static inline void record_rook_on_seventh(Color ) {}
 
 static inline void record_pawn_shelter(Color, bool, unsigned, unsigned ) {}
+static inline void record_pawn_storm(Color, bool, unsigned, unsigned ) {}
 
 static inline void record_safe_knight_check(Color , unsigned ) {}
 static inline void record_safe_bishop_check(Color , unsigned ) {}
