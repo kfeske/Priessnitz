@@ -216,13 +216,24 @@ void Tuner::find_optimal_scaling()
 // go one step towards the steepest descent
 void Tuner::apply_gradients()
 {
-	for (Parameter &p : parameters.list) {
+	/*for (Parameter &p : parameters.list) {
 		p.mg_gradient /= BATCH_SIZE;
 		p.eg_gradient /= BATCH_SIZE;
 		p.mg_sum_squared_gradients += p.mg_gradient * p.mg_gradient;
 		p.eg_sum_squared_gradients += p.eg_gradient * p.eg_gradient;
 		p.mg_value -= p.mg_gradient * (LEARN_RATE / std::sqrt(p.mg_sum_squared_gradients + TINY_NUMBER));
 		p.eg_value -= p.eg_gradient * (LEARN_RATE / std::sqrt(p.eg_sum_squared_gradients + TINY_NUMBER));
+	}*/
+	for (Parameter &p : parameters.list) {
+		p.mg_gradient /= BATCH_SIZE;
+		p.eg_gradient /= BATCH_SIZE;
+		p.mg_momentum = 0.9 * p.mg_momentum + (1 - 0.9) * p.mg_gradient;
+		p.eg_momentum = 0.9 * p.eg_momentum + (1 - 0.9) * p.eg_gradient;
+		p.mg_velocity = 0.999 * p.mg_velocity + (1 - 0.999) * p.mg_gradient * p.mg_gradient; 
+		p.eg_velocity = 0.999 * p.eg_velocity + (1 - 0.999) * p.eg_gradient * p.eg_gradient; 
+
+		p.mg_value -= p.mg_momentum * LEARN_RATE / (std::sqrt(p.mg_velocity) + 1e-8);
+		p.eg_value -= p.eg_momentum * LEARN_RATE / (std::sqrt(p.eg_velocity) + 1e-8);
 	}
 }
 
@@ -312,8 +323,8 @@ void Tuner::compute_gradients(std::vector<Sample> &set, unsigned batch)
 
 			// Be careful not to compute gradients when the king danger is negative, because we clamp it to positive values.
 			parameters.eg_gradient(sample.king_danger_influence_index[i]) -=
-				(double((eg_white_king_danger > 0) * sample.king_danger_white_influence[i]) -
-				 double((eg_black_king_danger > 0) * sample.king_danger_black_influence[i])) / 16.0 * partial_derivative * eg_scaled_phase;
+				(double((eg_white_king_danger > 0.0) * sample.king_danger_white_influence[i]) -
+				 double((eg_black_king_danger > 0.0) * sample.king_danger_black_influence[i])) / 16.0 * partial_derivative * eg_scaled_phase;
 		}
 	}
 }
@@ -336,18 +347,19 @@ void Tuner::tune()
 
 	double best_error = average_cost(test_set);
 
-	for (unsigned iteration = 0; iteration < 2000; iteration++) {
+	for (unsigned iteration = 0; iteration < 4000; iteration++) {
 		std::cerr << "iteration " << iteration << "\n";
 		for (unsigned batch = 0; batch < NUM_TRAINING_POSITIONS / BATCH_SIZE; batch++) {
 			compute_gradients(training_set, batch);
 			apply_gradients();
 		}
 		double error = average_cost(test_set);
-		if (error < best_error) {
+		if (best_error - error > 1e-8) {
 			best_error = error;
 			parameters.print();
 			std::cerr << "\ntest error " << best_error << "\n";
 		}
+		else break;
 	}
 	std::cerr << "\ntraining error " << average_cost(training_set) << "\n";
 	std::cerr << "\ntest error " << average_cost(test_set) << "\n";

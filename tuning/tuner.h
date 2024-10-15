@@ -49,8 +49,14 @@ struct Parameter
 	double eg_gradient {};
 
 	// Needed for Adagrad
-	double mg_sum_squared_gradients {};
-	double eg_sum_squared_gradients {};
+	//double mg_sum_squared_gradients {};
+	//double eg_sum_squared_gradients {};
+	
+	// Needed for Adam
+	double mg_momentum {};
+	double eg_momentum {};
+	double mg_velocity {};
+	double eg_velocity {};
 };
 
 struct Parameters
@@ -262,18 +268,23 @@ struct Sample
 };
 
 enum Tuning_params {
-	NUM_TRAINING_POSITIONS = 30000000,
-	NUM_TEST_POSITIONS = 2485879,
-	BATCH_SIZE = 3000
+	//NUM_TRAINING_POSITIONS = 100000,
+	//NUM_TEST_POSITIONS = 100000,
+	//NUM_TRAINING_POSITIONS = 9000000,
+	//NUM_TEST_POSITIONS = 996883,
+	NUM_TRAINING_POSITIONS = 6600000,
+	NUM_TEST_POSITIONS = 553653,
+	BATCH_SIZE = 1000
 };
 
 struct Tuner
 {
-	double SCALING = 3.45387764 / 400; // scaling constant for our evaluation function
-	double const TINY_NUMBER = 0.00001;   // difference quotient step size
-	double const LEARN_RATE = 1;	 	 // step size
+	double SCALING = 3.45387764 / 400; // Scaling constant for our evaluation function 
+					   // (basically to transform centipawns to win/loss/draw probability). Used in sigmoid function
+	double const TINY_NUMBER = 0.0001;
+	double const LEARN_RATE = 0.001; // Step size for the optimizer.
 
-	std::string TRAINING_DATA_PATH = "tmp2.epd";
+	std::string TRAINING_DATA_PATH = "lichess-big3-resolved.book";
 
 	Board board {};
 	Evaluation eval {};
