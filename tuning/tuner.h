@@ -231,6 +231,8 @@ struct Parameters
 		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.mg_safe_rook_check,   &eval.eg_safe_rook_check);
 		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.mg_safe_queen_check,  &eval.eg_safe_queen_check);
 
+		_add(KING_DANGER, "king_zone_weak_square = ",  1, 0, &t.king_zone_weak_square[0],  &eval.mg_king_zone_weak_square,  &eval.eg_king_zone_weak_square);
+
 		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.mg_king_danger_offset, &eval.eg_king_danger_offset);
 
 		_add(NORMAL, "center_control = ", 1, 0, &t.center_control[0],     &eval.mg_center_control,     &eval.eg_center_control);

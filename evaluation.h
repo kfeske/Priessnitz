@@ -16,6 +16,7 @@ struct Eval_info : Noncopyable
 	uint64_t passed_pawns;
 
 	uint64_t attacked[2];
+	uint64_t attacked_by_multiple[2];
 	uint64_t attacked_by_piece[2][6];
 
 	void init(Board &board)
@@ -34,9 +35,11 @@ struct Eval_info : Noncopyable
 		attacked[WHITE] = attacked_by_piece[WHITE][KING] = piece_attacks(KING, white_king_square, 0ULL);
 		attacked[BLACK] = attacked_by_piece[BLACK][KING] = piece_attacks(KING, black_king_square, 0ULL);
 		uint64_t white_pawn_attacks = board.all_pawn_attacks(WHITE);
+		attacked_by_multiple[WHITE] = attacked[WHITE] & white_pawn_attacks;
 		attacked[WHITE]	 	      |= white_pawn_attacks;
 		attacked_by_piece[WHITE][PAWN] = white_pawn_attacks;
 		uint64_t black_pawn_attacks = board.all_pawn_attacks(BLACK);
+		attacked_by_multiple[BLACK] = attacked[BLACK] & black_pawn_attacks;
 		attacked[BLACK]	 	      |= black_pawn_attacks;
 		attacked_by_piece[BLACK][PAWN] = black_pawn_attacks;
 	}
@@ -48,298 +51,301 @@ struct Evaluation : Noncopyable
 	Eval_info info {};
 	Pawn_hash_table pawn_hash_table;
 
-	int mg_piece_value[6] = { 46, 268, 278, 345, 714, 0, };
-int eg_piece_value[6] = { 96, 342, 351, 626, 1192, 0, };
-
-int mg_pawn_psqt[64] = {
-        0, 0, 0, 0, 0, 0, 0, 0,
-        26, 34, 17, 77, 56, 49, -19, -39,
-        12, 6, 23, 34, 32, 52, 21, -14,
-        -6, -5, 0, -1, 15, 15, -6, -4,
-        -10, -9, -2, 6, 8, 4, -3, -14,
-        -15, -11, -4, -0, 9, -4, -1, -21,
-        -4, 1, 2, 5, 15, 4, 14, -11,
-        0, 0, 0, 0, 0, 0, 0, 0,
-};
-int eg_pawn_psqt[64] = {
-        0, 0, 0, 0, 0, 0, 0, 0,
-        20, 17, 43, 24, 34, 20, 52, 44,
-        22, 31, 12, 1, 6, 5, 31, 28,
-        20, 9, -2, -13, -13, -9, 3, 5,
-        10, 6, -4, -10, -11, -6, -3, -4,
-        6, 2, -3, 1, 1, -5, -7, -5,
-        12, 12, 6, 8, 14, 7, 4, 5,
-        0, 0, 0, 0, 0, 0, 0, 0,
-};
-
-int mg_knight_psqt[64] = {
-        -95, -102, -73, -40, -17, -68, -103, -69,
-        -38, -28, -25, -13, -18, 4, -21, -13,
-        -20, -12, -8, -8, -2, 25, -5, -1,
-        -11, -2, 7, 27, 19, 29, 2, 20,
-        1, 7, 10, 17, 18, 20, 25, 12,
-        -11, -6, -2, -2, 12, 1, 13, 3,
-        -15, -11, -8, 6, 3, 5, 7, 9,
-        -44, -7, -24, -13, -4, 0, -5, -17,
-};
-int eg_knight_psqt[64] = {
-        -33, -5, 8, -1, 6, -14, -0, -42,
-        4, 9, 10, 11, 4, -2, 6, -8,
-        1, 3, 14, 16, 13, -5, -4, -7,
-        11, 5, 12, 14, 12, 10, 12, 2,
-        9, 1, 17, 17, 23, 11, 4, 8,
-        -8, -4, 1, 12, 12, -2, -4, -1,
-        -9, -4, -7, -5, -6, -7, -8, 6,
-        -3, -10, -9, -7, -3, -12, 0, 3,
-};
-
-int mg_bishop_psqt[64] = {
-        -19, -60, -53, -83, -83, -80, -43, -52,
-        -23, -25, -21, -36, -26, -22, -39, -27,
-        -9, 5, -4, 1, -5, 25, 6, -1,
-        -16, -7, -5, 2, -3, -0, -7, -18,
-        -5, -19, -4, 2, 1, -1, -10, 6,
-        -4, 8, 4, 4, 8, 7, 10, 16,
-        21, 8, 16, 1, 7, 16, 30, 23,
-        8, 19, 7, -3, 8, 2, 14, 30,
-};
-int eg_bishop_psqt[64] = {
-        6, 13, 8, 16, 15, 6, 2, -3,
-        -4, 5, 2, 8, 1, 0, 7, -3,
-        12, 2, 7, -0, 4, 10, 8, 14,
-        6, 10, 8, 21, 12, 11, 8, 10,
-        0, 8, 11, 14, 13, 5, 6, -7,
-        -0, 4, 4, 8, 12, 6, -1, -3,
-        2, -11, -9, -3, 1, -6, -8, -12,
-        -10, -1, -2, -3, -6, 5, -8, -22,
-};
-
-int mg_rook_psqt[64] = {
-        7, -5, -13, -19, -1, 3, 14, 28,
-        -15, -15, -10, 5, -9, 10, 17, 27,
-        -16, 11, -1, 3, 26, 30, 68, 28,
-        -14, -1, -2, -3, 5, 17, 22, 13,
-        -18, -19, -13, -9, -5, -10, 13, -4,
-        -17, -14, -10, -11, -0, 4, 31, 11,
-        -16, -11, -3, -1, 6, 11, 30, -3,
-        -2, -5, -4, 3, 10, 8, 13, 10,
-};
-int eg_rook_psqt[64] = {
-        21, 26, 33, 30, 24, 26, 26, 20,
-        10, 18, 22, 13, 14, 15, 11, 4,
-        21, 18, 20, 17, 9, 7, 3, 3,
-        19, 15, 18, 15, 4, 1, 6, 2,
-        7, 8, 6, 5, 2, 2, -4, -4,
-        -3, -4, -6, -4, -9, -13, -24, -22,
-        -12, -9, -10, -11, -16, -18, -29, -21,
-        -4, -8, -4, -8, -13, -8, -14, -18,
-};
-
-int mg_queen_psqt[64] = {
-        -27, -19, -25, -0, -16, -9, 51, 4,
-        -6, -24, -29, -48, -50, -14, -5, 38,
-        -0, -10, -17, -15, -9, 10, 22, 20,
-        -10, -7, -17, -29, -21, -5, 5, 12,
-        4, -14, -14, -16, -15, -7, 12, 17,
-        0, 4, -8, -7, -4, 4, 23, 18,
-        6, 5, 10, 11, 11, 16, 28, 28,
-        -0, -8, -1, 10, 6, -2, 2, 19,
-};
-int eg_queen_psqt[64] = {
-        12, 5, 26, 22, 27, 23, -24, 8,
-        -7, 2, 28, 46, 59, 34, 8, 16,
-        -3, 2, 29, 29, 35, 26, 7, 18,
-        9, 10, 20, 37, 36, 22, 29, 15,
-        -9, 15, 17, 31, 31, 17, 5, 5,
-        -23, -7, 10, 8, 13, 2, -15, -15,
-        -26, -23, -24, -16, -15, -34, -54, -57,
-        -23, -19, -22, -20, -26, -33, -34, -41,
-};
-
-int mg_king_psqt[64] = {
-        30, 33, 20, -50, 2, -14, 15, 107,
-        -62, -2, -2, 86, 43, 36, 49, 71,
-        -61, 64, -1, -24, 27, 93, 61, 43,
-        16, -4, -33, -76, -75, -26, -35, -77,
-        -7, -17, -18, -67, -57, -15, -38, -80,
-        6, 25, -2, -18, -8, -11, -3, -21,
-        21, -21, -14, -16, -22, -27, -21, 4,
-        34, 11, 14, -21, 31, -31, 5, 43,
-};
-int eg_king_psqt[64] = {
-        -90, -33, -17, 10, -3, 11, 16, -86,
-        -5, 24, 29, 20, 34, 46, 44, 15,
-        -0, 20, 35, 44, 47, 40, 38, 5,
-        -18, 15, 32, 43, 45, 40, 32, 6,
-        -29, 4, 18, 33, 32, 20, 15, -5,
-        -33, -7, 5, 13, 12, 9, 2, -16,
-        -28, 0, -1, 1, 5, 5, 7, -15,
-        -69, -23, -25, -18, -33, -17, -19, -66,
-};
-
-int mg_knight_mobility[9] = { -127, -43, -20, -12, -2, -0, 10, 19, 29, };
-int eg_knight_mobility[9] = { -101, -58, -27, -7, 3, 13, 16, 19, 16, };
-
-int mg_bishop_mobility[14] = { -27, -47, -20, -14, -2, 5, 10, 15, 18, 21, 23, 34, 37, 50, };
-int eg_bishop_mobility[14] = { -119, -68, -31, -10, -3, 3, 12, 16, 20, 22, 23, 17, 17, 8, };
-
-int mg_rook_mobility[15] = { -69, -46, -14, -9, -3, -1, 0, -4, -0, 4, 9, 9, 12, 18, 22, };
-int eg_rook_mobility[15] = { -89, -84, -53, -37, -31, -14, -9, -0, 0, 5, 8, 13, 17, 18, 16, };
-
-int mg_queen_mobility[28] = { 0, 0, -99, -47, -42, -14, -8, -7, -6, -6, -4, -1, 1, 4, 5, 5, 5, 4, 5, 7, 12, 24, 39, 53, 48, 86, 15, -17, };
-int eg_queen_mobility[28] = { 0, 0, -68, -147, -92, -69, -56, -37, -22, -3, 2, 5, 11, 12, 14, 19, 19, 22, 22, 18, 14, -3, -12, -27, -28, -52, -44, -53, };
-
-int mg_king_mobility[9] = { 8, -87, -61, -34, -17, 13, -6, 17, 42, };
-int eg_king_mobility[9] = { 53, 118, 36, 24, 12, -5, 1, -2, -15, };
-
-int mg_isolated_pawn = -4;
-int eg_isolated_pawn = -7;
-
-int mg_doubled_pawn = 1;
-int eg_doubled_pawn = -16;
-
-int mg_backward_pawn = 0;
-int eg_backward_pawn = 1;
-
-int mg_backward_pawn_half_open = -16;
-int eg_backward_pawn_half_open = -15;
-
-int mg_chained_pawn[8] = { 0, 113, 18, 17, 15, 11, 1, 0, };
-int eg_chained_pawn[8] = { 0, 66, 56, 22, 10, 8, -3, 0, };
-
-int mg_passed_pawn[8] = { 0, 69, 19, -8, -23, -8, 15, 0, };
-int eg_passed_pawn[8] = { 0, 85, 66, 45, 29, 14, 0, 0, };
-
-int mg_passed_pawn_blocked[8] = { 0, 28, 14, -20, -36, -14, 4, 0, };
-int eg_passed_pawn_blocked[8] = { 0, 20, 3, 22, 17, 15, 1, 0, };
-
-int mg_passed_pawn_safe_advance = 1;
-int eg_passed_pawn_safe_advance = 10;
-
-int mg_passed_pawn_safe_path = -70;
-int eg_passed_pawn_safe_path = 39;
-
-int mg_passed_friendly_distance[8] = { 0, -8, 4, 12, 11, 4, 1, 0, };
-int eg_passed_friendly_distance[8] = { 0, -11, -17, -16, -11, -5, -3, 0, };
-
-int mg_passed_enemy_distance[8] = { 0, 10, -6, -5, -4, -1, -3, 0, };
-int eg_passed_enemy_distance[8] = { 0, 35, 34, 18, 7, -1, -0, 0, };
-
-int mg_knight_outpost = 17;
-int eg_knight_outpost = -5;
-
-int mg_knight_outpost_supported = 37;
-int eg_knight_outpost_supported = 22;
-
-int mg_double_bishop = 17;
-int eg_double_bishop = 56;
-
-int mg_rook_open_file = 26;
-int eg_rook_open_file = 7;
-
-int mg_rook_half_open_file = 9;
-int eg_rook_half_open_file = 8;
-
-int mg_rook_on_seventh = 2;
-int eg_rook_on_seventh = 21;
-
-int mg_pawn_shelter[2][4][8] = {
-{
-        { 0, 32, 46, 31, 31, 47, 45, 0, },
-        { 0, 6, 19, 22, 16, 29, 53, 0, },
-        { 0, 12, 12, 14, 16, 13, 41, 0, },
-        { 0, 17, -11, 14, 12, 9, 14, 0, },
-},
-{
-        { 0, 25, 55, 29, 43, 60, 70, 0, },
-        { 0, 28, 37, 28, 28, 56, 66, 0, },
-        { 0, 22, 15, 30, 35, 35, 65, 0, },
-        { 0, -24, -26, 15, 27, 25, 11, 0, },
-},
-};
-int eg_pawn_shelter[2][4][8] = { {
-        { 0, 27, 12, -4, -5, -11, -26, 0, },
-        { 0, 12, 9, 1, -1, -5, -6, 0, },
-        { 0, 35, 10, -0, -4, 5, 1, 0, },
-        { 0, 6, 5, -0, 1, -2, 3, 0, },
-},
-{
-        { 0, 61, 19, -2, -6, -15, -43, 0, },
-        { 0, 31, -1, -2, -4, -5, -13, 0, },
-        { 0, 24, 6, 2, -3, 4, 2, 0, },
-        { 0, 27, 5, 9, 5, -2, 8, 0, },
-},
-};
-
-int mg_pawn_storm[2][4][8] = {
-{
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-},
-{
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-},
-};
-int eg_pawn_storm[2][4][8] = { {
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-},
-{
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-        { 0, 0, 0, 0, 0, 0, 0, 0, },
-},
-};
-
-int mg_king_attacker_weight[6] = { 0, 9, 26, 18, 6, 0, };
-int eg_king_attacker_weight[6] = { 0, 92, 123, 25, 25, 0, };
-
-int mg_king_zone_attack_count_weight = 108;
-int eg_king_zone_attack_count_weight = 0;
-
-int mg_king_danger_no_queen_weight = -460;
-int eg_king_danger_no_queen_weight = -405;
-
-int mg_safe_knight_check = 379;
-int eg_safe_knight_check = 15;
-
-int mg_safe_bishop_check = 228;
-int eg_safe_bishop_check = 473;
-
-int mg_safe_rook_check = 363;
-int eg_safe_rook_check = 165;
-
-int mg_safe_queen_check = 182;
-int eg_safe_queen_check = 139;
-
-int mg_king_danger_offset = 33;
-int eg_king_danger_offset = -25;
-
-int mg_center_control = 4;
-int eg_center_control = -0;
-
-int mg_minor_threatened_by_pawn = -38;
-int eg_minor_threatened_by_pawn = -17;
-
-int mg_minor_threatened_by_minor = -18;
-int eg_minor_threatened_by_minor = -19;
-
-int mg_rook_threatened_by_lesser = -41;
-int eg_rook_threatened_by_lesser = 2;
-
-int mg_queen_threatened_by_lesser = -36;
-int eg_queen_threatened_by_lesser = 8;
-
-int mg_minor_threatened_by_major = -10;
-int eg_minor_threatened_by_major = -13;
+	int mg_piece_value[6] = { 46, 270, 281, 344, 710, 0, };
+	int eg_piece_value[6] = { 96, 348, 356, 630, 1196, 0, };
+	
+	int mg_pawn_psqt[64] = {
+	        0, 0, 0, 0, 0, 0, 0, 0,
+	        24, 30, 15, 77, 57, 50, -23, -39,
+	        11, 6, 23, 34, 32, 52, 22, -13,
+	        -6, -5, 1, -1, 15, 16, -5, -3,
+	        -10, -9, -2, 6, 8, 4, -3, -13,
+	        -15, -11, -4, -0, 9, -4, -1, -21,
+	        -4, 1, 2, 5, 15, 4, 14, -11,
+	        0, 0, 0, 0, 0, 0, 0, 0,
+	};
+	int eg_pawn_psqt[64] = {
+	        0, 0, 0, 0, 0, 0, 0, 0,
+	        20, 17, 43, 24, 34, 19, 52, 44,
+	        21, 30, 12, 1, 6, 5, 30, 28,
+	        20, 9, -2, -14, -13, -9, 2, 4,
+	        9, 5, -4, -10, -11, -6, -4, -4,
+	        6, 1, -3, 1, 0, -5, -7, -5,
+	        12, 11, 5, 8, 13, 7, 4, 4,
+	        0, 0, 0, 0, 0, 0, 0, 0,
+	};
+	
+	int mg_knight_psqt[64] = {
+	        -98, -100, -72, -40, -17, -72, -103, -71,
+	        -39, -29, -25, -12, -17, -3, -22, -15,
+	        -22, -14, -9, -9, -1, 23, -7, -3,
+	        -13, -3, 6, 26, 18, 26, 1, 16,
+	        0, 7, 9, 17, 17, 18, 23, 11,
+	        -12, -7, -2, -2, 11, -1, 12, 2,
+	        -16, -12, -9, 5, 3, 4, 7, 8,
+	        -45, -8, -25, -14, -6, -2, -6, -18,
+	};
+	int eg_knight_psqt[64] = {
+	        -33, -7, 7, -3, 4, -15, -3, -44,
+	        3, 7, 8, 9, 2, -2, 4, -9,
+	        -0, 2, 12, 14, 10, -7, -6, -8,
+	        9, 3, 10, 12, 10, 9, 9, 1,
+	        7, -0, 15, 15, 21, 9, 2, 6,
+	        -10, -5, -1, 10, 10, -4, -6, -3,
+	        -11, -6, -9, -7, -7, -9, -10, 4,
+	        -4, -11, -11, -8, -5, -14, -1, 1,
+	};
+	
+	int mg_bishop_psqt[64] = {
+	        -21, -60, -52, -82, -78, -80, -43, -51,
+	        -26, -28, -22, -36, -25, -22, -43, -31,
+	        -10, 4, -5, 1, -3, 21, 5, -0,
+	        -16, -8, -4, 2, -7, -1, -7, -17,
+	        -6, -19, -5, -0, -3, -2, -10, 5,
+	        -4, 7, 2, 3, 6, 4, 8, 15,
+	        20, 7, 15, 0, 6, 14, 28, 21,
+	        7, 18, 6, -5, 6, 0, 12, 26,
+	};
+	int eg_bishop_psqt[64] = {
+	        5, 12, 6, 14, 13, 4, 1, -5,
+	        -6, 4, 1, 6, -1, -1, 6, -4,
+	        10, 1, 5, -2, 2, 9, 6, 12,
+	        4, 9, 5, 19, 11, 10, 6, 8,
+	        -1, 6, 10, 12, 12, 4, 5, -9,
+	        -2, 2, 3, 7, 10, 4, -3, -5,
+	        0, -13, -11, -5, -0, -8, -9, -14,
+	        -12, -3, -4, -5, -8, 3, -9, -23,
+	};
+	
+	int mg_rook_psqt[64] = {
+	        2, -10, -21, -29, -12, -5, 11, 26,
+	        -17, -17, -11, 3, -12, 5, 12, 21,
+	        -16, 12, -0, 4, 27, 31, 69, 25,
+	        -14, -1, -2, -3, 6, 18, 19, 10,
+	        -18, -19, -13, -8, -4, -10, 11, -6,
+	        -17, -14, -10, -10, 0, 3, 29, 8,
+	        -17, -11, -4, -2, 4, 9, 26, -6,
+	        -2, -5, -4, 2, 10, 7, 11, 8,
+	};
+	int eg_rook_psqt[64] = {
+	        21, 25, 32, 30, 24, 25, 25, 19,
+	        9, 17, 20, 11, 13, 13, 10, 3,
+	        19, 17, 18, 15, 7, 5, 2, 2,
+	        17, 13, 16, 13, 2, -1, 4, 0,
+	        5, 7, 4, 3, 0, 0, -6, -5,
+	        -5, -6, -8, -6, -11, -15, -25, -23,
+	        -13, -10, -11, -12, -18, -20, -30, -22,
+	        -6, -10, -6, -10, -15, -10, -15, -19,
+	};
+	
+	int mg_queen_psqt[64] = {
+	        -28, -22, -28, 1, -21, -15, 53, 5,
+	        -7, -23, -26, -43, -43, -11, -0, 34,
+	        -1, -10, -16, -11, -4, 8, 21, 15,
+	        -10, -7, -15, -28, -22, -5, 5, 10,
+	        3, -14, -14, -18, -18, -7, 11, 16,
+	        0, 3, -8, -8, -4, 3, 20, 15,
+	        6, 4, 9, 10, 10, 15, 26, 26,
+	        -1, -9, -2, 9, 5, -4, -1, 14,
+	};
+	int eg_queen_psqt[64] = {
+	        7, 1, 20, 15, 23, 21, -28, 1,
+	        -7, 1, 26, 43, 54, 30, 3, 15,
+	        -3, 3, 30, 29, 33, 21, 6, 15,
+	        10, 11, 19, 36, 34, 19, 28, 12,
+	        -8, 15, 17, 29, 30, 14, 4, 0,
+	        -23, -7, 8, 5, 10, -0, -19, -21,
+	        -28, -26, -28, -19, -18, -39, -60, -63,
+	        -25, -20, -23, -20, -29, -37, -38, -41,
+	};
+	
+	int mg_king_psqt[64] = {
+	        16, 25, 8, -54, -4, -24, 9, 85,
+	        -67, 6, 9, 93, 48, 43, 47, 58,
+	        -66, 63, 3, -15, 34, 97, 69, 37,
+	        10, 7, -27, -74, -70, -20, -28, -84,
+	        -13, -11, -16, -64, -56, -14, -33, -85,
+	        2, 31, 0, -16, -6, -9, 6, -22,
+	        19, -12, -12, -15, -20, -24, -13, 2,
+	        29, 12, 11, -26, 26, -34, 6, 38,
+	};
+	int eg_king_psqt[64] = {
+	        -88, -32, -17, 9, -2, 11, 16, -83,
+	        -4, 23, 28, 19, 33, 45, 45, 16,
+	        0, 20, 35, 43, 46, 40, 38, 6,
+	        -18, 14, 32, 43, 44, 39, 31, 7,
+	        -28, 3, 18, 33, 31, 20, 14, -5,
+	        -32, -7, 5, 13, 12, 9, 1, -16,
+	        -28, -0, -0, 2, 6, 5, 6, -15,
+	        -69, -24, -24, -17, -32, -16, -20, -66,
+	};
+	
+	int mg_knight_mobility[9] = { -131, -46, -23, -14, -5, -3, 7, 17, 26, };
+	int eg_knight_mobility[9] = { -104, -62, -31, -11, -1, 8, 12, 15, 12, };
+	
+	int mg_bishop_mobility[14] = { -29, -49, -22, -16, -4, 3, 8, 13, 16, 19, 20, 31, 32, 43, };
+	int eg_bishop_mobility[14] = { -122, -71, -34, -14, -7, -0, 8, 12, 17, 18, 19, 13, 13, 5, };
+	
+	int mg_rook_mobility[15] = { -65, -48, -15, -10, -4, -2, -1, -5, -1, 3, 8, 8, 11, 17, 20, };
+	int eg_rook_mobility[15] = { -85, -86, -55, -39, -34, -17, -11, -3, -2, 2, 5, 10, 14, 15, 13, };
+	
+	int mg_queen_mobility[28] = { 0, 0, -90, -51, -42, -14, -9, -8, -7, -7, -4, -1, 1, 4, 4, 4, 4, 3, 4, 7, 12, 24, 41, 52, 45, 76, 3, -28, };
+	int eg_queen_mobility[28] = { 0, 0, -62, -140, -88, -69, -57, -38, -24, -5, -1, 3, 8, 9, 11, 16, 16, 18, 18, 12, 8, -10, -22, -37, -37, -59, -49, -62, };
+	
+	int mg_king_mobility[9] = { 7, -81, -56, -29, -16, 14, -7, 12, 35, };
+	int eg_king_mobility[9] = { 46, 116, 35, 23, 12, -5, 1, -2, -15, };
+	
+	int mg_isolated_pawn = -4;
+	int eg_isolated_pawn = -7;
+	
+	int mg_doubled_pawn = 1;
+	int eg_doubled_pawn = -16;
+	
+	int mg_backward_pawn = 0;
+	int eg_backward_pawn = 1;
+	
+	int mg_backward_pawn_half_open = -16;
+	int eg_backward_pawn_half_open = -15;
+	
+	int mg_chained_pawn[8] = { 0, 113, 18, 17, 15, 11, 1, 0, };
+	int eg_chained_pawn[8] = { 0, 66, 56, 22, 10, 8, -3, 0, };
+	
+	int mg_passed_pawn[8] = { 0, 67, 20, -7, -23, -9, 13, 0, };
+	int eg_passed_pawn[8] = { 0, 85, 65, 44, 28, 13, -1, 0, };
+	
+	int mg_passed_pawn_blocked[8] = { 0, 26, 15, -19, -36, -14, 1, 0, };
+	int eg_passed_pawn_blocked[8] = { 0, 20, 3, 22, 17, 14, 0, 0, };
+	
+	int mg_passed_pawn_safe_advance = 1;
+	int eg_passed_pawn_safe_advance = 10;
+	
+	int mg_passed_pawn_safe_path = -69;
+	int eg_passed_pawn_safe_path = 39;
+	
+	int mg_passed_friendly_distance[8] = { 0, -8, 3, 11, 11, 4, 1, 0, };
+	int eg_passed_friendly_distance[8] = { 0, -11, -17, -16, -11, -5, -2, 0, };
+	
+	int mg_passed_enemy_distance[8] = { 0, 12, -5, -5, -4, -1, -3, 0, };
+	int eg_passed_enemy_distance[8] = { 0, 35, 34, 18, 7, -1, 0, 0, };
+	
+	int mg_knight_outpost = 18;
+	int eg_knight_outpost = -6;
+	
+	int mg_knight_outpost_supported = 37;
+	int eg_knight_outpost_supported = 22;
+	
+	int mg_double_bishop = 17;
+	int eg_double_bishop = 56;
+	
+	int mg_rook_open_file = 26;
+	int eg_rook_open_file = 7;
+	
+	int mg_rook_half_open_file = 9;
+	int eg_rook_half_open_file = 8;
+	
+	int mg_rook_on_seventh = 4;
+	int eg_rook_on_seventh = 21;
+	
+	int mg_pawn_shelter[2][4][8] = {
+	{
+	        { 0, 26, 44, 28, 28, 45, 43, 0, },
+	        { 0, 4, 20, 22, 16, 30, 52, 0, },
+	        { 0, 8, 11, 14, 16, 13, 41, 0, },
+	        { 0, 18, -11, 15, 13, 10, 14, 0, },
+	},
+	{
+	        { 0, 17, 54, 28, 42, 59, 68, 0, },
+	        { 0, 27, 35, 27, 27, 55, 65, 0, },
+	        { 0, 19, 14, 30, 36, 36, 66, 0, },
+	        { 0, -21, -25, 16, 28, 25, 12, 0, },
+	},
+	};
+	int eg_pawn_shelter[2][4][8] = { {
+	        { 0, 29, 12, -3, -5, -11, -26, 0, },
+	        { 0, 12, 9, 1, -1, -5, -6, 0, },
+	        { 0, 36, 10, -0, -4, 5, 1, 0, },
+	        { 0, 6, 5, -0, 1, -3, 4, 0, },
+	},
+	{
+	        { 0, 62, 19, -1, -6, -15, -42, 0, },
+	        { 0, 31, -1, -1, -4, -5, -12, 0, },
+	        { 0, 24, 6, 2, -3, 3, 1, 0, },
+	        { 0, 26, 5, 8, 5, -2, 8, 0, },
+	},
+	};
+	
+	int mg_pawn_storm[2][4][8] = {
+	{
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	},
+	{
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	},
+	};
+	int eg_pawn_storm[2][4][8] = { {
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	},
+	{
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	        { 0, 0, 0, 0, 0, 0, 0, 0, },
+	},
+	};
+	
+	int mg_king_attacker_weight[6] = { 0, 24, 31, 33, 11, 0, };
+	int eg_king_attacker_weight[6] = { 0, 90, 113, 17, 22, 0, };
+	
+	int mg_king_zone_attack_count_weight = 69;
+	int eg_king_zone_attack_count_weight = -23;
+	
+	int mg_king_danger_no_queen_weight = -582;
+	int eg_king_danger_no_queen_weight = -304;
+	
+	int mg_safe_knight_check = 359;
+	int eg_safe_knight_check = 9;
+	
+	int mg_safe_bishop_check = 238;
+	int eg_safe_bishop_check = 426;
+	
+	int mg_safe_rook_check = 344;
+	int eg_safe_rook_check = 215;
+	
+	int mg_safe_queen_check = 186;
+	int eg_safe_queen_check = 74;
+	
+	int mg_king_zone_weak_square = 101;
+	int eg_king_zone_weak_square = -14;
+	
+	int mg_king_danger_offset = 25;
+	int eg_king_danger_offset = 16;
+	
+	int mg_center_control = 4;
+	int eg_center_control = -0;
+	
+	int mg_minor_threatened_by_pawn = -38;
+	int eg_minor_threatened_by_pawn = -17;
+	
+	int mg_minor_threatened_by_minor = -18;
+	int eg_minor_threatened_by_minor = -19;
+	
+	int mg_rook_threatened_by_lesser = -41;
+	int eg_rook_threatened_by_lesser = 2;
+	
+	int mg_queen_threatened_by_lesser = -36;
+	int eg_queen_threatened_by_lesser = 9;
+	
+	int mg_minor_threatened_by_major = -10;
+	int eg_minor_threatened_by_major = -13;
 
 	int tempo_bonus = 19;
 

@@ -134,6 +134,7 @@ void Evaluation::evaluate_knights(Board &board, Color friendly)
 
 		}
 		uint64_t attacks = piece_attacks(KNIGHT, square, 0ULL);
+		info.attacked_by_multiple[friendly] |= info.attacked[friendly] & attacks;
 		info.attacked[friendly]			 |= attacks;
 		info.attacked_by_piece[friendly][KNIGHT] |= attacks;
 
@@ -174,6 +175,7 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 		// A queen is not counted as a blocker, because a bishop behind a queen makes the attack stronger
 		uint64_t ray_blockers = board.occ & ~board.pieces(friendly, QUEEN);
 		uint64_t attacks = piece_attacks(BISHOP, square, ray_blockers);
+		info.attacked_by_multiple[friendly] |= info.attacked[friendly] & attacks;
 		info.attacked[friendly]			 |= attacks;
 		info.attacked_by_piece[friendly][BISHOP] |= attacks;
 
@@ -220,6 +222,7 @@ void Evaluation::evaluate_rooks(Board &board, Color friendly)
 		// Queens and rooks are not counted as a blockers, because their strength increases when stacked
 		uint64_t ray_blockers = board.occ & ~(board.pieces(friendly, QUEEN) | board.pieces(friendly, ROOK));
 		uint64_t attacks = piece_attacks(ROOK, square, ray_blockers);
+		info.attacked_by_multiple[friendly] |= info.attacked[friendly] & attacks;
 		info.attacked[friendly]		       |= attacks;
 		info.attacked_by_piece[friendly][ROOK] |= attacks;
 
@@ -280,6 +283,7 @@ void Evaluation::evaluate_queens(Board &board, Color friendly)
 		record_queen_psqt(friendly, relative_square);
 
 		uint64_t attacks = piece_attacks(QUEEN, square, board.occ);
+		info.attacked_by_multiple[friendly] |= info.attacked[friendly] & attacks;
 		info.attacked[friendly]			|= attacks;
 		info.attacked_by_piece[friendly][QUEEN] |= attacks;
 
@@ -320,13 +324,18 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 	info.mg_bonus[friendly] += mg_king_mobility[safe_squares];
 	info.eg_bonus[friendly] += eg_king_mobility[safe_squares];
 	record_king_mobility(friendly, safe_squares);
-
 	
 	// Only consider king safety, when we have at least two attackers or one attacker when they have a queen
 	if (info.king_attackers[friendly] > (1 - pop_count(board.pieces(enemy, QUEEN)))) {
 
 		int mg_king_danger = 0;
 		int eg_king_danger = 0;
+		
+		unsigned weak_squares = pop_count(info.king_ring[friendly] & info.attacked[enemy] & ~info.attacked_by_multiple[friendly] & 
+					 	  (~info.attacked[friendly] | info.attacked_by_piece[friendly][KING]));
+		mg_king_danger += mg_king_zone_weak_square * weak_squares;
+		eg_king_danger += eg_king_zone_weak_square * weak_squares;
+		record_king_zone_weak_square(friendly, weak_squares);
 
 		// Safe checks by enemy pieces
 		uint64_t safe = ~info.attacked[friendly] & ~board.pieces(enemy);

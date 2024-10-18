@@ -46,6 +46,8 @@ static inline void record_safe_bishop_check(Color , unsigned ) {}
 static inline void record_safe_rook_check(  Color , unsigned ) {}
 static inline void record_safe_queen_check( Color , unsigned ) {}
 
+static inline void record_king_zone_weak_square(Color , unsigned) {}
+
 static inline void record_king_attacker_weight(Color , Piece_type ) {}
 static inline void record_adjust_king_attacker_weights(Color , unsigned ) {}
 static inline void record_clear_attacker_weights(Color ) {}

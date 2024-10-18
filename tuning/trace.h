@@ -51,6 +51,8 @@ struct Trace {
 	unsigned safe_rook_check[2] {};
 	unsigned safe_queen_check[2] {};
 
+	unsigned king_zone_weak_square[2] {};
+
 	unsigned king_attacker_weight[2][6] {};
 	unsigned king_zone_attack_count_weight[2] {};
 	unsigned king_danger_no_queen_weight[2] {};
@@ -114,6 +116,8 @@ static inline void record_safe_knight_check(Color friendly, unsigned count) { tr
 static inline void record_safe_bishop_check(Color friendly, unsigned count) { trace().safe_bishop_check[friendly] += count; }
 static inline void record_safe_rook_check(  Color friendly, unsigned count) { trace().safe_rook_check[friendly]   += count; }
 static inline void record_safe_queen_check( Color friendly, unsigned count) { trace().safe_queen_check[friendly]  += count; }
+
+static inline void record_king_zone_weak_square(Color friendly, unsigned count) { trace().king_zone_weak_square[friendly] += count; }
 
 static inline void record_king_attacker_weight(Color friendly, Piece_type type) { trace().king_attacker_weight[friendly][type]++; }
 static inline void record_adjust_king_attacker_weights(Color friendly, unsigned attackers)
