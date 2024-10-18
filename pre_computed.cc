@@ -197,7 +197,8 @@ Pre_computed generate_lookup()
 		p.pawn_threat_mask[BLACK][square] = p.forward_mask[BLACK][square] & adjacent_mask & ~file(square);
 
 		// The king ring consists of the squares, the king attacks. If the king is on the edge, the ring is extended a bit.
-		p.king_ring_mask[square] = p.king_attacks[square] | (1ULL << square);
+		unsigned center = rank_num(square) == 0 ? square - UP : rank_num(square) == 7 ? square + UP : square;
+		p.king_ring_mask[square] = p.king_attacks[center] | (1ULL << center);
 	}
 	p.outpost_mask[WHITE] = RANK_5 | RANK_6 | RANK_7;
 	p.outpost_mask[BLACK] = RANK_4 | RANK_3 | RANK_2;
