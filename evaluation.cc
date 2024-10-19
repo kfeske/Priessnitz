@@ -331,11 +331,12 @@ void Evaluation::evaluate_kings(Board &board, Color friendly)
 		int mg_king_danger = 0;
 		int eg_king_danger = 0;
 		
-		unsigned weak_squares = pop_count(info.king_ring[friendly] & info.attacked[enemy] & ~info.attacked_by_multiple[friendly] & 
-					 	  (~info.attacked[friendly] | info.attacked_by_piece[friendly][KING]));
-		mg_king_danger += mg_king_zone_weak_square * weak_squares;
-		eg_king_danger += eg_king_zone_weak_square * weak_squares;
-		record_king_zone_weak_square(friendly, weak_squares);
+		uint64_t weak_squares = info.attacked[enemy] & ~info.attacked_by_multiple[friendly] & 
+					(~info.attacked[friendly] | info.attacked_by_piece[friendly][KING]);
+		unsigned weak_king_ring = pop_count(info.king_ring[friendly] & weak_squares);
+		mg_king_danger += mg_king_zone_weak_square * weak_king_ring;
+		eg_king_danger += eg_king_zone_weak_square * weak_king_ring;
+		record_king_zone_weak_square(friendly, weak_king_ring);
 
 		// Safe checks by enemy pieces
 		uint64_t safe = ~info.attacked[friendly] & ~board.pieces(enemy);
@@ -492,6 +493,11 @@ void Evaluation::evaluate_center_control(Color friendly)
 int Evaluation::scale_factor(Board &board, int eg_value)
 {
 	Color strong_side = (eg_value > 0) ? WHITE : BLACK;
+
+	if (pop_count(board.pieces(WHITE, BISHOP)) == 1 && pop_count(board.pieces(BLACK, BISHOP)) == 1 &&
+	    pop_count(board.pieces(BISHOP) & WHITE_SQUARES) == 1) {
+		return 90;
+	}
 
 	return std::min(128U, 80 + pop_count(board.pieces(strong_side, PAWN)) * 25);
 }
