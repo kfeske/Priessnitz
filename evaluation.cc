@@ -502,7 +502,7 @@ int Evaluation::scale_factor(Board &board, int eg_value)
 
 	if (pop_count(board.pieces(WHITE, BISHOP)) == 1 && pop_count(board.pieces(BLACK, BISHOP)) == 1 &&
 	    pop_count(board.pieces(BISHOP) & WHITE_SQUARES) == 1) {
-		return 90;
+		return std::min(128U, 40 + pop_count(board.pieces(strong_side)) * 6);
 	}
 
 	return std::min(128U, 80 + pop_count(board.pieces(strong_side, PAWN)) * 25);
