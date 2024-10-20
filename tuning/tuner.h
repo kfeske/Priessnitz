@@ -209,7 +209,8 @@ struct Parameters
 		_add(NORMAL, "knight_outpost = ",           1, 0, &t.knight_outpost[0],           &eval.mg_knight_outpost,             &eval.eg_knight_outpost);
 		_add(NORMAL, "knight_outpost_supported = ", 1, 0, &t.knight_outpost_supported[0], &eval.mg_knight_outpost_supported,   &eval.eg_knight_outpost_supported);
 
-		_add(NORMAL, "double_bishop = ", 1, 0, &t.double_bishop[0], &eval.mg_double_bishop,   &eval.eg_double_bishop);
+		_add(NORMAL, "bishop_pawn = ",   1, 0, &t.bishop_pawn[0],   &eval.mg_bishop_pawn,   &eval.eg_bishop_pawn);
+		_add(NORMAL, "double_bishop = ", 1, 0, &t.double_bishop[0], &eval.mg_double_bishop, &eval.eg_double_bishop);
 
 		_add(NORMAL, "rook_open_file = ",      1, 0, &t.rook_open_file[0],      &eval.mg_rook_open_file,      &eval.eg_rook_open_file);
 		_add(NORMAL, "rook_half_open_file = ", 1, 0, &t.rook_half_open_file[0], &eval.mg_rook_half_open_file, &eval.eg_rook_half_open_file);

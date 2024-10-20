@@ -194,6 +194,12 @@ void Evaluation::evaluate_bishops(Board &board, Color friendly)
 		info.mg_bonus[friendly] += mg_bishop_mobility[safe_squares];
 		info.eg_bonus[friendly] += eg_bishop_mobility[safe_squares];
 		record_bishop_mobility(friendly, safe_squares);
+
+		uint64_t bishop_color_squares = ((1ULL << square) & WHITE_SQUARES) ? WHITE_SQUARES : BLACK_SQUARES;
+		unsigned bishop_pawns = pop_count(board.pieces(friendly, PAWN) & bishop_color_squares);
+		info.mg_bonus[friendly] += mg_bishop_pawn * bishop_pawns;
+		info.eg_bonus[friendly] += eg_bishop_pawn * bishop_pawns;
+		record_bishop_pawn(friendly, bishop_pawns);
 	}
 	// Double bishop bonus
 	if (pop_count(board.pieces(friendly, BISHOP)) >= 2) {

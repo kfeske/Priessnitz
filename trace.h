@@ -32,6 +32,7 @@ static inline void record_passed_enemy_distance(Color, unsigned , unsigned ) {}
 static inline void record_knight_outpost(Color ) {}
 static inline void record_knight_outpost_supported(Color ) {}
 
+static inline void record_bishop_pawn(Color , unsigned ) {}
 static inline void record_double_bishop(Color ) {}
 
 static inline void record_rook_open_file(Color ) {}

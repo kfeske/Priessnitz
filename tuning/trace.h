@@ -37,6 +37,7 @@ struct Trace {
 	unsigned knight_outpost[2] {};
 	unsigned knight_outpost_supported[2] {};
 
+	unsigned bishop_pawn[2] {};
 	unsigned double_bishop[2] {};
 
 	unsigned rook_open_file[2] {};
@@ -103,6 +104,7 @@ static inline void record_passed_enemy_distance(   Color friendly, unsigned rank
 static inline void record_knight_outpost(          Color friendly) { trace().knight_outpost[friendly]++; }
 static inline void record_knight_outpost_supported(Color friendly) { trace().knight_outpost_supported[friendly]++; }
 
+static inline void record_bishop_pawn(Color friendly, unsigned count) { trace().bishop_pawn[friendly] += count; }
 static inline void record_double_bishop(Color friendly) { trace().double_bishop[friendly]++; }
 
 static inline void record_rook_open_file(     Color friendly) { trace().rook_open_file[friendly]++; }
