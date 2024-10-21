@@ -48,7 +48,7 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 			return tt_entry.evaluation;
 	}
 
-	int static_evaluation = eval.evaluate(board);
+	int static_evaluation = (tt.hit) ? tt_entry.static_evaluation : eval.evaluate(board);
 
 	bool in_check = board.in_check();
 
