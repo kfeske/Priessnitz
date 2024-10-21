@@ -96,8 +96,7 @@ unsigned const DEFAULT_PAWN_HASH_SIZE = 32; // MB
 struct Pawn_hash_entry
 {
 	uint64_t key;
-	int16_t mg_evaluation;
-	int16_t eg_evaluation;
+	int score;
 	uint64_t passed_pawns;
 };
 
@@ -120,13 +119,12 @@ struct Pawn_hash_table
 		return empty_entry;
 	}
 
-	void store(uint64_t key, int16_t mg_evaluation, int16_t eg_evaluation, uint64_t passed_pawns)
+	void store(uint64_t key, int score, uint64_t passed_pawns)
 	{
 		unsigned index = key % entry_count;
 		Pawn_hash_entry &entry = entries[index];
 		entry.key = key;
-		entry.mg_evaluation = mg_evaluation;
-		entry.eg_evaluation = eg_evaluation;
+		entry.score = score;
 		entry.passed_pawns = passed_pawns;
 	}
 

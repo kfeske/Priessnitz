@@ -2,7 +2,7 @@
 #include "test.h"
 #include <trace.h>
 
-bool const use_default_weights = true;
+bool const use_default_weights = false;
 
 Trace &trace()
 {

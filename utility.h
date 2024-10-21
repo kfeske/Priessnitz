@@ -152,6 +152,21 @@ enum Score_type {
 	INFINITY_SCORE = 31000
 };
 
+static inline int merge_score(int16_t mg, int16_t eg)
+{
+	return int(unsigned(eg) << 16) + mg;
+}
+
+static inline int16_t mg_score(int score)
+{
+	return int16_t(uint16_t(unsigned(score)));
+}
+
+static inline int16_t eg_score(int score)
+{
+	return int16_t(uint16_t(unsigned(score + 0x8000) >> 16));
+}
+
 // directions are relative to whites' point of view
 enum Direction {
 	UP    = -8,

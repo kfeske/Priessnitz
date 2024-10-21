@@ -90,63 +90,42 @@ struct Parameters
 
 	void print_row(Term &term, unsigned index)
 	{
-		std::cerr << "int mg_" << term.name;
+		std::cerr << "int " << term.name;
 		for (unsigned i = index; i < index + term.size; i++) {
-			std::cerr << std::round(mg_value(i)) << ", ";
+			std::cerr << "S(" << std::round(mg_value(i)) <<
+				     ", " << std::round(eg_value(i)) << "), ";
 		}
 		std::cerr << "};\n";
-		std::cerr << "int eg_" << term.name;
-		for (unsigned i = index; i < index + term.size; i++) {
-			std::cerr << std::round(eg_value(i)) << ", ";
-		}
-		std::cerr << "};\n\n";
 	}
 
 	void print_field(Term &term, unsigned index)
 	{
-		std::cerr << "int mg_" << term.name;
+		std::cerr << "int " << term.name;
 		for (unsigned i = 0; i < term.size; i++) {
 			if (i % 8 == 0) std::cerr << "\n        ";
-			std::cerr << std::round(mg_value(i + index)) << ", ";
+			std::cerr << "S(" << std::round(mg_value(i + index)) <<
+				     ", " << std::round(eg_value(i + index)) << "), ";
 		}
 		std::cerr << "\n};\n";
-		std::cerr << "int eg_" << term.name;
-		for (unsigned i = 0; i < term.size; i++) {
-			if (i % 8 == 0) std::cerr << "\n        ";
-			std::cerr << std::round(eg_value(i + index)) << ", ";
-		}
-		std::cerr << "\n};\n\n";
 	}
 
 	void print_3d(Term &term, unsigned index, unsigned x, unsigned y, unsigned z)
 	{
-		std::cerr << "int mg_" << term.name << "\n";
+		std::cerr << "int " << term.name << "\n";
 		for (unsigned i = 0; i < x; i++) {
 			std::cerr << "{\n";
 			for (unsigned j = 0; j < y; j++) {
 				std::cerr << "        { ";
 				for (unsigned k = 0; k < z; k++) {
-					std::cerr << std::round(list[index + i * (y * z) + j * z + k].mg_value) << ", ";
+					unsigned position = index + i * (y * z) + j * z + k;
+					std::cerr << "S(" << std::round(list[position].mg_value) <<
+						     ", " << std::round(list[position].eg_value) << "), ";
 				}
 				std::cerr << "}, \n";
 			}
 			std::cerr << "},\n";
 		}
 		std::cerr << "};\n";
-
-		std::cerr << "int eg_" << term.name;
-		for (unsigned i = 0; i < x; i++) {
-			std::cerr << "{\n";
-			for (unsigned j = 0; j < y; j++) {
-				std::cerr << "        { ";
-				for (unsigned k = 0; k < z; k++) {
-					std::cerr << std::round(list[index + i * (y * z) + j * z + k].eg_value) << ", ";
-				}
-				std::cerr << "}, \n";
-			}
-			std::cerr << "},\n";
-		}
-		std::cerr << "};\n\n";
 	}
 
 	void print()
@@ -156,8 +135,8 @@ struct Parameters
 			Term &term = terms[parameter.term_index];
 			switch (term.print_type) {
 			case 0:
-				std::cerr << "int mg_" << term.name << std::round(parameter.mg_value) << ";\n";
-				std::cerr << "int eg_" << term.name << std::round(parameter.eg_value) << ";\n\n";
+				std::cerr << "int " << term.name << "S(" << std::round(parameter.mg_value) <<
+					", " << std::round(parameter.eg_value) << ");\n\n";
 				break;
 			case 1:
 				print_row(term, i);
@@ -217,7 +196,7 @@ struct Parameters
 		_add(NORMAL, "rook_on_seventh = ",     1, 0, &t.rook_on_seventh[0],     &eval.mg_rook_on_seventh,     &eval.eg_rook_on_seventh);
 
 		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.mg_pawn_shelter[0][0][0], &eval.eg_pawn_shelter[0][0][0]);
-		_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.mg_pawn_storm[0][0][0],   &eval.eg_pawn_storm[0][0][0]);
+		//_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.mg_pawn_storm[0][0][0],   &eval.eg_pawn_storm[0][0][0]);
 
 		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0],
 				&eval.mg_king_attacker_weight[0], &eval.eg_king_attacker_weight[0]);

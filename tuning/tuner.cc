@@ -338,6 +338,8 @@ void Tuner::tune()
 
 	std::cerr << parameters.list.size() << " weights will be tuned\n";
 
+	parameters.print();
+
 	load_training_set();
 
 	std::cerr << "searching for optimal scaling constant...\n";
