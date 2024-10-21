@@ -21,6 +21,7 @@ static inline void record_doubled_pawn(Color ) {}
 static inline void record_backward_pawn(Color ) {}
 static inline void record_backward_pawn_half_open(Color ) {}
 static inline void record_chained_pawn(Color , unsigned ) {}
+static inline void record_phalanx_pawn(Color , unsigned ) {}
 
 static inline void record_passed_pawn(Color , unsigned ) {}
 static inline void record_passed_pawn_blocked(Color , unsigned) {}

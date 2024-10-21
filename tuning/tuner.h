@@ -37,8 +37,7 @@ struct Parameter
 	unsigned *black_influence {};
 
 	// Pointers to the evaluation terms.
-	int *mg_eval {};
-	int *eg_eval {};
+	int *eval {};
 
 	// The current value for the parameter, which is changed by the tuner.
 	double mg_value {};
@@ -67,8 +66,8 @@ struct Parameters
 	int white_influence(unsigned index) { return *list[index].white_influence; }
 	int black_influence(unsigned index) { return *list[index].black_influence; }
 
-	int current_mg_eval(unsigned index) { return *list[index].mg_eval; }
-	int current_eg_eval(unsigned index) { return *list[index].eg_eval; }
+	int current_mg_eval(unsigned index) { return mg_score(*list[index].eval); }
+	int current_eg_eval(unsigned index) { return eg_score(*list[index].eval); }
 
 	double &mg_value(unsigned index) { return list[index].mg_value; }
 	double &eg_value(unsigned index) { return list[index].eg_value; }
@@ -76,7 +75,7 @@ struct Parameters
 	double &mg_gradient(unsigned index) { return list[index].mg_gradient; }
 	double &eg_gradient(unsigned index) { return list[index].eg_gradient; }
 
-	void _add(Parameter_type type, std::string name, unsigned size, unsigned print_type, unsigned *influence, int *mg_eval, int *eg_eval)
+	void _add(Parameter_type type, std::string name, unsigned size, unsigned print_type, unsigned *influence, int *eval)
 	{
 		unsigned term_index = terms.size();
 		terms.emplace_back(Term { name, size, print_type });
@@ -84,7 +83,7 @@ struct Parameters
 		unsigned *black_influence = &influence[size];
 		for (unsigned i = 0; i < size; i++) {
 			unsigned index = list.size();
-			list.emplace_back(Parameter { type, index, term_index, &white_influence[i], &black_influence[i], &mg_eval[i], &eg_eval[i] });
+			list.emplace_back(Parameter { type, index, term_index, &white_influence[i], &black_influence[i], &eval[i] });
 		}
 	}
 
@@ -95,7 +94,7 @@ struct Parameters
 			std::cerr << "S(" << std::round(mg_value(i)) <<
 				     ", " << std::round(eg_value(i)) << "), ";
 		}
-		std::cerr << "};\n";
+		std::cerr << "};\n\n";
 	}
 
 	void print_field(Term &term, unsigned index)
@@ -106,7 +105,7 @@ struct Parameters
 			std::cerr << "S(" << std::round(mg_value(i + index)) <<
 				     ", " << std::round(eg_value(i + index)) << "), ";
 		}
-		std::cerr << "\n};\n";
+		std::cerr << "\n};\n\n";
 	}
 
 	void print_3d(Term &term, unsigned index, unsigned x, unsigned y, unsigned z)
@@ -125,7 +124,7 @@ struct Parameters
 			}
 			std::cerr << "},\n";
 		}
-		std::cerr << "};\n";
+		std::cerr << "};\n\n";
 	}
 
 	void print()
@@ -157,71 +156,69 @@ struct Parameters
 	{
 		Trace &t = trace();
 		
-		_add(NORMAL, "piece_value[6] = { ", 6, 1, &t.piece_value[0][0], &eval.mg_piece_value[0], &eval.eg_piece_value[0]);
+		_add(NORMAL, "piece_value[6] = { ", 6, 1, &t.piece_value[0][0], &eval.piece_value[0]);
 
-		_add(NORMAL, "pawn_psqt[64] = {",   64, 2, &t.pawn_psqt[0][0],   &eval.mg_pawn_psqt[0],   &eval.eg_pawn_psqt[0]);
-		_add(NORMAL, "knight_psqt[64] = {", 64, 2, &t.knight_psqt[0][0], &eval.mg_knight_psqt[0], &eval.eg_knight_psqt[0]);
-		_add(NORMAL, "bishop_psqt[64] = {", 64, 2, &t.bishop_psqt[0][0], &eval.mg_bishop_psqt[0], &eval.eg_bishop_psqt[0]);
-		_add(NORMAL, "rook_psqt[64] = {",   64, 2, &t.rook_psqt[0][0],   &eval.mg_rook_psqt[0],   &eval.eg_rook_psqt[0]);
-		_add(NORMAL, "queen_psqt[64] = {",  64, 2, &t.queen_psqt[0][0],  &eval.mg_queen_psqt[0],  &eval.eg_queen_psqt[0]);
-		_add(NORMAL, "king_psqt[64] = {",   64, 2, &t.king_psqt[0][0],   &eval.mg_king_psqt[0],   &eval.eg_king_psqt[0]);
+		_add(NORMAL, "pawn_psqt[64] = {",   64, 2, &t.pawn_psqt[0][0],   &eval.pawn_psqt[0]);
+		_add(NORMAL, "knight_psqt[64] = {", 64, 2, &t.knight_psqt[0][0], &eval.knight_psqt[0]);
+		_add(NORMAL, "bishop_psqt[64] = {", 64, 2, &t.bishop_psqt[0][0], &eval.bishop_psqt[0]);
+		_add(NORMAL, "rook_psqt[64] = {",   64, 2, &t.rook_psqt[0][0],   &eval.rook_psqt[0]);
+		_add(NORMAL, "queen_psqt[64] = {",  64, 2, &t.queen_psqt[0][0],  &eval.queen_psqt[0]);
+		_add(NORMAL, "king_psqt[64] = {",   64, 2, &t.king_psqt[0][0],   &eval.king_psqt[0]);
 
-		_add(NORMAL, "knight_mobility[9] = { ", 9,  1,  &t.knight_mobility[0][0], &eval.mg_knight_mobility[0], &eval.eg_knight_mobility[0]);
-		_add(NORMAL, "bishop_mobility[14] = { ", 14, 1, &t.bishop_mobility[0][0], &eval.mg_bishop_mobility[0], &eval.eg_bishop_mobility[0]);
-		_add(NORMAL, "rook_mobility[15] = { ",   15, 1, &t.rook_mobility[0][0],   &eval.mg_rook_mobility[0],   &eval.eg_rook_mobility[0]);
-		_add(NORMAL, "queen_mobility[28] = { ",  28, 1, &t.queen_mobility[0][0],  &eval.mg_queen_mobility[0],  &eval.eg_queen_mobility[0]);
-		_add(NORMAL, "king_mobility[9] = { ",  9, 1,    &t.king_mobility[0][0],   &eval.mg_king_mobility[0],   &eval.eg_king_mobility[0]);
+		_add(NORMAL, "knight_mobility[9] = { ", 9,  1,  &t.knight_mobility[0][0], &eval.knight_mobility[0]);
+		_add(NORMAL, "bishop_mobility[14] = { ", 14, 1, &t.bishop_mobility[0][0], &eval.bishop_mobility[0]);
+		_add(NORMAL, "rook_mobility[15] = { ",   15, 1, &t.rook_mobility[0][0],   &eval.rook_mobility[0]);
+		_add(NORMAL, "queen_mobility[28] = { ",  28, 1, &t.queen_mobility[0][0],  &eval.queen_mobility[0]);
+		_add(NORMAL, "king_mobility[9] = { ",  9, 1,    &t.king_mobility[0][0],   &eval.king_mobility[0]);
 
-		_add(NORMAL, "isolated_pawn = ",           1, 0, &t.isolated_pawn[0],           &eval.mg_isolated_pawn,             &eval.eg_isolated_pawn);
-		_add(NORMAL, "doubled_pawn = ",            1, 0, &t.doubled_pawn[0],            &eval.mg_doubled_pawn,              &eval.eg_doubled_pawn);
-		_add(NORMAL, "backward_pawn = ",           1, 0, &t.backward_pawn[0],           &eval.mg_backward_pawn,             &eval.eg_backward_pawn);
-		_add(NORMAL, "backward_pawn_half_open = ", 1, 0, &t.backward_pawn_half_open[0], &eval.mg_backward_pawn_half_open,   &eval.eg_backward_pawn_half_open);
-		_add(NORMAL, "chained_pawn[8] = { ",       8, 1, &t.chained_pawn[0][0],         &eval.mg_chained_pawn[0],           &eval.eg_chained_pawn[0]);
+		_add(NORMAL, "isolated_pawn = ",           1, 0, &t.isolated_pawn[0],           &eval.isolated_pawn);
+		_add(NORMAL, "doubled_pawn = ",            1, 0, &t.doubled_pawn[0],            &eval.doubled_pawn);
+		_add(NORMAL, "backward_pawn = ",           1, 0, &t.backward_pawn[0],           &eval.backward_pawn);
+		_add(NORMAL, "backward_pawn_half_open = ", 1, 0, &t.backward_pawn_half_open[0], &eval.backward_pawn_half_open);
+		_add(NORMAL, "chained_pawn[8] = { ",       8, 1, &t.chained_pawn[0][0],         &eval.chained_pawn[0]);
+		_add(NORMAL, "phalanx_pawn[8] = { ",       8, 1, &t.phalanx_pawn[0][0],         &eval.phalanx_pawn[0]);
 
-		_add(NORMAL, "passed_pawn[8] = { ",              8, 1, &t.passed_pawn[0][0],              &eval.mg_passed_pawn[0],              &eval.eg_passed_pawn[0]);
-		_add(NORMAL, "passed_pawn_blocked[8] = { ",      8, 1, &t.passed_pawn_blocked[0][0],      &eval.mg_passed_pawn_blocked[0],      &eval.eg_passed_pawn_blocked[0]);
-		_add(NORMAL, "passed_pawn_safe_advance = ",      1, 0, &t.passed_pawn_safe_advance[0],    &eval.mg_passed_pawn_safe_advance,    &eval.eg_passed_pawn_safe_advance);
-		_add(NORMAL, "passed_pawn_safe_path = ",         1, 0, &t.passed_pawn_safe_path[0],       &eval.mg_passed_pawn_safe_path,       &eval.eg_passed_pawn_safe_path);
-		_add(NORMAL, "passed_friendly_distance[8] = { ", 8, 1, &t.passed_friendly_distance[0][0], &eval.mg_passed_friendly_distance[0], &eval.eg_passed_friendly_distance[0]);
-		_add(NORMAL, "passed_enemy_distance[8] = { ",    8, 1, &t.passed_enemy_distance[0][0],    &eval.mg_passed_enemy_distance[0],    &eval.eg_passed_enemy_distance[0]);
+		_add(NORMAL, "passed_pawn[8] = { ",              8, 1, &t.passed_pawn[0][0],              &eval.passed_pawn[0]);
+		_add(NORMAL, "passed_pawn_blocked[8] = { ",      8, 1, &t.passed_pawn_blocked[0][0],      &eval.passed_pawn_blocked[0]);
+		_add(NORMAL, "passed_pawn_safe_advance = ",      1, 0, &t.passed_pawn_safe_advance[0],    &eval.passed_pawn_safe_advance);
+		_add(NORMAL, "passed_pawn_safe_path = ",         1, 0, &t.passed_pawn_safe_path[0],       &eval.passed_pawn_safe_path);
+		_add(NORMAL, "passed_friendly_distance[8] = { ", 8, 1, &t.passed_friendly_distance[0][0], &eval.passed_friendly_distance[0]);
+		_add(NORMAL, "passed_enemy_distance[8] = { ",    8, 1, &t.passed_enemy_distance[0][0],    &eval.passed_enemy_distance[0]);
 
-		_add(NORMAL, "knight_outpost = ",           1, 0, &t.knight_outpost[0],           &eval.mg_knight_outpost,             &eval.eg_knight_outpost);
-		_add(NORMAL, "knight_outpost_supported = ", 1, 0, &t.knight_outpost_supported[0], &eval.mg_knight_outpost_supported,   &eval.eg_knight_outpost_supported);
+		_add(NORMAL, "knight_outpost = ",           1, 0, &t.knight_outpost[0],           &eval.knight_outpost);
+		_add(NORMAL, "knight_outpost_supported = ", 1, 0, &t.knight_outpost_supported[0], &eval.knight_outpost_supported);
 
-		_add(NORMAL, "bishop_pawn = ",   1, 0, &t.bishop_pawn[0],   &eval.mg_bishop_pawn,   &eval.eg_bishop_pawn);
-		_add(NORMAL, "double_bishop = ", 1, 0, &t.double_bishop[0], &eval.mg_double_bishop, &eval.eg_double_bishop);
+		_add(NORMAL, "bishop_pawn = ",   1, 0, &t.bishop_pawn[0],   &eval.bishop_pawn);
+		_add(NORMAL, "double_bishop = ", 1, 0, &t.double_bishop[0], &eval.double_bishop);
 
-		_add(NORMAL, "rook_open_file = ",      1, 0, &t.rook_open_file[0],      &eval.mg_rook_open_file,      &eval.eg_rook_open_file);
-		_add(NORMAL, "rook_half_open_file = ", 1, 0, &t.rook_half_open_file[0], &eval.mg_rook_half_open_file, &eval.eg_rook_half_open_file);
-		_add(NORMAL, "rook_on_seventh = ",     1, 0, &t.rook_on_seventh[0],     &eval.mg_rook_on_seventh,     &eval.eg_rook_on_seventh);
+		_add(NORMAL, "rook_open_file = ",      1, 0, &t.rook_open_file[0],      &eval.rook_open_file);
+		_add(NORMAL, "rook_half_open_file = ", 1, 0, &t.rook_half_open_file[0], &eval.rook_half_open_file);
+		_add(NORMAL, "rook_on_seventh = ",     1, 0, &t.rook_on_seventh[0],     &eval.rook_on_seventh);
 
-		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.mg_pawn_shelter[0][0][0], &eval.eg_pawn_shelter[0][0][0]);
-		//_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.mg_pawn_storm[0][0][0],   &eval.eg_pawn_storm[0][0][0]);
+		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.pawn_shelter[0][0][0]);
+		//_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.pawn_storm[0][0][0]);
 
-		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0],
-				&eval.mg_king_attacker_weight[0], &eval.eg_king_attacker_weight[0]);
+		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0], &eval.king_attacker_weight[0]);
 
-		_add(KING_DANGER, "king_zone_attack_count_weight = ", 1, 0, &t.king_zone_attack_count_weight[0],
-				&eval.mg_king_zone_attack_count_weight, &eval.eg_king_zone_attack_count_weight);
-		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0],
-				&eval.mg_king_danger_no_queen_weight, &eval.eg_king_danger_no_queen_weight);
+		_add(KING_DANGER, "king_zone_attack_count_weight = ", 1, 0, &t.king_zone_attack_count_weight[0], &eval.king_zone_attack_count_weight);
+		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0], &eval.king_danger_no_queen_weight);
 
-		_add(KING_DANGER, "safe_knight_check = ", 1, 0, &t.safe_knight_check[0], &eval.mg_safe_knight_check, &eval.eg_safe_knight_check);
-		_add(KING_DANGER, "safe_bishop_check = ", 1, 0, &t.safe_bishop_check[0], &eval.mg_safe_bishop_check, &eval.eg_safe_bishop_check);
-		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.mg_safe_rook_check,   &eval.eg_safe_rook_check);
-		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.mg_safe_queen_check,  &eval.eg_safe_queen_check);
+		_add(KING_DANGER, "safe_knight_check = ", 1, 0, &t.safe_knight_check[0], &eval.safe_knight_check);
+		_add(KING_DANGER, "safe_bishop_check = ", 1, 0, &t.safe_bishop_check[0], &eval.safe_bishop_check);
+		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.safe_rook_check);
+		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.safe_queen_check);
 
-		_add(KING_DANGER, "king_zone_weak_square = ",  1, 0, &t.king_zone_weak_square[0],  &eval.mg_king_zone_weak_square,  &eval.eg_king_zone_weak_square);
+		_add(KING_DANGER, "king_zone_weak_square = ",  1, 0, &t.king_zone_weak_square[0],  &eval.king_zone_weak_square);
 
-		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.mg_king_danger_offset, &eval.eg_king_danger_offset);
+		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.king_danger_offset);
 
-		_add(NORMAL, "center_control = ", 1, 0, &t.center_control[0],     &eval.mg_center_control,     &eval.eg_center_control);
+		_add(NORMAL, "center_control = ", 1, 0, &t.center_control[0], &eval.center_control);
 
-		_add(NORMAL, "minor_threatened_by_pawn = ",   1, 0, &t.minor_threatened_by_pawn[0],   &eval.mg_minor_threatened_by_pawn,   &eval.eg_minor_threatened_by_pawn);
-		_add(NORMAL, "minor_threatened_by_minor = ",  1, 0, &t.minor_threatened_by_minor[0],  &eval.mg_minor_threatened_by_minor,  &eval.eg_minor_threatened_by_minor);
-		_add(NORMAL, "rook_threatened_by_lesser = ",  1, 0, &t.rook_threatened_by_lesser[0],  &eval.mg_rook_threatened_by_lesser,  &eval.eg_rook_threatened_by_lesser);
-		_add(NORMAL, "queen_threatened_by_lesser = ", 1, 0, &t.queen_threatened_by_lesser[0], &eval.mg_queen_threatened_by_lesser, &eval.eg_queen_threatened_by_lesser);
-		_add(NORMAL, "minor_threatened_by_major = ",  1, 0, &t.minor_threatened_by_major[0],  &eval.mg_minor_threatened_by_major,  &eval.eg_minor_threatened_by_major);
+		_add(NORMAL, "minor_threatened_by_pawn = ",   1, 0, &t.minor_threatened_by_pawn[0],   &eval.minor_threatened_by_pawn);
+		_add(NORMAL, "minor_threatened_by_minor = ",  1, 0, &t.minor_threatened_by_minor[0],  &eval.minor_threatened_by_minor);
+		_add(NORMAL, "rook_threatened_by_lesser = ",  1, 0, &t.rook_threatened_by_lesser[0],  &eval.rook_threatened_by_lesser);
+		_add(NORMAL, "queen_threatened_by_lesser = ", 1, 0, &t.queen_threatened_by_lesser[0], &eval.queen_threatened_by_lesser);
+		_add(NORMAL, "minor_threatened_by_major = ",  1, 0, &t.minor_threatened_by_major[0],  &eval.minor_threatened_by_major);
 	}
 };
 

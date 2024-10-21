@@ -26,6 +26,7 @@ struct Trace {
 	unsigned backward_pawn[2] {};
 	unsigned backward_pawn_half_open[2] {};
 	unsigned chained_pawn[2][8] {};
+	unsigned phalanx_pawn[2][8] {};
 
 	unsigned passed_pawn[2][8] {};
 	unsigned passed_pawn_blocked[2][8] {};
@@ -93,6 +94,7 @@ static inline void record_doubled_pawn(Color friendly)                { trace().
 static inline void record_backward_pawn(Color friendly)               { trace().backward_pawn[friendly]++; }
 static inline void record_backward_pawn_half_open(Color friendly)     { trace().backward_pawn_half_open[friendly]++; }
 static inline void record_chained_pawn(Color friendly, unsigned rank) { trace().chained_pawn[friendly][rank]++; }
+static inline void record_phalanx_pawn(Color friendly, unsigned rank) { trace().phalanx_pawn[friendly][rank]++; }
 
 static inline void record_passed_pawn(             Color friendly, unsigned rank)                    { trace().passed_pawn[friendly][rank]++; }
 static inline void record_passed_pawn_blocked(     Color friendly, unsigned rank)                    { trace().passed_pawn_blocked[friendly][rank]++; }

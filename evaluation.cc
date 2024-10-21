@@ -56,9 +56,14 @@ int Evaluation::evaluate_pawns(Board &board, Color friendly)
 		}
 
 		// Pawn chain
-		else if (supported || phalanx) {
+		else if (supported) {
 			score += chained_pawn[relative_rank];
 			record_chained_pawn(friendly, relative_rank);
+		}
+
+		else if (phalanx) {
+			score += phalanx_pawn[relative_rank];
+			record_phalanx_pawn(friendly, relative_rank);
 		}
 
 		// Passed pawns
