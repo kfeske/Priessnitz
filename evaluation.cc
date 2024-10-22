@@ -330,8 +330,8 @@ int Evaluation::evaluate_kings(Board &board, Color friendly)
 		king_danger += king_zone_weak_square * weak_king_ring;
 		record_king_zone_weak_square(friendly, weak_king_ring);
 
-		// Safe checks by enemy pieces
-		uint64_t safe = ~info.attacked[friendly] & ~board.pieces(enemy);
+		// Safe checks by enemy pieces that do not lose material
+		uint64_t safe = (~info.attacked[friendly] | (weak_squares & info.attacked_by_multiple[enemy])) & ~board.pieces(enemy);
 		unsigned knight_checks = pop_count(piece_attacks(KNIGHT, square, 0ULL)      & safe & info.attacked_by_piece[enemy][KNIGHT]);
 		king_danger += safe_knight_check * knight_checks;
 		record_safe_knight_check(friendly, knight_checks);
