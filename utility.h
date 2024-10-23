@@ -146,11 +146,9 @@ int const piece_value[15] = { 100, 300, 320, 500, 900, 1000, 0, 0,
 int const non_pawn_value[15] = { 0, 300, 320, 500, 900, 0, 0, 0,
 			         0, 300, 320, 500, 900, 0, 0 };
 
-enum Score_type {
-	DRAW_SCORE = 0,
-	MATE_SCORE = 30000,
-	INFINITY_SCORE = 31000
-};
+int const DRAW_SCORE = 0;
+int const MATE_SCORE = 30000;
+int const INFINITY_SCORE = 31000;
 
 static inline int merge_score(int16_t mg, int16_t eg)
 {

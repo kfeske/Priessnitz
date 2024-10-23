@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 
 #include "search.h"
 
@@ -409,6 +410,8 @@ void Search::start_search(Board &board)
 
 	for (current_depth = 1; current_depth <= max_depth; current_depth++) {
 
+		if (best_root_move != last_best_move) last_best_move_depth = current_depth;
+
 		last_best_move = best_root_move;
 		nodes_previous_iteration = statistics.search_nodes + statistics.quiescence_nodes;
 		statistics.search_nodes = 0;
@@ -433,7 +436,9 @@ void Search::start_search(Board &board)
 			// Stop here, if the allocated time for the move runs out.
 			// We continue searching, if we failed low.
 			if (time_management && current_depth > 1) {
-				double stable_best_move = (last_best_move_depth + 7 < current_depth) ? 0.9 : 1.2;
+				//double stable_best_move = (last_best_move_depth + 7 < current_depth) ? 0.9 : 1.2;
+				unsigned best_move_change_distance = current_depth - last_best_move_depth;
+				double stable_best_move = 1.74 * std::pow(0.26, best_move_change_distance) + 0.76;
 				if (time_elapsed() >= soft_time_cap * stable_best_move) abort_search = true;
 			}
 			if (abort_search) break;
@@ -441,17 +446,15 @@ void Search::start_search(Board &board)
 			// The returned evaluation was not inside the windows :/
 			// A costly re-search has to be done with a wider window.
 			if (evaluation <= alpha) {
-				alpha -= window_size;
+				alpha = std::max(alpha - window_size, -INFINITY_SCORE);
 				window_size += window_size / 2;
 			}
 			else if (evaluation >= beta) {
-				beta += window_size;
+				beta = std::min(beta + window_size, INFINITY_SCORE);
 				window_size += window_size / 2;
 			}
 			else break;
 		}
-
-		if (best_root_move != last_best_move) last_best_move_depth = current_depth;
 
 		plot_info(board, nodes_previous_iteration);
 
