@@ -43,17 +43,16 @@ static inline void record_rook_on_seventh(Color ) {}
 static inline void record_pawn_shelter(Color, bool, unsigned, unsigned ) {}
 static inline void record_pawn_storm(Color, bool, unsigned, unsigned ) {}
 
-static inline void record_safe_knight_check(Color , unsigned ) {}
-static inline void record_safe_bishop_check(Color , unsigned ) {}
-static inline void record_safe_rook_check(  Color , unsigned ) {}
-static inline void record_safe_queen_check( Color , unsigned ) {}
-
-static inline void record_king_zone_weak_square(Color , unsigned) {}
-
 static inline void record_king_attacker_weight(Color , Piece_type ) {}
 static inline void record_adjust_king_attacker_weights(Color , unsigned ) {}
 static inline void record_clear_attacker_weights(Color ) {}
 static inline void record_king_zone_attack_count_weight(Color , unsigned ) {}
+static inline void record_king_zone_weak_square(Color , unsigned) {}
+static inline void record_safe_knight_check(Color , unsigned ) {}
+static inline void record_safe_bishop_check(Color , unsigned ) {}
+static inline void record_safe_rook_check(  Color , unsigned ) {}
+static inline void record_safe_queen_check( Color , unsigned ) {}
+static inline void record_unsafe_check(Color , unsigned ) {}
 static inline void record_king_danger_no_queen_weight(Color , bool ) {}
 static inline void record_king_danger_offset(Color ) {}
 

@@ -199,17 +199,14 @@ struct Parameters
 		//_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.pawn_storm[0][0][0]);
 
 		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0], &eval.king_attacker_weight[0]);
-
 		_add(KING_DANGER, "king_zone_attack_count_weight = ", 1, 0, &t.king_zone_attack_count_weight[0], &eval.king_zone_attack_count_weight);
-		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0], &eval.king_danger_no_queen_weight);
-
+		_add(KING_DANGER, "king_zone_weak_square = ",  1, 0, &t.king_zone_weak_square[0],  &eval.king_zone_weak_square);
 		_add(KING_DANGER, "safe_knight_check = ", 1, 0, &t.safe_knight_check[0], &eval.safe_knight_check);
 		_add(KING_DANGER, "safe_bishop_check = ", 1, 0, &t.safe_bishop_check[0], &eval.safe_bishop_check);
 		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.safe_rook_check);
 		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.safe_queen_check);
-
-		_add(KING_DANGER, "king_zone_weak_square = ",  1, 0, &t.king_zone_weak_square[0],  &eval.king_zone_weak_square);
-
+		_add(KING_DANGER, "unsafe_check = ", 1, 0, &t.unsafe_check[0], &eval.unsafe_check);
+		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0], &eval.king_danger_no_queen_weight);
 		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.king_danger_offset);
 
 		_add(NORMAL, "center_control = ", 1, 0, &t.center_control[0], &eval.center_control);

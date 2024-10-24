@@ -48,15 +48,14 @@ struct Trace {
 	unsigned pawn_shelter[2][2][4][8] {};
 	unsigned pawn_storm[2][2][4][8] {};
 
+	unsigned king_attacker_weight[2][6] {};
+	unsigned king_zone_attack_count_weight[2] {};
+	unsigned king_zone_weak_square[2] {};
 	unsigned safe_knight_check[2] {};
 	unsigned safe_bishop_check[2] {};
 	unsigned safe_rook_check[2] {};
 	unsigned safe_queen_check[2] {};
-
-	unsigned king_zone_weak_square[2] {};
-
-	unsigned king_attacker_weight[2][6] {};
-	unsigned king_zone_attack_count_weight[2] {};
+	unsigned unsafe_check[2] {};
 	unsigned king_danger_no_queen_weight[2] {};
 	unsigned king_danger_offset[2] {};
 
@@ -116,13 +115,6 @@ static inline void record_rook_on_seventh(    Color friendly) { trace().rook_on_
 static inline void record_pawn_shelter(Color friendly, bool king_file, unsigned edge_dist, unsigned king_dist) { trace().pawn_shelter[friendly][king_file][edge_dist][king_dist]++; }
 static inline void record_pawn_storm(Color friendly, bool blocked, unsigned edge_dist, unsigned king_dist) { trace().pawn_storm[friendly][blocked][edge_dist][king_dist]++; }
 
-static inline void record_safe_knight_check(Color friendly, unsigned count) { trace().safe_knight_check[friendly] += count; }
-static inline void record_safe_bishop_check(Color friendly, unsigned count) { trace().safe_bishop_check[friendly] += count; }
-static inline void record_safe_rook_check(  Color friendly, unsigned count) { trace().safe_rook_check[friendly]   += count; }
-static inline void record_safe_queen_check( Color friendly, unsigned count) { trace().safe_queen_check[friendly]  += count; }
-
-static inline void record_king_zone_weak_square(Color friendly, unsigned count) { trace().king_zone_weak_square[friendly] += count; }
-
 static inline void record_king_attacker_weight(Color friendly, Piece_type type) { trace().king_attacker_weight[friendly][type]++; }
 static inline void record_adjust_king_attacker_weights(Color friendly, unsigned attackers)
 {
@@ -135,6 +127,12 @@ static inline void record_clear_attacker_weights(Color friendly)
 		trace().king_attacker_weight[friendly][type] = 0;
 }
 static inline void record_king_zone_attack_count_weight(Color friendly, unsigned count) { trace().king_zone_attack_count_weight[friendly] += count; }
+static inline void record_king_zone_weak_square(Color friendly, unsigned count) { trace().king_zone_weak_square[friendly] += count; }
+static inline void record_safe_knight_check(Color friendly, unsigned count) { trace().safe_knight_check[friendly] += count; }
+static inline void record_safe_bishop_check(Color friendly, unsigned count) { trace().safe_bishop_check[friendly] += count; }
+static inline void record_safe_rook_check(  Color friendly, unsigned count) { trace().safe_rook_check[friendly]   += count; }
+static inline void record_safe_queen_check( Color friendly, unsigned count) { trace().safe_queen_check[friendly]  += count; }
+static inline void record_unsafe_check(Color friendly, unsigned count) { trace().unsafe_check[friendly] += count; }
 static inline void record_king_danger_no_queen_weight(Color friendly, bool no_queen) { trace().king_danger_no_queen_weight[friendly] += no_queen; }
 static inline void record_king_danger_offset(Color friendly) { trace().king_danger_offset[friendly]++; }
 

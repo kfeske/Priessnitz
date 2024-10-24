@@ -324,32 +324,28 @@ int Evaluation::evaluate_kings(Board &board, Color friendly)
 
 		int king_danger = 0;
 		
+		// Squares in the king area that are attacked by the enemy, but undefended (or only defended by our king)
 		uint64_t weak_squares = info.attacked[enemy] & ~info.attacked_by_multiple[friendly] & 
 					(~info.attacked[friendly] | info.attacked_by_piece[friendly][KING]);
 		unsigned weak_king_ring = pop_count(info.king_ring[friendly] & weak_squares);
-		king_danger += king_zone_weak_square * weak_king_ring;
-		record_king_zone_weak_square(friendly, weak_king_ring);
 
 		// Safe checks by enemy pieces that do not lose material
 		uint64_t safe = (~info.attacked[friendly] | (weak_squares & info.attacked_by_multiple[enemy])) & ~board.pieces(enemy);
-		unsigned knight_checks = pop_count(piece_attacks(KNIGHT, square, 0ULL)      & safe & info.attacked_by_piece[enemy][KNIGHT]);
-		king_danger += safe_knight_check * knight_checks;
-		record_safe_knight_check(friendly, knight_checks);
 
-		unsigned bishop_checks = pop_count(piece_attacks(BISHOP, square, board.occ) & safe & info.attacked_by_piece[enemy][BISHOP]);
-		king_danger += safe_bishop_check * bishop_checks;
-		record_safe_bishop_check(friendly, bishop_checks);
-
-		unsigned rook_checks   = pop_count(piece_attacks(ROOK,   square, board.occ) & safe & info.attacked_by_piece[enemy][ROOK]);
-		king_danger += safe_rook_check * rook_checks;
-		record_safe_rook_check(friendly, rook_checks);
-
-		unsigned queen_checks  = pop_count(piece_attacks(QUEEN,  square, board.occ) & safe & info.attacked_by_piece[enemy][QUEEN]);
-		king_danger += safe_queen_check * queen_checks;
-		record_safe_queen_check(friendly, queen_checks);
+		uint64_t knight_checks = piece_attacks(KNIGHT, square, 0ULL)      & info.attacked_by_piece[enemy][KNIGHT];
+		uint64_t bishop_checks = piece_attacks(BISHOP, square, board.occ) & info.attacked_by_piece[enemy][BISHOP];
+		uint64_t rook_checks   = piece_attacks(ROOK,   square, board.occ) & info.attacked_by_piece[enemy][ROOK];
+		uint64_t queen_checks  = piece_attacks(QUEEN,  square, board.occ) & info.attacked_by_piece[enemy][QUEEN];
+		uint64_t all_checks    = knight_checks | bishop_checks | rook_checks | queen_checks;
 
 		king_danger += info.king_attackers_weight[friendly] * info.king_attackers[friendly] +
 			       king_zone_attack_count_weight * info.king_zone_attacks[friendly] +
+			       king_zone_weak_square * weak_king_ring +
+			       safe_queen_check  * pop_count(safe & queen_checks)  +
+			       safe_rook_check   * pop_count(safe & rook_checks)   +
+			       safe_bishop_check * pop_count(safe & bishop_checks) +
+			       safe_knight_check * pop_count(safe & knight_checks) +
+			       unsafe_check * pop_count(~safe & all_checks) +
 			       king_danger_no_queen_weight * !board.pieces(enemy, QUEEN) +
 			       king_danger_offset;
 
@@ -359,6 +355,12 @@ int Evaluation::evaluate_kings(Board &board, Color friendly)
 
 		record_adjust_king_attacker_weights(friendly, info.king_attackers[friendly]);
 		record_king_zone_attack_count_weight(friendly, info.king_zone_attacks[friendly]);
+		record_king_zone_weak_square(friendly, weak_king_ring);
+		record_safe_rook_check(  friendly, pop_count(safe & rook_checks));
+		record_safe_knight_check(friendly, pop_count(safe & knight_checks));
+		record_safe_bishop_check(friendly, pop_count(safe & bishop_checks));
+		record_safe_queen_check( friendly, pop_count(safe & queen_checks));
+		record_unsafe_check(friendly, pop_count(~safe & all_checks));
 		record_king_danger_no_queen_weight(friendly, !board.pieces(enemy, QUEEN));
 		record_king_danger_offset(friendly);
 	}
