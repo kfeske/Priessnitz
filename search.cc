@@ -436,18 +436,6 @@ void Search::start_search(Board &board)
 			evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
 			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
-			// Stop here, if the allocated time for the move runs out.
-			// We continue searching, if we failed low.
-			if (time_management && current_depth > 1) {
-
-				// Scale time depending on how often the best move changes
-				unsigned best_move_change_distance = current_depth - last_best_move_depth;
-				double stable_best_move = 1.74 * std::pow(0.26, best_move_change_distance) + 0.76;
-
-				int evaluation_difference = std::max(std::min(last_evaluation - evaluation, 100), -100);
-				double stable_evaluation = std::pow(2, double(evaluation_difference) / 100.0);
-				if (time_elapsed() >= soft_time_cap * stable_best_move * stable_evaluation) abort_search = true;
-			}
 			if (abort_search) break;
 
 			// The returned evaluation was not inside the windows :/
@@ -463,8 +451,22 @@ void Search::start_search(Board &board)
 			else break;
 		}
 
-		plot_info(board, nodes_previous_iteration);
+		// Stop here, if the allocated time for the move runs out.
+		// We continue searching, if we failed low.
+		if (time_management && current_depth > 1) {
 
+			// Scale time allocation depending on how often the best move changes.
+			unsigned best_move_change_distance = current_depth - last_best_move_depth;
+			double stable_best_move = 1.74 * std::pow(0.26, best_move_change_distance) + 0.76;
+
+			// Scale time allocation depending on fluctuations in the evaluation.
+			// We use more time, when the evaluation score drops.
+			int evaluation_difference = std::max(std::min(last_evaluation - evaluation, 100), -100);
+			double stable_evaluation = std::pow(2, double(evaluation_difference) / 100.0);
+			if (time_elapsed() >= soft_time_cap * stable_best_move * stable_evaluation) abort_search = true;
+		}
+
+		plot_info(board, nodes_previous_iteration);
 
 		if (abort_search) break;
 	}
