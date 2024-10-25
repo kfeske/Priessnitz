@@ -123,7 +123,7 @@ struct Main_move_orderer
 				if (move == counter_move)  counter_move  = INVALID_MOVE;
 
 				// Only captures with a positive see score are "Good captures".
-				if (see(board, move) < 0) {
+				if (!see(board, move, 0)) {
 					bad_captures.add(move_list.moves[position - 1]);
 					continue;
 				}
@@ -276,7 +276,7 @@ struct Quiescence_move_orderer
 		case Quiescence_stage::GOOD_CAPTURES:
 			while (position < move_list.size) {
 				Move move = next_best_move(move_list);
-				if (see(board, move) >= threshold || promotion(move)) return move;
+				if (see(board, move, threshold) || promotion(move)) return move;
 			}
 			return INVALID_MOVE;
 

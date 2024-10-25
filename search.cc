@@ -268,7 +268,7 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 			// SEE Pruning
 			// Skip moves that lose material at low depths
 			if (move_orderer.stage > Main_stage::GOOD_CAPTURES && depth < 12 && !promotion(move) &&
-			    see(board, move) < ((quiet_move) ? -50 * depth : -20 * depth * depth))
+			    !see(board, move, ((quiet_move) ? -50 * depth : -20 * depth * depth)))
 				continue;
 		}
 

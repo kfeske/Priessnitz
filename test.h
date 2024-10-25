@@ -68,8 +68,10 @@ void mirror_test(Board &board, Search &search)
 
 void see_test(Board &board, Move move)
 {
-	int value = see(board, move);
-	std::cerr << "see value " << value << "\n";
+	for (int x = -1000; x < 1000; x += 100) {
+		if (see(board, move, x)) std::cerr << "more than " << x << "\n";
+		//else std::cerr << "less than " << x << "\n";
+	}
 }
 
 struct Perft {

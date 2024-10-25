@@ -4,95 +4,92 @@
 #include "board.h"
 #include "pre_computed.h"
 
-// The so called Static Exchange Evaluation (SEE) is used to estimate the gain of
-// a capture (or a check) by looking at the series of exchanges on a single square.
-// This can be used in move ordering of captures, check extensions and especially
-// Quiescence Search.
+// The so called Static Exchange Evaluation (SEE) is used to estimate the material gain of
+// move by looking at the series of exchanges on the target square.
+// This can be used in move ordering of captures and for pruning decisions.
 
-
-// extracts the piece with the least value from a bitboard
-// order is pawn, knight, bishop, rook, queen, king
-
-struct Attacker
+static inline bool see(Board &board, Move move, int threshold)
 {
-	Piece_type type;
-	uint64_t square;
-};
+	unsigned from_square = move_from(move);
+	unsigned to_square   = move_to(move);
 
-static inline Attacker lowest_piece(Board &board, uint64_t attackers, Color side)
-{
-	for (Piece_type type : { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING }) {
-		uint64_t mask = board.pieces(side, type) & attackers;
-		if (mask != 0ULL) return
-		{
-			.type	  = type,
-			// abuse the two's complement, so only one bit is returned
-		       	.square = mask & -mask
-		};
-	}
-	return {};
-}
+	// Best case: We capture the opponent piece and he does not take back. If the gained
+	// material is not enough to beat the threshold, stop.
+	int gain = piece_value[board.board[to_square]] - threshold;
+	if (gain < 0) return false;
 
-static inline uint64_t revealed_attacks(Board &board, unsigned square, Piece_type pt, uint64_t occupied)
-{
-	uint64_t bishops = board.pieces(BISHOP);
-	uint64_t rooks   = board.pieces(ROOK);
-	uint64_t queens  = board.pieces(QUEEN);
+	// Worst case: The opponent captures the piece we moved + we do not take back. If the
+	// exchange still beats the threshold, stop.
+	gain -= piece_value[board.board[from_square]];
+	if (gain >= 0) return true;
+	
+	uint64_t occupied = board.occ & ~((1ULL << from_square) | (1ULL << to_square));
+	uint64_t attackers = board.square_attackers(to_square, occupied);
 
-	if (pt == BISHOP || pt == PAWN)
-		return piece_attacks(BISHOP, square, occupied) & (bishops | queens);
-	else if (pt == ROOK)
-		return piece_attacks(ROOK, square, occupied) & (rooks | queens);
-	else if (pt == QUEEN)
-		return (piece_attacks(BISHOP, square, occupied) & (bishops | queens)) |
-		       (piece_attacks(ROOK,   square, occupied) & (rooks | queens));
-	return 0ULL;
-}
+	uint64_t bishops = board.pieces(BISHOP) | board.pieces(QUEEN);
+	uint64_t rooks   = board.pieces(ROOK)   | board.pieces(QUEEN);
 
-static inline int see(Board &board, Move move)
-{
-	unsigned target_square = move_to(move);
-	uint64_t occupied = board.occ;
-	Color side = board.side_to_move;
+	Color side = swap(board.side_to_move);
 
-	int gain[32];
-	unsigned depth = 0;
-
-	// the first exchange is obviously the move
-	Attacker attacker { .type = type_of(board.board[move_from(move)]), .square = 1ULL << move_from(move) };
-	gain[0] = piece_value[board.board[target_square]];
-	//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
-
-	uint64_t attackers = board.square_attackers(target_square, occupied);
-
-	// loop through the exchange sequence and see, who wins it
 	while (true) {
-		depth++;
-		// execute the exchange with the next least valuable piece
-		side = Color(!side);
-		attackers &= ~attacker.square;
-		occupied &= ~attacker.square;
-		attackers |= revealed_attacks(board, target_square, attacker.type, occupied) & occupied;
 
-		// no attackers left, we are done here
-		if (!(attackers & board.pieces(side))) break;
+		attackers &= occupied;
 
-		// ouch, the piece is defended, continue
-		gain[depth] = piece_value[attacker.type] - gain[depth - 1];
-		//std::cerr << "depth " << depth << " gain " << gain[depth] << "\n";
+		uint64_t side_attackers = attackers & board.pieces(side);
 
-		// if the opponent were to stop the exchange and you still lose it,
-		// there is no need to examine the sequence further
-		if (std::max(-gain[depth - 1], gain[depth]) < 0) break;
+		// The side out of attackers loses, because if it could get away without capturing, we
+		// would have stopped the sequence sooner.
+		if (!side_attackers)
+			break;
 
-		attacker = lowest_piece(board, attackers, side);
+		side = swap(side);
+
+		int attacker_value;
+		uint64_t attacker;
+
+		// Remove the least valuable attacker from the board.
+		// Make sure to add xray pieces that might have been blocked by that attacker. For example stacked rooks.
+		if ((     attacker = side_attackers & board.pieces(PAWN))) {
+			attacker_value = piece_value[PAWN];
+			occupied &= ~(1ULL << lsb(attacker));
+			attackers |= piece_attacks(BISHOP, to_square, occupied) & bishops;
+		}
+		else if ((attacker = side_attackers & board.pieces(KNIGHT))) {
+			attacker_value = piece_value[KNIGHT];
+			occupied &= ~(1ULL << lsb(attacker));
+		}
+		else if ((attacker = side_attackers & board.pieces(BISHOP))) {
+			attacker_value = piece_value[BISHOP];
+			occupied &= ~(1ULL << lsb(attacker));
+			attackers |= piece_attacks(BISHOP, to_square, occupied) & bishops;
+		}
+		else if ((attacker = side_attackers & board.pieces(ROOK))) {
+			attacker_value = piece_value[ROOK];
+			occupied &= ~(1ULL << lsb(attacker));
+			attackers |= piece_attacks(ROOK,   to_square, occupied) & rooks;
+		}
+		else if ((attacker = side_attackers & board.pieces(QUEEN))) {
+			attacker_value = piece_value[QUEEN];
+			occupied &= ~(1ULL << lsb(attacker));
+			attackers |= piece_attacks(BISHOP, to_square, occupied) & bishops;
+			attackers |= piece_attacks(ROOK,   to_square, occupied) & rooks;
+		}
+		else {
+			attacker = side_attackers & board.pieces(KING);
+			attacker_value = piece_value[KING];
+			occupied &= ~(1ULL << lsb(attacker));
+			// If the king is the last attacker, but the opponent still has attackers, we can stop.
+			//if (attackers & board.pieces(side)) {
+			//	return (board.side_to_move == side);
+			//}
+		}
+
+		// Minimax our way through the capture sequence.
+		gain = -gain - 1 - attacker_value;
+
+		// Again, once we beat the threshold, even if we would not recapture, we win.
+		if (gain >= 0)
+			break;
 	}
-	// We are not done yet, the sequence is not forced, a side could exit the exchange at any time.
-	// The following lines evaluate the final material gain, if both sides always had the option to continue or to stop taking
-	// by going backwards through the sequence (similar to minimax)
-	for (unsigned d = depth - 1; d > 0; d--) {
-		gain[d - 1] = -std::max(-gain[d - 1], gain[d]);
-		//std::cerr << "depth " << d - 1 << " gain " << gain[d - 1] << "\n";
-	}
-	return gain[0];
+	return board.side_to_move != side;
 }
