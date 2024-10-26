@@ -78,10 +78,6 @@ static inline bool see(Board &board, Move move, int threshold)
 			attacker = side_attackers & board.pieces(KING);
 			attacker_value = piece_value[KING];
 			occupied &= ~(1ULL << lsb(attacker));
-			// If the king is the last attacker, but the opponent still has attackers, we can stop.
-			//if (attackers & board.pieces(side)) {
-			//	return (board.side_to_move == side);
-			//}
 		}
 
 		// Minimax our way through the capture sequence.

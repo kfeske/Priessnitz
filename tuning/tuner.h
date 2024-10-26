@@ -171,12 +171,12 @@ struct Parameters
 		_add(NORMAL, "queen_mobility[28] = { ",  28, 1, &t.queen_mobility[0][0],  &eval.queen_mobility[0]);
 		_add(NORMAL, "king_mobility[9] = { ",  9, 1,    &t.king_mobility[0][0],   &eval.king_mobility[0]);
 
-		_add(NORMAL, "isolated_pawn = ",           1, 0, &t.isolated_pawn[0],           &eval.isolated_pawn);
-		_add(NORMAL, "doubled_pawn = ",            1, 0, &t.doubled_pawn[0],            &eval.doubled_pawn);
-		_add(NORMAL, "backward_pawn = ",           1, 0, &t.backward_pawn[0],           &eval.backward_pawn);
-		_add(NORMAL, "backward_pawn_half_open = ", 1, 0, &t.backward_pawn_half_open[0], &eval.backward_pawn_half_open);
-		_add(NORMAL, "chained_pawn[8] = { ",       8, 1, &t.chained_pawn[0][0],         &eval.chained_pawn[0]);
-		_add(NORMAL, "phalanx_pawn[8] = { ",       8, 1, &t.phalanx_pawn[0][0],         &eval.phalanx_pawn[0]);
+		_add(NORMAL, "isolated_pawn = ",                1, 0, &t.isolated_pawn[0],              &eval.isolated_pawn);
+		_add(NORMAL, "doubled_pawn = ",                 1, 0, &t.doubled_pawn[0],               &eval.doubled_pawn);
+		_add(NORMAL, "backward_pawn[8] = { ",           8, 1, &t.backward_pawn[0][0],           &eval.backward_pawn[0]);
+		_add(NORMAL, "backward_pawn_half_open[8] = { ", 8, 1, &t.backward_pawn_half_open[0][0], &eval.backward_pawn_half_open[0]);
+		_add(NORMAL, "chained_pawn[8] = { ",            8, 1, &t.chained_pawn[0][0],            &eval.chained_pawn[0]);
+		_add(NORMAL, "phalanx_pawn[8] = { ",            8, 1, &t.phalanx_pawn[0][0],            &eval.phalanx_pawn[0]);
 
 		_add(NORMAL, "passed_pawn[8] = { ",              8, 1, &t.passed_pawn[0][0],              &eval.passed_pawn[0]);
 		_add(NORMAL, "passed_pawn_blocked[8] = { ",      8, 1, &t.passed_pawn_blocked[0][0],      &eval.passed_pawn_blocked[0]);

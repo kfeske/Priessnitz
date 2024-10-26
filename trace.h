@@ -18,8 +18,8 @@ static inline void record_king_mobility(Color , unsigned) {}
 
 static inline void record_isolated_pawn(Color ) {}
 static inline void record_doubled_pawn(Color ) {}
-static inline void record_backward_pawn(Color ) {}
-static inline void record_backward_pawn_half_open(Color ) {}
+static inline void record_backward_pawn(Color , unsigned ) {}
+static inline void record_backward_pawn_half_open(Color , unsigned ) {}
 static inline void record_chained_pawn(Color , unsigned ) {}
 static inline void record_phalanx_pawn(Color , unsigned ) {}
 

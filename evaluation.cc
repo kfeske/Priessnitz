@@ -46,12 +46,12 @@ int Evaluation::evaluate_pawns(Board &board, Color friendly)
 		// Backward pawns
 		if (!(potential_support || phalanx) && pawn_attacks(friendly, square + forward) & enemy_pawns) {
 			if (file(square) & enemy_pawns) {
-				score += backward_pawn;
-				record_backward_pawn(friendly);
+				score += backward_pawn[relative_rank];
+				record_backward_pawn(friendly, relative_rank);
 			}
 			else {
-				score += backward_pawn_half_open;
-				record_backward_pawn_half_open(friendly);
+				score += backward_pawn_half_open[relative_rank];
+				record_backward_pawn_half_open(friendly, relative_rank);
 			}
 		}
 

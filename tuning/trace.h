@@ -23,8 +23,8 @@ struct Trace {
 
 	unsigned isolated_pawn[2] {};
 	unsigned doubled_pawn[2] {};
-	unsigned backward_pawn[2] {};
-	unsigned backward_pawn_half_open[2] {};
+	unsigned backward_pawn[2][8] {};
+	unsigned backward_pawn_half_open[2][8] {};
 	unsigned chained_pawn[2][8] {};
 	unsigned phalanx_pawn[2][8] {};
 
@@ -90,8 +90,8 @@ static inline void record_king_mobility(  Color friendly, unsigned safe_squares)
 
 static inline void record_isolated_pawn(Color friendly)               { trace().isolated_pawn[friendly]++; }
 static inline void record_doubled_pawn(Color friendly)                { trace().doubled_pawn[friendly]++; }
-static inline void record_backward_pawn(Color friendly)               { trace().backward_pawn[friendly]++; }
-static inline void record_backward_pawn_half_open(Color friendly)     { trace().backward_pawn_half_open[friendly]++; }
+static inline void record_backward_pawn(Color friendly, unsigned rank)               { trace().backward_pawn[friendly][rank]++; }
+static inline void record_backward_pawn_half_open(Color friendly, unsigned rank)     { trace().backward_pawn_half_open[friendly][rank]++; }
 static inline void record_chained_pawn(Color friendly, unsigned rank) { trace().chained_pawn[friendly][rank]++; }
 static inline void record_phalanx_pawn(Color friendly, unsigned rank) { trace().phalanx_pawn[friendly][rank]++; }
 
