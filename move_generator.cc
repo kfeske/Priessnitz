@@ -69,7 +69,7 @@ void generate_pawn_moves(Board &board, Move_list &move_list, uint64_t targets, C
 			}
 		}
 
-		unsigned ep_square = board.history[board.game_ply].ep_sq;
+		unsigned ep_square = board.info_history[board.game_ply].ep_sq;
 		if (ep_square != NO_SQUARE && !(gen == IN_CHECK_GEN &&
 		    !(((1ULL << ep_square) | (1ULL << (ep_square - forward)))  & targets))) {
 			uint64_t ep_candidates = non_promotion_pawns & pawn_attacks(swap(friendly), ep_square);
@@ -131,14 +131,14 @@ void generate(Board &board, Move_list &move_list, Gen_stage gen)
 	switch (gen) {
 		case CAPTURE_GEN: targets = board.pieces(swap(friendly)); break;
 		case QUIET_GEN:	  targets = ~board.occ; break;
-		case IN_CHECK_GEN: targets = ray_between(king_square, lsb(board.history[board.game_ply].checkers)); break;
+		case IN_CHECK_GEN: targets = ray_between(king_square, lsb(board.info_history[board.game_ply].checkers)); break;
 		default: break;
 	}
 
 	if (gen == IN_CHECK_GEN) {
 		generate_piece_moves(board, move_list, ~board.pieces(friendly), friendly, KING);
 		// Only king moves are possible in case of a double check.
-		if (pop_count(board.history[board.game_ply].checkers) >= 2) return;
+		if (pop_count(board.info_history[board.game_ply].checkers) >= 2) return;
 	}
 	else generate_piece_moves(board, move_list, targets, friendly, KING);
 
@@ -149,7 +149,7 @@ void generate(Board &board, Move_list &move_list, Gen_stage gen)
 	generate_piece_moves(board, move_list, targets, friendly, QUEEN);
 
 	if (gen == QUIET_GEN) {
-		uint8_t castling_rights = board.history[board.game_ply].castling_rights;
+		uint8_t castling_rights = board.info_history[board.game_ply].castling_rights;
 
 		if ((castling_rights & king_side[friendly])  && !(oo_blockers(friendly)  & board.occ))
 			move_list.add(create_move(king_square, king_square + 2, OO));

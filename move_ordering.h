@@ -14,7 +14,7 @@ struct Heuristics
 	Move counter(Board &board)
 	{
 		if (board.game_ply == 0) return INVALID_MOVE;
-		unsigned to = move_to(board.history[board.game_ply - 1].move);
+		unsigned to = move_to(board.info_history[board.game_ply].last_move);
 		return counter_move[board.board[to]][to];
 	}
 };

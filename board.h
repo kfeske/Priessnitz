@@ -24,14 +24,14 @@ struct Zobrist
 
 // used in unmake_move()
 // stores essential position data that cannot be restored
-struct Undo_info {
+struct Board_info {
 	Piece captured = NO_PIECE;
 	uint8_t ep_sq = NO_SQUARE; // save en passant square in case the last move was a double pawn push
 	uint8_t castling_rights = NO_RIGHTS;
 	unsigned rule_50 = 0;
 	uint64_t checkers = 0ULL;
 	uint64_t pinned = 0ULL;
-	Move move;
+	Move last_move;
 };
 
 struct Board_state
@@ -46,7 +46,7 @@ struct Board_state
 
 	unsigned game_ply = 0;
 
-	Undo_info history[1024] {};
+	Board_info info_history[1024] {};
 	uint64_t position_history[1024] {};
 	bool repetition = false;
 
@@ -144,7 +144,7 @@ struct Board : Board_state
 
 	bool in_check()
 	{
-		return (history[game_ply].checkers != 0ULL);
+		return (info_history[game_ply].checkers != 0ULL);
 	}
 
 	void update_checkers_and_pinners();
@@ -169,7 +169,7 @@ struct Board : Board_state
 
 	bool immediate_draw(unsigned ply)
 	{
-		return history[game_ply].rule_50 >= 100 || (ply > 1 && (repetition || insufficient_material()));
+		return info_history[game_ply].rule_50 >= 100 || (ply > 1 && (repetition || insufficient_material()));
 	}
 
 	void set_fenpos(std::string fen);

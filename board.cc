@@ -41,22 +41,22 @@ void Board::make_move(Move move)
 {
 	if (move == INVALID_MOVE) std::cerr << "attempted to play invalid move\n";
 	game_ply++;
-	history[game_ply] = {};
+	info_history[game_ply] = {};
 	unsigned from = move_from(move);
 	unsigned to   = move_to(move);
 
 	// update castling rights
 	// the corresponing castling is illegal if the move was made on a rook or king square
-	history[game_ply].castling_rights = history[game_ply - 1].castling_rights &
+	info_history[game_ply].castling_rights = info_history[game_ply - 1].castling_rights &
 					    prohibiters(from) & prohibiters(to);
-	history[game_ply].rule_50 = history[game_ply - 1].rule_50 + 1;
+	info_history[game_ply].rule_50 = info_history[game_ply - 1].rule_50 + 1;
 
-	history[game_ply].move = move;
+	info_history[game_ply].last_move = move;
 
 	zobrist.key = 0ULL;
 
 	if (type_of(board[from]) == PAWN)
-		history[game_ply].rule_50 = 0;
+		info_history[game_ply].rule_50 = 0;
 
 	Move_flags flags = flags_of(move);
 
@@ -67,14 +67,14 @@ void Board::make_move(Move move)
 	case DOUBLE_PUSH:
 		{
 		Direction up = (side_to_move == WHITE) ? UP : DOWN;
-		history[game_ply].ep_sq = from + up;	// set en passant square
+		info_history[game_ply].ep_sq = from + up;	// set en passant square
 		zobrist.key ^= zobrist.ep_rand[file_num(from)];
 		}
 		push_piece_quiet(from, to);
 		break;
 	case CAPTURE:
-		history[game_ply].rule_50 = 0;
-		history[game_ply].captured = board[to]; // remember captured piece
+		info_history[game_ply].rule_50 = 0;
+		info_history[game_ply].captured = board[to]; // remember captured piece
 		remove_piece(to);
 		push_piece_quiet(from, to);
 		break;
@@ -86,12 +86,12 @@ void Board::make_move(Move move)
 		}
 		break;
 	case OO:
-		history[game_ply].rule_50 = 0;
+		info_history[game_ply].rule_50 = 0;
 		push_piece_quiet(from, to); // king
 		push_piece_quiet(to + 1, to - 1); // rook
 		break;
 	case OOO:
-		history[game_ply].rule_50 = 0;
+		info_history[game_ply].rule_50 = 0;
 		push_piece_quiet(from, to); // king
 		push_piece_quiet(to - 2, to + 1); // rook
 		break;
@@ -112,25 +112,25 @@ void Board::make_move(Move move)
 		add_piece(to, piece_of(side_to_move, QUEEN));
 		break;
 	case PC_KNIGHT:
-		history[game_ply].captured = board[to];
+		info_history[game_ply].captured = board[to];
 		remove_piece(from);
 		remove_piece(to);
 		add_piece(to, piece_of(side_to_move, KNIGHT));
 		break;
 	case PC_BISHOP:
-		history[game_ply].captured = board[to];
+		info_history[game_ply].captured = board[to];
 		remove_piece(from);
 		remove_piece(to);
 		add_piece(to, piece_of(side_to_move, BISHOP));
 		break;
 	case PC_ROOK:
-		history[game_ply].captured = board[to];
+		info_history[game_ply].captured = board[to];
 		remove_piece(from);
 		remove_piece(to);
 		add_piece(to, piece_of(side_to_move, ROOK));
 		break;
 	case PC_QUEEN:
-		history[game_ply].captured = board[to];
+		info_history[game_ply].captured = board[to];
 		remove_piece(from);
 		remove_piece(to);
 		add_piece(to, piece_of(side_to_move, QUEEN));
@@ -140,14 +140,14 @@ void Board::make_move(Move move)
 
 	zobrist.piece_side_key ^= zobrist.side_rand;
 	zobrist.key ^= zobrist.piece_side_key;
-	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
+	zobrist.key ^= zobrist.castling_rand[info_history[game_ply].castling_rights];
 
 	// Check for any three-fold-repetitions
 
 	repetition = false;
-	if (history[game_ply].rule_50 >= 4) { // a move that resets the 50 move rule also prevents repetitions.
+	if (info_history[game_ply].rule_50 >= 4) { // a move that resets the 50 move rule also prevents repetitions.
 					      // We do not need to search them in the whole history
-		int end = int(game_ply) - int(history[game_ply].rule_50);
+		int end = int(game_ply) - int(info_history[game_ply].rule_50);
 		for (int i = game_ply; i >= end; i -= 2) {
 			if (position_history[i] == zobrist.key) {
 				// Two- and three-fold repetitions are both treated as a draw in the search
@@ -166,7 +166,7 @@ void Board::make_move(Move move)
 
 void Board::unmake_move(Move move)
 {
-	Undo_info info = history[game_ply];
+	Board_info info = info_history[game_ply];
 	position_history[game_ply] = 0ULL;
 	game_ply--;
 	unsigned from = move_to(move);
@@ -215,9 +215,9 @@ void Board::unmake_move(Move move)
 
 	zobrist.piece_side_key ^= zobrist.side_rand;
 	zobrist.key ^= zobrist.piece_side_key;
-	zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
-	if (history[game_ply].ep_sq != NO_SQUARE)
-		zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
+	zobrist.key ^= zobrist.castling_rand[info_history[game_ply].castling_rights];
+	if (info_history[game_ply].ep_sq != NO_SQUARE)
+		zobrist.key ^= zobrist.ep_rand[file_num(info_history[game_ply].ep_sq)];
 
 	repetition = false;
 	side_to_move = swap(side_to_move);
@@ -230,9 +230,9 @@ unsigned Board::make_null_move()
 	zobrist.piece_side_key ^= zobrist.side_rand;
 	zobrist.key ^= zobrist.side_rand;
 
-	unsigned ep = history[game_ply].ep_sq;
+	unsigned ep = info_history[game_ply].ep_sq;
 	if (ep != NO_SQUARE) {
-		history[game_ply].ep_sq = NO_SQUARE;
+		info_history[game_ply].ep_sq = NO_SQUARE;
 		zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 	}
 
@@ -249,7 +249,7 @@ void Board::unmake_null_move(unsigned ep)
 	zobrist.key ^= zobrist.side_rand;
 
 	if (ep != NO_SQUARE) {
-		history[game_ply].ep_sq = ep;
+		info_history[game_ply].ep_sq = ep;
 		zobrist.key ^= zobrist.ep_rand[file_num(ep)];
 	}
 }
@@ -260,7 +260,7 @@ void Board::update_checkers_and_pinners()
 	if (pieces(side_to_move, KING) == 0ULL) {
 		std::cerr << "no king -> retracing steps...\n";
 		for (unsigned ply = 1; ply <= game_ply; ply++) {
-			std::cerr << move_string(history[ply].move) << " ";
+			std::cerr << move_string(info_history[ply].last_move) << " ";
 		}
 		std::cerr << "\n";
 		abort();
@@ -272,8 +272,8 @@ void Board::update_checkers_and_pinners()
 	uint64_t enemy_diag_sliders = pieces(enemy, BISHOP) | pieces(enemy, QUEEN);
 	uint64_t enemy_orth_sliders = pieces(enemy, ROOK  ) | pieces(enemy, QUEEN);
 
-	history[game_ply].checkers |= pawn_attacks(side_to_move, king_square)  & pieces(enemy, PAWN);
-	history[game_ply].checkers |= piece_attacks(KNIGHT, king_square, 0ULL) & pieces(enemy, KNIGHT);
+	info_history[game_ply].checkers |= pawn_attacks(side_to_move, king_square)  & pieces(enemy, PAWN);
+	info_history[game_ply].checkers |= piece_attacks(KNIGHT, king_square, 0ULL) & pieces(enemy, KNIGHT);
 
 	uint64_t king_sliders = (piece_attacks(BISHOP, king_square, pieces(enemy)) & enemy_diag_sliders) |
 			        (piece_attacks(ROOK,   king_square, pieces(enemy)) & enemy_orth_sliders);
@@ -282,10 +282,10 @@ void Board::update_checkers_and_pinners()
 		uint64_t pin_ray = ray_between(king_square, square) & pieces(friendly);
 
 		// No pieces block the ray - our king is in check.
-		if (pin_ray == 0) history[game_ply].checkers |= 1ULL << square;
+		if (pin_ray == 0) info_history[game_ply].checkers |= 1ULL << square;
 
 		// One of our pieces blocks the ray - the piece is pinned.
-		else if ((pin_ray & (pin_ray - 1)) == 0) history[game_ply].pinned |= pin_ray;
+		else if ((pin_ray & (pin_ray - 1)) == 0) info_history[game_ply].pinned |= pin_ray;
 	}
 }
 
@@ -309,14 +309,14 @@ bool Board::legal(Move move)
 		}
 	}
 	// Restrict pinned pieces to only move along the ray away or towards the king.
-	else if ((history[game_ply].pinned & (1ULL << from)) && !(ray(square(side_to_move, KING), from) & (1ULL << to)))
+	else if ((info_history[game_ply].pinned & (1ULL << from)) && !(ray(square(side_to_move, KING), from) & (1ULL << to)))
 		return false;
 
 	// En passant captures have a tricky case, where a horizontal check can be revealed.
 	else if (flags_of(move) == EP_CAPTURE) {
 		Color enemy = swap(side_to_move);
 		unsigned king_square = square(side_to_move, KING);
-		unsigned ep_square = history[game_ply].ep_sq;
+		unsigned ep_square = info_history[game_ply].ep_sq;
 		Direction forward = side_to_move == WHITE ? UP : DOWN;
 		if (piece_attacks(ROOK, king_square, occ & ~(1ULL << from) & ~(1ULL << (ep_square - forward))) &
 		    rank(king_square) & (pieces(enemy, ROOK) | pieces(enemy, QUEEN))) return false;
@@ -346,7 +346,7 @@ bool Board::pseudo_legal(Move move)
 		unsigned promotion_rank   = (side_to_move == WHITE) ? 1  : 6;
 		// En passant captures
 		if (flag == EP_CAPTURE) {
-			unsigned ep_square = history[game_ply].ep_sq;
+			unsigned ep_square = info_history[game_ply].ep_sq;
 			if (ep_square == NO_SQUARE || !(pawn_attacks(side_to_move, from) & (1ULL << to) & (1ULL << ep_square))) return false;
 		}
 		// Normal pawn captures and promotions
@@ -371,9 +371,9 @@ bool Board::pseudo_legal(Move move)
 	}
 
 	if (flag == OO || flag == OOO) {
-		if (type_of(moving_piece) == KING && !history[game_ply].checkers) {
+		if (type_of(moving_piece) == KING && !info_history[game_ply].checkers) {
 			// The castling path must not be obstructed.
-			uint8_t castling_rights = history[game_ply].castling_rights;
+			uint8_t castling_rights = info_history[game_ply].castling_rights;
 			unsigned king_square = square(side_to_move, KING);
 			if (flag == OO && to == king_square + 2) {
 				if (!(castling_rights & king_side[side_to_move])  || (oo_blockers(side_to_move)  & occ)) return false;
@@ -387,13 +387,13 @@ bool Board::pseudo_legal(Move move)
 	}
 
 	// In check, there are some corner cases, which are handled in the move generator.
-	if (history[game_ply].checkers) {
+	if (info_history[game_ply].checkers) {
 		if (type_of(moving_piece) != KING) {
 			// In double check, only the king can move.
-			if (pop_count(history[game_ply].checkers) >= 2) return false;
+			if (pop_count(info_history[game_ply].checkers) >= 2) return false;
 
 			// Moves that do not block a check, are illegal.
-			if (!(ray_between(square(side_to_move, KING), lsb(history[game_ply].checkers)) & (1ULL << to)))
+			if (!(ray_between(square(side_to_move, KING), lsb(info_history[game_ply].checkers)) & (1ULL << to)))
 				return false;
 		}
 	}
@@ -419,7 +419,7 @@ bool Board::insufficient_material()
 void Board::set_fenpos(std::string fen)
 {
 	reset(); // reset board to avoid overwrites
-	history[0] = {};
+	info_history[0] = {};
 	zobrist.piece_side_key = 0ULL;
 	zobrist.pawn_key = 0ULL;
 
@@ -463,12 +463,12 @@ void Board::set_fenpos(std::string fen)
 	// Castling rights
 	if (iss >> parsed) {
 		for (char &character : parsed) {
-			if (character == 'K') history[0].castling_rights |= WHITE_OO;
-			if (character == 'Q') history[0].castling_rights |= WHITE_OOO;
-			if (character == 'k') history[0].castling_rights |= BLACK_OO;
-			if (character == 'q') history[0].castling_rights |= BLACK_OOO;
+			if (character == 'K') info_history[0].castling_rights |= WHITE_OO;
+			if (character == 'Q') info_history[0].castling_rights |= WHITE_OOO;
+			if (character == 'k') info_history[0].castling_rights |= BLACK_OO;
+			if (character == 'q') info_history[0].castling_rights |= BLACK_OOO;
 		}
-		zobrist.key ^= zobrist.castling_rand[history[game_ply].castling_rights];
+		zobrist.key ^= zobrist.castling_rand[info_history[game_ply].castling_rights];
 	}
 
 	// En passant square
@@ -478,14 +478,14 @@ void Board::set_fenpos(std::string fen)
 			unsigned file = unsigned(character - 'a');
 			unsigned rank = 8 - std::atoi(&parsed[1]);
 			
-			history[game_ply].ep_sq = rank * 8 + file;
-			zobrist.key ^= zobrist.ep_rand[file_num(history[game_ply].ep_sq)];
+			info_history[game_ply].ep_sq = rank * 8 + file;
+			zobrist.key ^= zobrist.ep_rand[file_num(info_history[game_ply].ep_sq)];
 		}
 	}
 
 	// Halfmove clock
 	if (iss >> parsed) {
-		history[game_ply].rule_50 = std::atoi(&parsed[0]);
+		info_history[game_ply].rule_50 = std::atoi(&parsed[0]);
 	}
 
 	update_checkers_and_pinners();
@@ -515,18 +515,18 @@ std::string Board::fen()
 	
 	oss << ((side_to_move == WHITE) ? " w " : " b ");
 
-	if (history[game_ply].castling_rights & WHITE_OO)
+	if (info_history[game_ply].castling_rights & WHITE_OO)
 		oss << "K";
-	if (history[game_ply].castling_rights & WHITE_OOO)
+	if (info_history[game_ply].castling_rights & WHITE_OOO)
 		oss << "Q";
-	if (history[game_ply].castling_rights & BLACK_OO)
+	if (info_history[game_ply].castling_rights & BLACK_OO)
 		oss << "k";
-	if (history[game_ply].castling_rights & BLACK_OOO)
+	if (info_history[game_ply].castling_rights & BLACK_OOO)
 		oss << "q";
-	if (!history[game_ply].castling_rights)
+	if (!info_history[game_ply].castling_rights)
 		oss << "-";
 
-	unsigned ep_square = history[game_ply].ep_sq;
+	unsigned ep_square = info_history[game_ply].ep_sq;
 	if (ep_square != NO_SQUARE) {
 		unsigned file = file_num(ep_square);
 		unsigned rank = 8 - rank_num(ep_square);
@@ -534,7 +534,7 @@ std::string Board::fen()
 	}
 	else oss << " - ";
 
-	oss << history[game_ply].rule_50 << " " << game_ply;
+	oss << info_history[game_ply].rule_50 << " " << game_ply;
 
 	return oss.str();
 }

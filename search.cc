@@ -526,11 +526,11 @@ void Search::update_heuristics(Board &board, Move best_move, int depth, int ply,
 		}
 		// The move can also be stored as a counter, because it refuted the previous move.
 		if (board.game_ply > 0) {
-			unsigned to = move_to(board.history[board.game_ply - 1].move);
+			unsigned to = move_to(board.info_history[board.game_ply].last_move);
 			heuristics.counter_move[board.board[to]][to] = best_move;
 		}
 
-		// Increment history score. Moves closer to the root have a bigger impact (depth * depth).
+		// Increment history score. Moves closer to the root have a bigger impact.
 		update_history(board, best_move, depth, true);
 
 	}
