@@ -53,6 +53,8 @@ static inline void record_safe_bishop_check(Color , unsigned ) {}
 static inline void record_safe_rook_check(  Color , unsigned ) {}
 static inline void record_safe_queen_check( Color , unsigned ) {}
 static inline void record_unsafe_check(Color , unsigned ) {}
+static inline void record_pawn_shelter_king_danger(Color , bool , unsigned , unsigned ) {}
+static inline void record_clear_pawn_king_danger(Color ) {}
 static inline void record_king_danger_no_queen_weight(Color , bool ) {}
 static inline void record_king_danger_offset(Color ) {}
 

@@ -206,6 +206,7 @@ struct Parameters
 		_add(KING_DANGER, "safe_rook_check = ",   1, 0, &t.safe_rook_check[0],   &eval.safe_rook_check);
 		_add(KING_DANGER, "safe_queen_check = ",  1, 0, &t.safe_queen_check[0],  &eval.safe_queen_check);
 		_add(KING_DANGER, "unsafe_check = ", 1, 0, &t.unsafe_check[0], &eval.unsafe_check);
+		_add(KING_DANGER, "pawn_shelter_king_danger[2][4][8] = { ", 64, 3, &t.pawn_shelter_king_danger[0][0][0][0], &eval.pawn_shelter_king_danger[0][0][0]);
 		_add(KING_DANGER, "king_danger_no_queen_weight = ", 1, 0, &t.king_danger_no_queen_weight[0], &eval.king_danger_no_queen_weight);
 		_add(KING_DANGER, "king_danger_offset = ", 1, 0, &t.king_danger_offset[0], &eval.king_danger_offset);
 

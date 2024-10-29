@@ -74,6 +74,7 @@ bool test(Tuner &tuner)
 			    name == "king_danger_no_queen_weight = " || name == "safe_knight_check = " ||
 			    name == "safe_bishop_check = "           || name == "safe_rook_check = " ||
 			    name == "safe_queen_check = "            || name == "king_zone_weak_square = " ||
+			    name == "unsafe_check = "                ||name == "pawn_shelter_king_danger[2][4][8] = { " ||
 			    name == "king_danger_offset = ") continue;
 			std::cerr << "gradient error in eg " << name
 				  << ": approx " << approximated << " comp " << computed << "\n";

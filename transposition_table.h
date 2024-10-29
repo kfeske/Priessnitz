@@ -98,6 +98,8 @@ struct Pawn_hash_entry
 	uint64_t key;
 	int score;
 	uint64_t passed_pawns;
+	int white_pawn_king_danger;
+	int black_pawn_king_danger;
 };
 
 struct Pawn_hash_table
@@ -119,13 +121,15 @@ struct Pawn_hash_table
 		return empty_entry;
 	}
 
-	void store(uint64_t key, int score, uint64_t passed_pawns)
+	void store(uint64_t key, int score, uint64_t passed_pawns, int white_danger, int black_danger)
 	{
 		unsigned index = key % entry_count;
 		Pawn_hash_entry &entry = entries[index];
 		entry.key = key;
 		entry.score = score;
 		entry.passed_pawns = passed_pawns;
+		entry.white_pawn_king_danger = white_danger;
+		entry.black_pawn_king_danger = black_danger;
 	}
 
 	void clear()

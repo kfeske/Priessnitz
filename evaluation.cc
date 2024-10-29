@@ -85,6 +85,9 @@ int Evaluation::evaluate_pawns(Board &board, Color friendly)
 			bool king_file_pawn = shelter_file == file_num(king_square);
 			score += pawn_shelter[king_file_pawn][edge_distance][rank];
 			record_pawn_shelter(friendly, king_file_pawn, edge_distance, rank);
+
+			info.pawn_king_danger[friendly] += pawn_shelter_king_danger[king_file_pawn][edge_distance][rank];
+			record_pawn_shelter_king_danger(friendly, king_file_pawn, edge_distance, rank);
 		}
 		/*uint64_t storm_pawns = board.pieces(enemy, PAWN) & shelter_mask;
 		if (storm_pawns) {
@@ -346,6 +349,7 @@ int Evaluation::evaluate_kings(Board &board, Color friendly)
 			       safe_bishop_check * pop_count(safe & bishop_checks) +
 			       safe_knight_check * pop_count(safe & knight_checks) +
 			       unsafe_check * pop_count(~safe & all_checks) +
+			       info.pawn_king_danger[friendly] +
 			       king_danger_no_queen_weight * !board.pieces(enemy, QUEEN) +
 			       king_danger_offset;
 
@@ -364,7 +368,10 @@ int Evaluation::evaluate_kings(Board &board, Color friendly)
 		record_king_danger_no_queen_weight(friendly, !board.pieces(enemy, QUEEN));
 		record_king_danger_offset(friendly);
 	}
-	else record_clear_attacker_weights(friendly);
+	else {
+		record_clear_attacker_weights(friendly);
+		record_clear_pawn_king_danger(friendly);
+	}
 	return score;
 }
 
@@ -506,10 +513,12 @@ int Evaluation::evaluate(Board &board)
 	if (pawn_hash_table.hit && use_pawn_hash_table) {
 		score += entry.score;
 		info.passed_pawns = entry.passed_pawns;
+		info.pawn_king_danger[WHITE] = entry.white_pawn_king_danger;
+		info.pawn_king_danger[BLACK] = entry.black_pawn_king_danger;
 	}
 	else {
 		score += evaluate_pawns(  board, WHITE) - evaluate_pawns(  board, BLACK);
-		pawn_hash_table.store(board.zobrist.pawn_key, score, info.passed_pawns);
+		pawn_hash_table.store(board.zobrist.pawn_key, score, info.passed_pawns, info.pawn_king_danger[WHITE], info.pawn_king_danger[BLACK]);
 	}
 	score += evaluate_knights(board, WHITE) - evaluate_knights(board, BLACK);
 	score += evaluate_bishops(board, WHITE) - evaluate_bishops(board, BLACK);
