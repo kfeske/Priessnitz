@@ -216,6 +216,7 @@ struct Parameters
 		_add(NORMAL, "rook_threatened_by_lesser = ",  1, 0, &t.rook_threatened_by_lesser[0],  &eval.rook_threatened_by_lesser);
 		_add(NORMAL, "queen_threatened_by_lesser = ", 1, 0, &t.queen_threatened_by_lesser[0], &eval.queen_threatened_by_lesser);
 		_add(NORMAL, "minor_threatened_by_major = ",  1, 0, &t.minor_threatened_by_major[0],  &eval.minor_threatened_by_major);
+		_add(NORMAL, "pawn_push_threat = ",           1, 0, &t.pawn_push_threat[0],           &eval.pawn_push_threat);
 	}
 };
 

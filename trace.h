@@ -56,10 +56,11 @@ static inline void record_unsafe_check(Color , unsigned ) {}
 static inline void record_king_danger_no_queen_weight(Color , bool ) {}
 static inline void record_king_danger_offset(Color ) {}
 
-static inline void record_center_control(Color, unsigned ) {}
+static inline void record_center_control(Color , unsigned ) {}
 
-static inline void record_minor_threatened_by_pawn(  Color, unsigned ) {}
-static inline void record_minor_threatened_by_minor( Color, unsigned ) {}
-static inline void record_rook_threatened_by_lesser( Color, unsigned ) {}
-static inline void record_queen_threatened_by_lesser(Color, unsigned ) {}
-static inline void record_minor_threatened_by_major( Color, unsigned ) {}
+static inline void record_minor_threatened_by_pawn(  Color , unsigned ) {}
+static inline void record_minor_threatened_by_minor( Color , unsigned ) {}
+static inline void record_rook_threatened_by_lesser( Color , unsigned ) {}
+static inline void record_queen_threatened_by_lesser(Color , unsigned ) {}
+static inline void record_minor_threatened_by_major( Color , unsigned ) {}
+static inline void record_pawn_push_threat(          Color , unsigned ) {}

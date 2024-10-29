@@ -66,6 +66,7 @@ struct Trace {
 	unsigned rook_threatened_by_lesser[2] {};
 	unsigned queen_threatened_by_lesser[2] {};
 	unsigned minor_threatened_by_major[2] {};
+	unsigned pawn_push_threat[2] {};
 };
 
 Trace &trace();
@@ -143,3 +144,4 @@ static inline void record_minor_threatened_by_minor( Color friendly, unsigned co
 static inline void record_rook_threatened_by_lesser( Color friendly, unsigned count) { trace().rook_threatened_by_lesser[friendly]  += count; }
 static inline void record_queen_threatened_by_lesser(Color friendly, unsigned count) { trace().queen_threatened_by_lesser[friendly] += count; }
 static inline void record_minor_threatened_by_major( Color friendly, unsigned count) { trace().minor_threatened_by_major[friendly]  += count; }
+static inline void record_pawn_push_threat(          Color friendly, unsigned count) { trace().pawn_push_threat[friendly]           += count; }

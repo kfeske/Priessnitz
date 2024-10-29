@@ -163,7 +163,7 @@ struct Board : Board_state
 
 	bool pseudo_legal(Move move);
 
-	uint64_t all_pawn_attacks(Color friendly);
+	uint64_t all_pawn_attacks(Color friendly, uint64_t pawns);
 
 	bool insufficient_material();
 

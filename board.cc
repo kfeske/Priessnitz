@@ -400,12 +400,10 @@ bool Board::pseudo_legal(Move move)
 	return true;
 }
 
-// used in the SEE function
-uint64_t Board::all_pawn_attacks(Color friendly)
+uint64_t Board::all_pawn_attacks(Color friendly, uint64_t pawns)
 {
 	Direction up_right = (friendly == WHITE) ? UP_RIGHT : DOWN_RIGHT;
 	Direction up_left  = (friendly == WHITE) ? UP_LEFT : DOWN_LEFT;
-	uint64_t pawns = pieces(friendly, PAWN);
 	return shift(pawns & ~FILE_A, up_left) | shift(pawns & ~FILE_H, up_right);
 }
 

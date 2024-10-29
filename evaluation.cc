@@ -430,30 +430,39 @@ int Evaluation::evaluate_threats(Board &board, Color friendly)
 	uint64_t attacked_by_major = info.attacked_by_piece[enemy][ROOK]   | info.attacked_by_piece[enemy][QUEEN];
 
 	// Our minors attacked by enemy pawns
-	uint64_t minors_threatened_by_pawns = pop_count((friendly_knights | friendly_bishops) & attacked_by_pawn);
-	score += minor_threatened_by_pawn * minors_threatened_by_pawns;
-	record_minor_threatened_by_pawn(friendly, minors_threatened_by_pawns);
+	uint64_t minors_threatened_by_pawns = (friendly_knights | friendly_bishops) & attacked_by_pawn;
+	score += minor_threatened_by_pawn * pop_count(minors_threatened_by_pawns);
+	record_minor_threatened_by_pawn(friendly, pop_count(minors_threatened_by_pawns));
 
 	// Our minors attacked by enemy minors
-	uint64_t minors_threatened_by_minors = pop_count((friendly_knights | friendly_bishops) & attacked_by_minor);
-	score += minor_threatened_by_minor * minors_threatened_by_minors;
-	record_minor_threatened_by_minor(friendly, minors_threatened_by_minors);
+	uint64_t minors_threatened_by_minors = (friendly_knights | friendly_bishops) & attacked_by_minor;
+	score += minor_threatened_by_minor * pop_count(minors_threatened_by_minors);
+	record_minor_threatened_by_minor(friendly, pop_count(minors_threatened_by_minors));
 
 	// Our rooks attacked by enemy minors or pawns
-	uint64_t rooks_threatened_by_lesser = pop_count(friendly_rooks & (attacked_by_pawn | attacked_by_minor));
-	score += rook_threatened_by_lesser * rooks_threatened_by_lesser;
-	record_rook_threatened_by_lesser(friendly, rooks_threatened_by_lesser);
+	uint64_t rooks_threatened_by_lesser = friendly_rooks & (attacked_by_pawn | attacked_by_minor);
+	score += rook_threatened_by_lesser * pop_count(rooks_threatened_by_lesser);
+	record_rook_threatened_by_lesser(friendly, pop_count(rooks_threatened_by_lesser));
 
 	// Our queens attacked by lesser pieces
-	uint64_t queens_threatened_by_lesser = pop_count(friendly_queens & (info.attacked[enemy] & ~info.attacked_by_piece[enemy][QUEEN]));
-	score += queen_threatened_by_lesser * queens_threatened_by_lesser;
-	record_queen_threatened_by_lesser(friendly, queens_threatened_by_lesser);
+	uint64_t queens_threatened_by_lesser = friendly_queens & (info.attacked[enemy] & ~info.attacked_by_piece[enemy][QUEEN]);
+	score += queen_threatened_by_lesser * pop_count(queens_threatened_by_lesser);
+	record_queen_threatened_by_lesser(friendly, pop_count(queens_threatened_by_lesser));
 
 	// Undefended minors attacked by majors
 	uint64_t weak = info.attacked[enemy] & ~info.attacked[friendly];
-	uint64_t minors_threatened_by_majors = pop_count((friendly_knights | friendly_bishops) & weak & attacked_by_major);
-	score += minor_threatened_by_major * minors_threatened_by_majors;
-	record_minor_threatened_by_major(friendly, minors_threatened_by_majors);
+	uint64_t minors_threatened_by_majors = (friendly_knights | friendly_bishops) & weak & attacked_by_major;
+	score += minor_threatened_by_major * pop_count(minors_threatened_by_majors);
+	record_minor_threatened_by_major(friendly, pop_count(minors_threatened_by_majors));
+
+	uint64_t pushes = pawn_pushes(enemy, board.pieces(enemy, PAWN)) & ~board.occ & ~info.attacked_by_piece[friendly][PAWN];
+	uint64_t double_push_rank = (enemy == WHITE) ? RANK_3 : RANK_6;
+	pushes |= pawn_pushes(enemy, pushes & double_push_rank) & ~board.occ & ~info.attacked_by_piece[friendly][PAWN];
+	pushes &= info.attacked[enemy] | ~info.attacked[friendly];
+
+	uint64_t pawn_push_threats = board.all_pawn_attacks(enemy, pushes) & board.pieces(friendly);
+	score += pawn_push_threat * pop_count(pawn_push_threats);
+	record_pawn_push_threat(friendly, pop_count(pawn_push_threats));
 	
 	return score;
 }
