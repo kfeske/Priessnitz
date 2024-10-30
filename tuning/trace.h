@@ -57,6 +57,7 @@ struct Trace {
 	unsigned safe_queen_check[2] {};
 	unsigned unsafe_check[2] {};
 	unsigned pawn_shelter_king_danger[2][2][4][8] {};
+	unsigned pawn_storm_king_danger[2][2][4][8] {};
 	unsigned king_danger_no_queen_weight[2] {};
 	unsigned king_danger_offset[2] {};
 
@@ -139,12 +140,18 @@ static inline void record_pawn_shelter_king_danger(Color friendly, bool king_fil
 {
 	trace().pawn_shelter_king_danger[friendly][king_file][edge_distance][rank]++;
 }
+static inline void record_pawn_storm_king_danger(Color friendly, bool blocked, unsigned edge_distance, unsigned rank)
+{
+	trace().pawn_storm_king_danger[friendly][blocked][edge_distance][rank]++;
+}
 static inline void record_clear_pawn_king_danger(Color friendly)
 {
-	for (unsigned king_file = 0; king_file < 2; king_file++) {
+	for (unsigned i = 0; i < 2; i++) {
 		for (unsigned edge_distance = 0; edge_distance < 4; edge_distance++) {
-			for (unsigned rank = 0; rank < 8; rank++)
-				trace().pawn_shelter_king_danger[friendly][king_file][edge_distance][rank] = 0;
+			for (unsigned rank = 0; rank < 8; rank++) {
+				trace().pawn_shelter_king_danger[friendly][i][edge_distance][rank] = 0;
+				trace().pawn_storm_king_danger[  friendly][i][edge_distance][rank] = 0;
+			}
 		}
 	}
 }

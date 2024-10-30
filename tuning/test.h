@@ -70,12 +70,12 @@ bool test(Tuner &tuner)
 			std::string name = tuner.parameters.terms[tuner.parameters.list[grad].term_index].name;
 			// For the endgame king danger terms, the derivative is not defined for zero, because of
 			// the "max(0, danger)" line. We just let it slip :O
-			if (name == "king_attacker_weight[6] = { "   || name == "king_zone_attack_count_weight = " ||
-			    name == "king_danger_no_queen_weight = " || name == "safe_knight_check = " ||
-			    name == "safe_bishop_check = "           || name == "safe_rook_check = " ||
-			    name == "safe_queen_check = "            || name == "king_zone_weak_square = " ||
-			    name == "unsafe_check = "                ||name == "pawn_shelter_king_danger[2][4][8] = { " ||
-			    name == "king_danger_offset = ") continue;
+			if (name == "king_attacker_weight[6] = { "         || name == "king_zone_attack_count_weight = " ||
+			    name == "king_danger_no_queen_weight = "       || name == "safe_knight_check = " ||
+			    name == "safe_bishop_check = "                 || name == "safe_rook_check = " ||
+			    name == "safe_queen_check = "                  || name == "king_zone_weak_square = " ||
+			    name == "unsafe_check = "                      || name == "pawn_shelter_king_danger[2][4][8] = { " ||
+			    name == "pawn_storm_king_danger[2][4][8] = { " || name == "king_danger_offset = ") continue;
 			std::cerr << "gradient error in eg " << name
 				  << ": approx " << approximated << " comp " << computed << "\n";
 			error = true;

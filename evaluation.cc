@@ -80,26 +80,25 @@ int Evaluation::evaluate_pawns(Board &board, Color friendly)
 		uint64_t shelter_pawns = board.pieces(friendly, PAWN) & shelter_mask;
 		if (shelter_pawns) {
 			unsigned pawn_square = (friendly == WHITE) ? msb(shelter_pawns) : lsb(shelter_pawns);
-			unsigned rank = rank_num(normalize_square[friendly][pawn_square]);
+			unsigned relative_rank = rank_num(normalize_square[friendly][pawn_square]);
 			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
 			bool king_file_pawn = shelter_file == file_num(king_square);
-			score += pawn_shelter[king_file_pawn][edge_distance][rank];
-			record_pawn_shelter(friendly, king_file_pawn, edge_distance, rank);
+			score += pawn_shelter[king_file_pawn][edge_distance][relative_rank];
+			record_pawn_shelter(friendly, king_file_pawn, edge_distance, relative_rank);
 
-			info.pawn_king_danger[friendly] += pawn_shelter_king_danger[king_file_pawn][edge_distance][rank];
-			record_pawn_shelter_king_danger(friendly, king_file_pawn, edge_distance, rank);
+			info.pawn_king_danger[friendly] += pawn_shelter_king_danger[king_file_pawn][edge_distance][relative_rank];
+			record_pawn_shelter_king_danger(friendly, king_file_pawn, edge_distance, relative_rank);
 		}
-		/*uint64_t storm_pawns = board.pieces(enemy, PAWN) & shelter_mask;
+		uint64_t storm_pawns = board.pieces(enemy, PAWN) & shelter_mask;
 		if (storm_pawns) {
 			unsigned pawn_square = (friendly == WHITE) ? msb(storm_pawns) : lsb(storm_pawns);
-			unsigned king_distance = rank_distance(pawn_square, king_square);
+			//unsigned relative_rank = rank_distance(pawn_square, king_square);
+			unsigned relative_rank = rank_num(normalize_square[friendly][pawn_square]);
 			unsigned edge_distance = std::min(shelter_file, 7 - shelter_file);
-			Direction forward = (board.side_to_move == WHITE) ? UP : DOWN;
-			bool blocked = board.board[pawn_square - forward] == piece_of(friendly, PAWN);
-			info.mg_bonus[friendly] += mg_pawn_storm[blocked][edge_distance][king_distance];
-			info.eg_bonus[friendly] += eg_pawn_storm[blocked][edge_distance][king_distance];
-			//record_pawn_storm(friendly, blocked, edge_distance, king_distance);
-		}*/
+			bool blocked = pawn_pushes(enemy, 1ULL << pawn_square) & board.pieces(friendly, PAWN);
+			info.pawn_king_danger[friendly] += pawn_storm_king_danger[blocked][edge_distance][relative_rank];
+			record_pawn_storm_king_danger(friendly, blocked, edge_distance, relative_rank);
+		}
 	}
 	return score;
 

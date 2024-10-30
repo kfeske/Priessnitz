@@ -155,7 +155,7 @@ void UCI::await_input()
 
 	while (iss >> parsed) {
 		if (parsed == "uci") {
-			std::cout << "id name Priessnitz\n";
+			std::cout << "id name Priessnitz 2.0\n";
 			std::cout << "id author Kevin Feske\n\n";
 			std::cout << "option name Hash type spin default 128 min 1 max 1048576\n";
 			std::cout << "option name Threads type spin default 1 min 1 max 1\n";
