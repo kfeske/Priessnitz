@@ -196,7 +196,7 @@ struct Parameters
 		_add(NORMAL, "rook_on_seventh = ",     1, 0, &t.rook_on_seventh[0],     &eval.rook_on_seventh);
 
 		_add(NORMAL, "pawn_shelter[2][4][8] = { ", 64, 3, &t.pawn_shelter[0][0][0][0], &eval.pawn_shelter[0][0][0]);
-		//_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.pawn_storm[0][0][0]);
+		_add(NORMAL, "pawn_storm[2][4][8] = { ",   64, 3, &t.pawn_storm[0][0][0][0],   &eval.pawn_storm[0][0][0]);
 
 		_add(KING_DANGER, "king_attacker_weight[6] = { ", 6, 1, &t.king_attacker_weight[0][0], &eval.king_attacker_weight[0]);
 		_add(KING_DANGER, "king_zone_attack_count_weight = ", 1, 0, &t.king_zone_attack_count_weight[0], &eval.king_zone_attack_count_weight);
