@@ -34,13 +34,15 @@ double Search::time_elapsed()
 bool Search::crossed_hard_time_limit()
 {
 	return (current_depth > 1 && (fixed_time || time_management) &&
-		(statistics.search_nodes & 1024) == 0 && time_elapsed() >= hard_time_cap);
+		(statistics.nodes & 1024) == 0 && time_elapsed() >= hard_time_cap);
 }
 
 // Quiescence Search is a shallower search, generating only
 // captures and check evasions to avoid the horizon effect
 int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 {
+	statistics.nodes++;
+
 	TT_entry &tt_entry = tt.probe(board.zobrist.key);
 	if (tt.hit) {
 		if ( tt_entry.flag == EXACT ||
@@ -76,7 +78,6 @@ int Search::quiescence_search(Board &board, int alpha, int beta, unsigned ply)
 		if (!board.legal(move)) continue;
 
 		move_count++;
-		statistics.quiescence_nodes++;
 
 		board.make_move(move);
 
@@ -119,6 +120,8 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		abort_search = true;
 		return 0;
 	}
+
+	statistics.nodes++;
 
 	// Check for draws by repetition, 50 Move Rule or insufficient material
 	if (ply > 0 && board.immediate_draw(ply))
@@ -196,7 +199,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		board.unmake_null_move(ep_square);
 
 		if (evaluation >= beta && !mate(evaluation)) {
-			statistics.null_cuts++;
 			//tt.store(board.zobrist.key, depth, beta, INVALID_MOVE, LOWERBOUND);
 			return evaluation;
 		}
@@ -247,7 +249,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 		if (!board.legal(move) || move == skip) continue;
 
 		move_count++;
-		statistics.search_nodes++;
 
 		bool quiet_move = !capture(move) && !promotion(move);
 
@@ -358,9 +359,6 @@ int Search::search(Board &board, int depth, int ply, int alpha, int beta, Move s
 				// Update Killers, Counters, History
 				update_heuristics(board, move, depth, ply, bad_quiets_searched);
 
-				if (move_count == 1) statistics.cutoffspv++;
-				statistics.cutoffs++;
-
 				// *snip* *snip*
 				return best_evaluation;
 			}
@@ -388,8 +386,6 @@ void Search::start_search(Board &board)
 	age %= 64; // fits in 6 bits (important for the hash table)
 
 	statistics = {};
-	long nodes_previous_iteration;
-	long total_nodes = 0;
 
 	int evaluation = 0;
 	int alpha = -INFINITY_SCORE;
@@ -416,10 +412,6 @@ void Search::start_search(Board &board)
 		last_best_move = best_root_move;
 		last_evaluation = evaluation;
 
-		nodes_previous_iteration = statistics.search_nodes + statistics.quiescence_nodes;
-		statistics.search_nodes = 0;
-		statistics.quiescence_nodes = 0;
-
 		// Aspiration Windows
 		// Inside Iterative Deepening, the evaluation of the previous iteration is often close
 		// to the next evaluation. We can narrow the window around this guess to reduce the
@@ -434,7 +426,6 @@ void Search::start_search(Board &board)
 
 		while (true) {
 			evaluation = search(board, current_depth, 0, alpha, beta, INVALID_MOVE, true);
-			total_nodes += statistics.search_nodes + statistics.quiescence_nodes;
 
 			if (abort_search) break;
 
@@ -466,12 +457,12 @@ void Search::start_search(Board &board)
 			if (time_elapsed() >= soft_time_cap * stable_best_move * stable_evaluation) abort_search = true;
 		}
 
-		plot_info(board, nodes_previous_iteration);
+		plot_info(board);
 
 		if (abort_search) break;
 	}
 
-	plot_final_info(total_nodes);
+	plot_final_info();
 }
 
 void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc, unsigned moves_to_go)
@@ -591,24 +582,17 @@ std::string Search::print_score(int score)
 	return "cp " + std::to_string(score);
 }
 
-void Search::plot_info(Board &board, unsigned nodes_previous_iteration)
+void Search::plot_info(Board &board)
 {
-	unsigned nodes = statistics.search_nodes + statistics.quiescence_nodes;
-	if (current_depth > 1) statistics.branching_factor = nodes / double(nodes_previous_iteration) + 0.0001;
 	std::string pv_line = extract_pv_line(board);
 
 	std::cout << "info depth " << current_depth << " score " << print_score(root_evaluation) << " time " << time_elapsed()
-		  << " nodes " << nodes << " hashfull " << statistics.hash_full(tt)
-	//std::cout << " snodes " << statistics.search_nodes << " qnodes " << statistics.quiescence_nodes;
-	//std::cout << " branching " << statistics.branching_factor;
+		  << " nodes " << statistics.nodes << " hashfull " << statistics.hash_full(tt)
 		  << " pv " << pv_line << "\n" << std::flush;
 }
 
-void Search::plot_final_info(unsigned total_nodes)
+void Search::plot_final_info()
 {
-	std::cerr << "cut offs " << statistics.cutoffs << " pv " << double(statistics.cutoffspv) / double(statistics.cutoffs) << "\n";
-	std::cerr << "null cuts " << statistics.null_cuts << "\n";
-	std::cerr << "info total nodes " << total_nodes << "\n";
 	std::cout << "bestmove " << move_string(best_root_move) << "\n" << std::flush;
 }
 

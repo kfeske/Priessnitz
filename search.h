@@ -10,13 +10,7 @@
 
 struct Statistics
 {
-	long search_nodes;
-	long quiescence_nodes;
-	double branching_factor;
-	long cutoffs;
-	long cutoffspv;
-	long null_cuts;
-
+	long nodes;
 	unsigned hash_full(Transposition_table &tt);
 };
 
@@ -75,7 +69,7 @@ struct Search : Noncopyable
 
 	std::string print_score(int score);
 
-	void plot_info(Board &board, unsigned nodes_previous_iteration);
+	void plot_info(Board &board);
 
-	void plot_final_info(unsigned total_nodes);
+	void plot_final_info();
 };
