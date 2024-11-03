@@ -12,7 +12,7 @@ struct Eval_info : Noncopyable
 	unsigned king_attackers[2];
 	unsigned king_zone_attacks[2];
 	int king_attackers_weight[2];
-	uint64_t passed_pawns;
+	uint64_t passed_pawns {};
 	int pawn_king_danger[2];
 
 	uint64_t attacked[2];
@@ -49,7 +49,7 @@ struct Evaluation : Noncopyable
 {
 	bool use_pawn_hash_table = true;
 	Eval_info info {};
-	Pawn_hash_table pawn_hash_table;
+	Pawn_hash_table pawn_hash_table {};
 
 	#define S(mg, eg) merge_score(mg, eg)
 

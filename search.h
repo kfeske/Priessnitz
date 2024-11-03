@@ -16,34 +16,34 @@ struct Statistics
 
 struct Search : Noncopyable
 {
-	Evaluation eval;
+	Evaluation eval {};
 	Move best_root_move = INVALID_MOVE;
-	int16_t root_evaluation;
+	int16_t root_evaluation {};
 
 	int max_depth = 63;
-	int current_depth;
+	int current_depth {};
 	bool fixed_time = false;
 	bool time_management = false;;
 	bool infinite_search = false;
 
 	// The search can abort after an iteration, if the soft time cap has been crossed.
-	unsigned soft_time_cap;
+	unsigned soft_time_cap {};
 
 	// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
-	unsigned hard_time_cap;
+	unsigned hard_time_cap {};
 
 	// Safety move overhead buffer to avoid losing on time
 	unsigned move_overhead = 10;
 
-	Statistics statistics;
-	Heuristics heuristics;
-	Search_constants search_constants;
+	Statistics statistics {};
+	Heuristics heuristics {};
+	Search_constants search_constants {};
 
-	unsigned age;
-	Transposition_table tt;
+	unsigned age {};
+	Transposition_table tt {};
 
-	std::chrono::time_point<std::chrono::_V2::high_resolution_clock> time_start;
-	bool abort_search;
+	std::chrono::time_point<std::chrono::_V2::high_resolution_clock> time_start {};
+	bool abort_search = false;
 
 	void reset();
 

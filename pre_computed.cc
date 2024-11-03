@@ -160,8 +160,8 @@ Pre_computed generate_lookup()
 			}
 			p.ray_between[square][square2] |= 1ULL << square2;
 
-			p.rank_distance[square][square2] = abs(rank_num(square) - rank_num(square2));
-			p.file_distance[square][square2] = abs(file_num(square) - file_num(square2));
+			p.rank_distance[square][square2] = abs(int(rank_num(square)) - int(rank_num(square2)));
+			p.file_distance[square][square2] = abs(int(file_num(square)) - int(file_num(square2)));
 			p.square_distance[square][square2] = std::max(p.rank_distance[square][square2], p.file_distance[square][square2]);
 		}
 	}
