@@ -27,13 +27,13 @@ struct Search : Noncopyable
 	bool infinite_search = false;
 
 	// The search can abort after an iteration, if the soft time cap has been crossed.
-	unsigned soft_time_cap {};
+	double soft_time_cap {};
 
 	// The hard time cap aborts the search and is the absolute maximum time, the engine can search.
-	unsigned hard_time_cap {};
+	double hard_time_cap {};
 
 	// Safety move overhead buffer to avoid losing on time
-	unsigned move_overhead = 10;
+	double move_overhead = 10.0;
 
 	Statistics statistics {};
 	Heuristics heuristics {};
@@ -57,7 +57,7 @@ struct Search : Noncopyable
 
 	void start_search(Board &board);
 
-	void think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc, unsigned moves_to_go);
+	void think(Board &board, double move_time, double w_time, double b_time, double w_inc, double b_inc, double moves_to_go);
 
 	void update_heuristics(Board &board, Move move, int depth, int ply, Move_list &bad_quiets_searched);
 

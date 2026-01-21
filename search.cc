@@ -28,7 +28,7 @@ void Search::reset()
 double Search::time_elapsed()
 {
 	std::chrono::time_point<std::chrono::_V2::high_resolution_clock> time_end = std::chrono::high_resolution_clock::now();
-	return std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+	return std::chrono::duration<double, std::milli>(time_end - time_start).count();
 }
 
 bool Search::crossed_hard_time_limit()
@@ -454,6 +454,7 @@ void Search::start_search(Board &board)
 			// We use more time, when the evaluation score drops.
 			int evaluation_difference = std::max(std::min(last_evaluation - evaluation, 100), -100);
 			double stable_evaluation = std::pow(2, double(evaluation_difference) / 100.0);
+			//std::cerr << time_elapsed() << " " << soft_time_cap << "\n";
 			if (time_elapsed() >= soft_time_cap * stable_best_move * stable_evaluation) abort_search = true;
 		}
 
@@ -465,34 +466,40 @@ void Search::start_search(Board &board)
 	plot_final_info();
 }
 
-void Search::think(Board &board, unsigned move_time, unsigned w_time, unsigned b_time, unsigned w_inc, unsigned b_inc, unsigned moves_to_go)
+void Search::think(Board &board, double move_time, double w_time, double b_time, double w_inc, double b_inc, double moves_to_go)
 {
-	unsigned time_left = board.side_to_move == WHITE ? w_time : b_time;
-
 	if (time_management) {
 
 		Move_list move_list;
 		generate_legal(board, move_list);
 
-		unsigned increment = board.side_to_move == WHITE ? w_inc  : b_inc;
+		double time_left = board.side_to_move == WHITE ? w_time : b_time;
+		time_left = std::max(time_left - move_overhead, 1.0);
+
+		double increment = board.side_to_move == WHITE ? w_inc  : b_inc;
 
 
 		// Sudden death time control
 		if (!moves_to_go) {
 
 			// We always use a fraction of the remaining time, which means, we spend more time in the early game.
-			soft_time_cap = (time_left - move_overhead) / 40 + increment;
-			hard_time_cap = soft_time_cap * 5;
+			double expected_moves = 40.0;
+			double expected_time = time_left + increment * (expected_moves - 1);
+			soft_time_cap = expected_time / expected_moves;
+			hard_time_cap = time_left * 4.0 / 5.0;
 		}
 		// X time for Y moves
 		else {
 			// We try to equally distribute the time for the remaining moves.
-			soft_time_cap = (time_left - move_overhead) / (moves_to_go + 5) + increment;
-			hard_time_cap = soft_time_cap * 5;
+			double expected_time = time_left + increment * (moves_to_go - 1);
+			soft_time_cap = expected_time / moves_to_go;
+			hard_time_cap = time_left * 4.0 / 5.0;
 		}
 
-		soft_time_cap = std::max(1U, std::min(soft_time_cap, time_left - move_overhead));
-		hard_time_cap = std::max(1U, std::min(hard_time_cap, time_left - move_overhead));
+		soft_time_cap = std::min(soft_time_cap, time_left);
+		hard_time_cap = std::min(hard_time_cap, time_left);
+		//std::cerr << time_left << " " << soft_time_cap << " " << hard_time_cap << "\n";
+
 
 		// Respond instantly in case of a single legal move.
 		if (move_list.size == 1)
@@ -586,9 +593,10 @@ void Search::plot_info(Board &board)
 {
 	std::string pv_line = extract_pv_line(board);
 
-	std::cout << "info depth " << current_depth << " score " << print_score(root_evaluation) << " time " << time_elapsed()
-		  << " nodes " << statistics.nodes << " hashfull " << statistics.hash_full(tt)
-		  << " pv " << pv_line << "\n" << std::flush;
+	std::cout << "info depth " << current_depth << " score " << print_score(root_evaluation)
+	          <<" time " << unsigned(time_elapsed())
+	          << " nodes " << statistics.nodes << " hashfull " << statistics.hash_full(tt)
+	          << " pv " << pv_line << "\n" << std::flush;
 }
 
 void Search::plot_final_info()

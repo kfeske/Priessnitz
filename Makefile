@@ -1,7 +1,7 @@
 MAKEFLAGS += -j8
 test:
 
-NAME = priessnitz_2.0
+NAME = priessnitz_2.0.1
 
 CXXFLAGS += -Wall -Wextra -Weffc++ -Werror -MMD -O3 -flto -I. -static
 
